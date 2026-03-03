@@ -4,7 +4,8 @@ import { Text, View } from "react-native";
 export default function Index() {
   return (
     <View className="flex-1 justify-center items-center bg-blue-500">
-      <Text className="text-white text-lg font-bold">Hello World Word NativeWind with TypeScript!</Text>
+      <Text className="text-white text-lg font-bold">Hello World NativeWind with TypeScript!</Text>
+      <Text className="text-white text-lg font-bold">Hello World 2</Text>
     </View>
   );
 }
