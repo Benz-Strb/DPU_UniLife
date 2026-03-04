@@ -1,10 +1,24 @@
 import "./global.css";
-import { Text, View } from "react-native";
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { theme } from "./constants/theme";
+import LoginScreen from "./screens/Longin/LoginScreen";
+import SignUpScreen from "./screens/Longin/SignUpScreen";
 
-export default function Index() {
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+export default function App() {
   return (
-    <View className="flex-1 justify-center items-center bg-blue-500">
-      <Text className="text-white text-lg font-bold">Hello World NativeWind with TypeScript!</Text>
-    </View>
+    <SafeAreaProvider>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+        </Stack.Navigator>
+    </SafeAreaProvider>
   );
 }
