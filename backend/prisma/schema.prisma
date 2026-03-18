@@ -6,3 +6,8 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model users {
+  userId      String      @id   @default(uuid())    @db.Uuid
+  username    String      
+}

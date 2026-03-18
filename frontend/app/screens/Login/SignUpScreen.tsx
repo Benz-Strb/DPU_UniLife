@@ -21,14 +21,14 @@ export default function SignUpScreen() {
   const navigation = useNavigation<any>();
   
   // States for Multi-step Form
-  const [step, setStep] = useState(1); // 1: Google Button, 2: Email Input, 3: Password Creation
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Pastel Colors
+  // Color
   const pastelPurple = "#E0BBE4";
   const pastelBlue = "#B2E2F2";
   const deepPurple = "#5a2d81";

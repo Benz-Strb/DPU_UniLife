@@ -2,8 +2,8 @@ export const theme = {
   colors: {
     primary: "#5a2d81", // DPU Purple
     primaryLight: "#8e44ad",
-    secondary: "#00a8e8", // Cyan/Blue
-    accent: "#7b61ff", // Purple-Blue
+    secondary: "#00a8e8",
+    accent: "#7b61ff",
     background: "#F2F5FA",
     surface: "#ffffff",
     text: "#1a1a1a",
