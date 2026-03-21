@@ -7,7 +7,529 @@ datasource db {
   provider = "postgresql"
 }
 
-model users {
-  userId      String      @id   @default(uuid())    @db.Uuid
-  username    String      
+enum UserRole {
+  STUDENT
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNDISCLOSED
+}
+
+enum LoginStatus {
+  SUCCESS
+  FAILED
+  LOCKED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+enum PostVisibility {
+  PUBLIC
+  FOLLOWERS
+  GROUP_ONLY
+  PRIVATE
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+  SAD
+  ANGRY
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum GroupMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum NotificationType {
+  SYSTEM
+  LIKE
+  COMMENT
+  SHARE
+  MESSAGE
+  FOLLOW
+  GROUP_INVITE
+  ANNOUNCEMENT
+  REPORT_UPDATE
+}
+
+enum ReportTargetType {
+  USER
+  POST
+  COMMENT
+  MESSAGE
+  GROUP
+  ANNOUNCEMENT
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model User {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  email                String                    @unique
+  username             String                    @unique
+  studentId            String?                   @unique
+  passwordHash         String?
+  fullName             String
+  bio                  String?
+  avatarUrl            String?
+  coverUrl             String?
+  birthDate            DateTime?
+  gender               Gender                    @default(UNDISCLOSED)
+  role                 UserRole                  @default(STUDENT)
+  status               UserStatus                @default(PENDING)
+  isVerified           Boolean                   @default(false)
+  verifiedAt           DateTime?
+  lastLoginAt          DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  authoredPosts        Post[]
+  postComments         Comment[]
+  postReactions        PostReaction[]
+  postShares           PostShare[]               @relation("PostShareActor")
+  receivedShares       PostShare[]               @relation("PostShareOwner")
+  createdGroups        Group[]                   @relation("GroupCreator")
+  groupMemberships     GroupMember[]
+  sentMessages         Message[]                 @relation("MessageSender")
+  sentConversations    Conversation[]            @relation("ConversationCreator")
+  conversationMembers  ConversationParticipant[]
+  messageReadReceipts  MessageRead[]
+  sentNotifications    Notification[]            @relation("NotificationSender")
+  receivedNotifications Notification[]           @relation("NotificationReceiver")
+  authoredAnnouncements UniversityAnnouncement[] @relation("AnnouncementAuthor")
+  systemSettings       SystemSetting[]           @relation("SettingEditor")
+  loginLogs            LoginLog[]
+  createdReports       Report[]                  @relation("ReportCreator")
+  handledReports       Report[]                  @relation("ReportHandler")
+  reportsAsTarget      Report[]                  @relation("ReportTargetUser")
+  reportActions        ReportAction[]
+  auditLogs            AdminAuditLog[]
+  searchHistories      SearchHistory[]
+  feedSignals          FeedSignal[]
+  following            UserFollow[]              @relation("UserFollowFollower")
+  followers            UserFollow[]              @relation("UserFollowFollowing")
+}
+
+model UserFollow {
+  followerId String @db.Uuid
+  followingId String @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower  User @relation("UserFollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Post {
+  id             String         @id @default(uuid()) @db.Uuid
+  authorId       String         @db.Uuid
+  groupId        String?        @db.Uuid
+  title          String?
+  content        String?
+  visibility     PostVisibility @default(PUBLIC)
+  isPinned       Boolean        @default(false)
+  isArchived     Boolean        @default(false)
+  commentsEnabled Boolean       @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  author         User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  group          Group?         @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  media          PostMedia[]
+  tags           PostTagMap[]
+  comments       Comment[]
+  reactions      PostReaction[]
+  shares         PostShare[]
+  feedSignals    FeedSignal[]
+  reports        Report[]       @relation("ReportPost")
+
+  @@index([authorId, createdAt])
+  @@index([groupId, createdAt])
+  @@index([visibility, createdAt])
+}
+
+model PostMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  mediaType MediaType
+  url       String
+  width     Int?
+  height    Int?
+  durationSec Int?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, sortOrder])
+}
+
+model Tag {
+  id        String      @id @default(uuid()) @db.Uuid
+  name      String      @unique
+  description String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  postLinks  PostTagMap[]
+}
+
+model PostTagMap {
+  postId String @db.Uuid
+  tagId  String @db.Uuid
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  postId     String   @db.Uuid
+  authorId   String   @db.Uuid
+  parentId   String?  @db.Uuid
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent     Comment? @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[] @relation("CommentThread")
+  reports    Report[] @relation("ReportComment")
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([parentId])
+}
+
+model PostReaction {
+  postId     String       @db.Uuid
+  userId     String       @db.Uuid
+  reaction   ReactionType @default(LIKE)
+  createdAt  DateTime     @default(now())
+
+  post       Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model PostShare {
+  id           String   @id @default(uuid()) @db.Uuid
+  postId        String   @db.Uuid
+  sharedById    String   @db.Uuid
+  originalAuthorId String @db.Uuid
+  sharedToText  String?
+  createdAt     DateTime @default(now())
+
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sharedBy      User     @relation("PostShareActor", fields: [sharedById], references: [id], onDelete: Cascade)
+  originalAuthor User    @relation("PostShareOwner", fields: [originalAuthorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([sharedById, createdAt])
+}
+
+model Group {
+  id            String          @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String          @unique
+  description   String?
+  avatarUrl     String?
+  coverUrl      String?
+  isOfficial    Boolean         @default(false)
+  createdById   String          @db.Uuid
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  createdBy     User            @relation("GroupCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members       GroupMember[]
+  posts         Post[]
+  conversations Conversation[]
+  reports       Report[]        @relation("ReportGroup")
+
+  @@index([createdById])
+  @@index([isOfficial, createdAt])
+}
+
+model GroupMember {
+  groupId    String          @db.Uuid
+  userId     String          @db.Uuid
+  role       GroupMemberRole @default(MEMBER)
+  joinedAt   DateTime        @default(now())
+  mutedUntil DateTime?
+
+  group      Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, joinedAt])
+}
+
+model Conversation {
+  id              String                  @id @default(uuid()) @db.Uuid
+  type            ConversationType        @default(DIRECT)
+  title           String?
+  createdById     String                  @db.Uuid
+  groupId         String?                 @db.Uuid
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  createdBy       User                    @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  group           Group?                  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  participants    ConversationParticipant[]
+  messages        Message[]
+
+  @@index([type, updatedAt])
+  @@index([groupId])
+}
+
+model ConversationParticipant {
+  conversationId String   @db.Uuid
+  userId         String   @db.Uuid
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime?
+  isMuted        Boolean  @default(false)
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId, lastReadAt])
+}
+
+model Message {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @db.Uuid
+  senderId       String   @db.Uuid
+  body           String?
+  attachmentUrl  String?
+  attachmentType MediaType?
+  createdAt      DateTime @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  reads          MessageRead[]
+  reports        Report[]     @relation("ReportMessage")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model MessageRead {
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId, readAt])
+}
+
+model Notification {
+  id            String           @id @default(uuid()) @db.Uuid
+  receiverId    String           @db.Uuid
+  senderId      String?          @db.Uuid
+  type          NotificationType
+  title         String
+  body          String?
+  refPostId     String?          @db.Uuid
+  refCommentId  String?          @db.Uuid
+  refMessageId  String?          @db.Uuid
+  refGroupId    String?          @db.Uuid
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
+
+  receiver      User             @relation("NotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender        User?            @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([receiverId, isRead, createdAt])
+  @@index([type, createdAt])
+}
+
+model UniversityAnnouncement {
+  id          String             @id @default(uuid()) @db.Uuid
+  title       String
+  content     String
+  coverUrl    String?
+  status      AnnouncementStatus @default(DRAFT)
+  publishedAt DateTime?
+  authorId    String             @db.Uuid
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  author      User               @relation("AnnouncementAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  reports     Report[]           @relation("ReportAnnouncement")
+
+  @@index([status, publishedAt])
+  @@index([authorId, createdAt])
+}
+
+model SearchHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  keyword    String
+  searchedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, searchedAt])
+}
+
+model LoginLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String?     @db.Uuid
+  emailInput  String?
+  ipAddress   String?
+  userAgent   String?
+  status      LoginStatus
+  reason      String?
+  createdAt   DateTime    @default(now())
+
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Report {
+  id             String           @id @default(uuid()) @db.Uuid
+  reporterId     String           @db.Uuid
+  targetType     ReportTargetType
+  targetUserId   String?          @db.Uuid
+  targetPostId   String?          @db.Uuid
+  targetCommentId String?         @db.Uuid
+  targetMessageId String?         @db.Uuid
+  targetGroupId   String?         @db.Uuid
+  targetAnnouncementId String?    @db.Uuid
+  reason         String
+  detail         String?
+  status         ReportStatus     @default(OPEN)
+  handledById    String?          @db.Uuid
+  handledAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  reporter       User             @relation("ReportCreator", fields: [reporterId], references: [id], onDelete: Cascade)
+  handledBy      User?            @relation("ReportHandler", fields: [handledById], references: [id], onDelete: SetNull)
+  targetUser     User?            @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetPost     Post?            @relation("ReportPost", fields: [targetPostId], references: [id], onDelete: SetNull)
+  targetComment  Comment?         @relation("ReportComment", fields: [targetCommentId], references: [id], onDelete: SetNull)
+  targetMessage  Message?         @relation("ReportMessage", fields: [targetMessageId], references: [id], onDelete: SetNull)
+  targetGroup    Group?           @relation("ReportGroup", fields: [targetGroupId], references: [id], onDelete: SetNull)
+  targetAnnouncement UniversityAnnouncement? @relation("ReportAnnouncement", fields: [targetAnnouncementId], references: [id], onDelete: SetNull)
+  actions        ReportAction[]
+
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([handledById, createdAt])
+}
+
+model ReportAction {
+  id          String     @id @default(uuid()) @db.Uuid
+  reportId    String     @db.Uuid
+  actorId     String     @db.Uuid
+  action      String
+  note        String?
+  createdAt   DateTime   @default(now())
+
+  report      Report     @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  actor       User       @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
+}
+
+model SystemSetting {
+  key         String    @id
+  value       Json
+  description String?
+  updatedById String?   @db.Uuid
+  updatedAt   DateTime  @updatedAt
+
+  updatedBy   User?     @relation("SettingEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model AdminAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String   @db.Uuid
+  action      String
+  entityType  String
+  entityId    String?
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model FeedSignal {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  postId      String   @db.Uuid
+  score       Float
+  source      String
+  calculatedAt DateTime @default(now())
+  metadata    Json?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, source])
+  @@index([userId, score])
+  @@index([postId, score])
 }
