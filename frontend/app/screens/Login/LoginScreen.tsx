@@ -28,8 +28,8 @@ export default function LoginScreen() {
   const deepPurple = "#5a2d81";
   const coolBlue = "#70D6FF";
 
-  const handleLogin = () => {
-    if (!studentId || studentId.length < 5) {
+  const handleLogin = async () => {
+    if (!studentId || studentId.length !== 8) {
       Alert.alert("ข้อมูลไม่ถูกต้อง", "กรุณากรอกรหัสนักศึกษาให้ถูกต้อง");
       return;
     }
@@ -37,7 +37,30 @@ export default function LoginScreen() {
       Alert.alert("ข้อผิดพลาด", "กรุณากรอกรหัสผ่าน");
       return;
     }
-    navigation.navigate("Main");
+
+    try {
+      const response = await fetch("http:10.0.2.2:8080/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-type" : "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert("เข้าสู่ระบบไม่สำเร็จ", data.message || "เกิดข้อผิดพลาด");
+        return;
+      }
+      Alert.alert("เข้าสู่ระบบสำเร็จ", "กำลังเข้าสู่ระบบ");
+      navigation.navigate("Main");
+    } catch (_error) {
+      Alert.alert("เชื่อมต่อ Server ไม่ได้", "กรุณาลองใหม่อีกครั้ง");
+    }
   };
 
   return (
