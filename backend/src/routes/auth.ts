@@ -78,15 +78,20 @@ authRouter.post('/login', async (req, res) => {
     });
 
     if (!user || !user.passwordHash) {
-        await prisma.loginLog.create({
-            data: {
-                emailInput: studentId,
-                status: LoginStatus.FAILED,
-                reason: 'User not found',
-                ipAddress,
-                userAgent,
-            },
-        });
+        try {
+            await prisma.loginLog.create({
+                data: {
+                    emailInput: studentId,
+                    status: LoginStatus.FAILED,
+                    reason: 'User not found',
+                    ipAddress,
+                    userAgent,
+                },
+            });
+            console.log(`LoginLog created (FAILED: User not found) for ${studentId}`);
+        } catch (error) {
+            console.error('Error creating LoginLog (User not found):', error);
+        }
 
         return res.status(401).json({
             message: 'Invalid studentId or password',
@@ -96,31 +101,41 @@ authRouter.post('/login', async (req, res) => {
     const isPasswordCorrect = await verifyPassword(password, user.passwordHash);
 
     if (!isPasswordCorrect) {
-        await prisma.loginLog.create({
-            data: {
-                userId: user.id,
-                emailInput: studentId,
-                status: LoginStatus.FAILED,
-                reason: 'Incorrect password',
-                ipAddress,
-                userAgent,
-            },
-        });
+        try {
+            await prisma.loginLog.create({
+                data: {
+                    userId: user.id,
+                    emailInput: studentId,
+                    status: LoginStatus.FAILED,
+                    reason: 'Incorrect password',
+                    ipAddress,
+                    userAgent,
+                },
+            });
+            console.log(`LoginLog created (FAILED: Incorrect password) for user ${user.id}`);
+        } catch (error) {
+            console.error('Error creating LoginLog (Incorrect password):', error);
+        }
 
         return res.status(401).json({
             message: 'Invalid studentId or password',
         });
     }
 
-    await prisma.loginLog.create({
-        data: {
-            userId: user.id,
-            emailInput: studentId,
-            status: LoginStatus.SUCCESS,
-            ipAddress,
-            userAgent,
-        },
-    });
+    try {
+        await prisma.loginLog.create({
+            data: {
+                userId: user.id,
+                emailInput: studentId,
+                status: LoginStatus.SUCCESS,
+                ipAddress,
+                userAgent,
+            },
+        });
+        console.log(`LoginLog created (SUCCESS) for user ${user.id}`);
+    } catch (error) {
+        console.error('Error creating LoginLog (SUCCESS):', error);
+    }
     
     return res.status(200).json({
         message: 'Login successful',

@@ -1,21 +1,13 @@
-import "./global.css";
 import React from "react";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import LoginScreen from "./screens/Login/LoginScreen";
-import SignUpScreen from "./screens/Login/SignUpScreen";
+import { Redirect } from "expo-router";
+import { useUser } from "@/store/UserContext";
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+export default function Index() {
+  const { userId } = useUser();
 
-export default function App() {
-  return (
-    <SafeAreaProvider>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} />
-        </Stack.Navigator>
-    </SafeAreaProvider>
-  );
+  if (userId === "") {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  return <Redirect href="/(tabs)/home" />;
 }

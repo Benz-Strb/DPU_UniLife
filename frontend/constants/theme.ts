@@ -1,0 +1,43 @@
+export const theme = {
+  colors: {
+    primary: "#7C3AED", 
+    primaryLight: "#EDE9FE",
+    secondary: "#F59E0B", 
+    white: "#FFFFFF",
+    black: "#000000",
+  },
+  light: {
+    background: "#F8F9FE",
+    card: "#FFFFFF",
+    text: "#1F2937",
+    subText: "#6B7280",
+    border: "#F1F5F9",
+    iconBg: "#F5F3FF",
+    tabBar: "#FFFFFF",
+    statusBar: "dark-content",
+  },
+  dark: {
+    background: "#121212",
+    card: "#1E1E1E",
+    text: "#FFFFFF",
+    subText: "#A0A0A0",
+    border: "#2D2D2D",
+    iconBg: "#2D2D2D",
+    tabBar: "#1E1E1E",
+    statusBar: "light-content",
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+  },
+  borderRadius: {
+    sm: 8,
+    md: 12,
+    lg: 24,
+    xl: 35,
+    full: 9999,
+  }
+};
