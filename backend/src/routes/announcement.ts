@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { AnnouncementStatus } from '../../generated/prisma/enums';
+import { Prisma } from '../../generated/prisma/client';
+import { AnnouncementStatus, UserRole } from '../../generated/prisma/enums';
 import { prisma } from '../lib/prisma';
 
 const announcementRouter = Router();
@@ -10,6 +11,12 @@ const announcementAuthorSelect = {
   avatarUrl: true,
   role: true,
 } as const;
+
+const editableAnnouncementRoles = new Set<UserRole>([
+  UserRole.STAFF,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+]);
 
 const parseAnnouncementStatus = (value: unknown): AnnouncementStatus | null => {
   if (typeof value !== 'string') {
@@ -32,12 +39,50 @@ const parseDate = (value: unknown): Date | null => {
 };
 
 const isUuid = (value: string): boolean => {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+};
+
+const parsePositiveInt = (value: unknown): number | null => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null;
+  }
+
+  const parsedValue = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    return null;
+  }
+
+  return parsedValue;
+};
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === '' ? undefined : trimmedValue;
+};
+
+const normalizeRequiredString = (value: unknown): string | null => {
+  return normalizeOptionalString(value) ?? null;
+};
+
+const isAnnouncementEditor = (role: UserRole): boolean => {
+  return editableAnnouncementRoles.has(role);
+};
+
+const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
+  return error instanceof Prisma.PrismaClientKnownRequestError;
 };
 
 announcementRouter.get('/', async (req, res) => {
   const statusQuery = req.query.status;
   const status = parseAnnouncementStatus(statusQuery);
+  const page = parsePositiveInt(req.query.page);
+  const limit = parsePositiveInt(req.query.limit);
+  const q = normalizeOptionalString(req.query.q);
+  const authorId = normalizeOptionalString(req.query.authorId);
 
   if (statusQuery !== undefined && !status) {
     return res.status(400).json({
@@ -45,23 +90,65 @@ announcementRouter.get('/', async (req, res) => {
     });
   }
 
-  try {
-    const announcements = await prisma.universityAnnouncement.findMany({
-      where: {
-        status: status ?? AnnouncementStatus.PUBLISHED,
-      },
-      include: {
-        author: {
-          select: announcementAuthorSelect,
-        },
-      },
-      orderBy: [
-        { publishedAt: 'desc' },
-        { createdAt: 'desc' },
-      ],
+  if (req.query.page !== undefined && !page) {
+    return res.status(400).json({
+      message: 'page must be a positive integer',
     });
+  }
 
-    return res.json(announcements);
+  if (req.query.limit !== undefined && !limit) {
+    return res.status(400).json({
+      message: 'limit must be a positive integer',
+    });
+  }
+
+  if (authorId !== undefined && !isUuid(authorId)) {
+    return res.status(400).json({
+      message: 'Invalid authorId',
+    });
+  }
+
+  const currentPage = page ?? 1;
+  const pageSize = Math.min(limit ?? 10, 50);
+  const skip = (currentPage - 1) * pageSize;
+  const where: Prisma.UniversityAnnouncementWhereInput = {
+    status: status ?? AnnouncementStatus.PUBLISHED,
+    authorId,
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { content: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+  };
+
+  try {
+    const [announcements, total] = await Promise.all([
+      prisma.universityAnnouncement.findMany({
+        where,
+        include: {
+          author: {
+            select: announcementAuthorSelect,
+          },
+        },
+        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: pageSize,
+      }),
+      prisma.universityAnnouncement.count({ where }),
+    ]);
+
+    return res.json({
+      data: announcements,
+      pagination: {
+        page: currentPage,
+        limit: pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch announcements:', error);
     return res.status(500).json({
@@ -94,6 +181,12 @@ announcementRouter.get('/:id', async (req, res) => {
       });
     }
 
+    if (announcement.status !== AnnouncementStatus.PUBLISHED) {
+      return res.status(404).json({
+        message: 'Announcement not found',
+      });
+    }
+
     return res.json(announcement);
   } catch (error) {
     console.error('Failed to fetch announcement:', error);
@@ -104,11 +197,26 @@ announcementRouter.get('/:id', async (req, res) => {
 });
 
 announcementRouter.post('/', async (req, res) => {
-  const { title, content, coverUrl, authorId, status: statusInput, publishedAt: publishedAtInput } = req.body;
+  const {
+    title: titleInput,
+    content: contentInput,
+    coverUrl,
+    authorId,
+    status: statusInput,
+    publishedAt: publishedAtInput,
+  } = req.body;
+  const title = normalizeRequiredString(titleInput);
+  const content = normalizeRequiredString(contentInput);
 
   if (!title || !content || !authorId) {
     return res.status(400).json({
       message: 'title, content and authorId are required',
+    });
+  }
+
+  if (!isUuid(String(authorId))) {
+    return res.status(400).json({
+      message: 'Invalid authorId',
     });
   }
 
@@ -127,12 +235,34 @@ announcementRouter.post('/', async (req, res) => {
   }
 
   try {
+    const author = await prisma.user.findUnique({
+      where: {
+        id: String(authorId),
+      },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    if (!author) {
+      return res.status(404).json({
+        message: 'Author not found',
+      });
+    }
+
+    if (!isAnnouncementEditor(author.role)) {
+      return res.status(403).json({
+        message: 'Only staff or admins can create announcements',
+      });
+    }
+
     const announcement = await prisma.universityAnnouncement.create({
       data: {
-        title: String(title).trim(),
-        content: String(content).trim(),
+        title,
+        content,
         coverUrl: typeof coverUrl === 'string' && coverUrl.trim() !== '' ? coverUrl.trim() : null,
-        authorId: String(authorId),
+        authorId: author.id,
         status,
         publishedAt:
           status === AnnouncementStatus.PUBLISHED
@@ -148,6 +278,12 @@ announcementRouter.post('/', async (req, res) => {
 
     return res.status(201).json(announcement);
   } catch (error) {
+    if (isPrismaKnownError(error) && error.code === 'P2003') {
+      return res.status(400).json({
+        message: 'Invalid authorId',
+      });
+    }
+
     console.error('Failed to create announcement:', error);
     return res.status(500).json({
       message: 'Failed to create announcement',
@@ -158,10 +294,31 @@ announcementRouter.post('/', async (req, res) => {
 announcementRouter.patch('/:id', async (req, res) => {
   if (!isUuid(req.params.id)) {
     return res.status(400).json({
-      message: "Invalid announcement id",
+      message: 'Invalid announcement id',
     });
   }
-  const { title, content, coverUrl, status: statusInput, publishedAt: publishedAtInput } = req.body;
+  const {
+    title: titleInput,
+    content: contentInput,
+    coverUrl,
+    status: statusInput,
+    publishedAt: publishedAtInput,
+  } = req.body;
+
+  const title = titleInput === undefined ? undefined : normalizeRequiredString(titleInput);
+  const content = contentInput === undefined ? undefined : normalizeRequiredString(contentInput);
+
+  if (titleInput !== undefined && !title) {
+    return res.status(400).json({
+      message: 'title cannot be empty',
+    });
+  }
+
+  if (contentInput !== undefined && !content) {
+    return res.status(400).json({
+      message: 'content cannot be empty',
+    });
+  }
 
   let status: AnnouncementStatus | undefined;
   if (statusInput !== undefined) {
@@ -202,13 +359,13 @@ announcementRouter.patch('/:id', async (req, res) => {
         id: req.params.id,
       },
       data: {
-        title: typeof title === 'string' ? title.trim() : undefined,
-        content: typeof content === 'string' ? content.trim() : undefined,
+        title: title ?? undefined,
+        content: content ?? undefined,
         coverUrl:
           coverUrl === null
             ? null
             : typeof coverUrl === 'string'
-              ? coverUrl.trim()
+              ? coverUrl.trim() || null
               : undefined,
         status,
         publishedAt:
@@ -216,6 +373,8 @@ announcementRouter.patch('/:id', async (req, res) => {
             ? publishedAt
             : nextStatus === AnnouncementStatus.PUBLISHED && !existingAnnouncement.publishedAt
               ? new Date()
+              : nextStatus !== AnnouncementStatus.PUBLISHED
+                ? null
               : undefined,
       },
       include: {
@@ -227,6 +386,12 @@ announcementRouter.patch('/:id', async (req, res) => {
 
     return res.json(announcement);
   } catch (error) {
+    if (isPrismaKnownError(error) && error.code === 'P2025') {
+      return res.status(404).json({
+        message: 'Announcement not found',
+      });
+    }
+
     console.error('Failed to update announcement:', error);
     return res.status(500).json({
       message: 'Failed to update announcement',
@@ -235,40 +400,46 @@ announcementRouter.patch('/:id', async (req, res) => {
 });
 
 announcementRouter.delete('/:id', async (req, res) => {
-    if (!isUuid(req.params.id)) {
-      return res.status(400).json({
-        message: 'Invalid announcement id',
+  if (!isUuid(req.params.id)) {
+    return res.status(400).json({
+      message: 'Invalid announcement id',
+    });
+  }
+
+  try {
+    const existingAnnouncement = await prisma.universityAnnouncement.findUnique({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    if (!existingAnnouncement) {
+      return res.status(404).json({
+        message: 'Announcement not found',
       });
     }
 
-    try {
-      const existingAnnouncement = await prisma.universityAnnouncement.findUnique({
-        where: {
-          id: req.params.id,
-        },
-      });
+    await prisma.universityAnnouncement.delete({
+      where: {
+        id: req.params.id,
+      },
+    });
 
-      if (!existingAnnouncement) {
-        return res.status(404).json({
-          message: 'Announcement not found',
-        });
-      }
-
-      await prisma.universityAnnouncement.delete({
-        where: {
-          id: req.params.id,
-        },
-      });
-
-      return res.json({
-        message: 'Announcement deleted successfully',
-      });
-    } catch (error) {
-      console.error('Failed to delete announcement:', error);
-      return res.status(500).json({
-        message: 'Failed to delete announcement',
+    return res.json({
+      message: 'Announcement deleted successfully',
+    });
+  } catch (error) {
+    if (isPrismaKnownError(error) && error.code === 'P2025') {
+      return res.status(404).json({
+        message: 'Announcement not found',
       });
     }
+
+    console.error('Failed to delete announcement:', error);
+    return res.status(500).json({
+      message: 'Failed to delete announcement',
+    });
+  }
 });
 
 export { announcementRouter };
