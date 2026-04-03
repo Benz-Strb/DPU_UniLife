@@ -1,24 +1,136 @@
-import { Router } from 'express';
-import { LoginStatus } from '../../generated/prisma/enums';
+import { Router, Request, Response } from 'express';
+import { Prisma } from '../../generated/prisma/client';
+import { Gender, LoginStatus, UserRole, UserStatus } from '../../generated/prisma/enums';
 import { prisma } from '../lib/prisma';
 import { hashPassword, verifyPassword } from '../password';
 
 const authRouter = Router();
 
-authRouter.post('/register', async (req, res) => {
-  const { email, fullName, username, password } = req.body;
+const safeUserSelect = {
+  id: true,
+  email: true,
+  username: true,
+  studentId: true,
+  fullName: true,
+  bio: true,
+  avatarUrl: true,
+  coverUrl: true,
+  birthDate: true,
+  gender: true,
+  role: true,
+  status: true,
+  isVerified: true,
+  verifiedAt: true,
+  lastLoginAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
-  if (!email || !fullName || !username || !password) {
+const dpuEmailRegex = /^\d{8}@dpu\.ac\.th$/i;
+const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+const fullNameRegex = /^[A-Za-z0-9_\s]+$/;
+
+const isUuid = (value: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+};
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === '' ? undefined : trimmedValue;
+};
+
+const normalizeRequiredString = (value: unknown): string | null => {
+  return normalizeOptionalString(value) ?? null;
+};
+
+const parseGender = (value: unknown): Gender | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  if (value in Gender) {
+    return value as Gender;
+  }
+
+  return null;
+};
+
+const parseBirthDate = (value: unknown): Date | null => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
+  return error instanceof Prisma.PrismaClientKnownRequestError;
+};
+
+const logLoginAttempt = async ({
+  userId,
+  emailInput,
+  status,
+  reason,
+  ipAddress,
+  userAgent,
+}: {
+  userId?: string;
+  emailInput?: string;
+  status: LoginStatus;
+  reason?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}) => {
+  try {
+    await prisma.loginLog.create({
+      data: {
+        userId,
+        emailInput,
+        status,
+        reason,
+        ipAddress: ipAddress ?? null,
+        userAgent: userAgent ?? null,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create login log:', error);
+  }
+};
+
+authRouter.post('/register', async (req: Request, res: Response) => {
+  const { email: emailInput, fullName: fullNameInput, username: usernameInput, password } = req.body;
+
+  const email = normalizeRequiredString(emailInput)?.toLowerCase();
+  const fullName = normalizeRequiredString(fullNameInput);
+  const username = normalizeRequiredString(usernameInput)?.toLowerCase().replace(/\s+/g, '_');
+
+  if (!email || !fullName || !username || typeof password !== 'string') {
     return res.status(400).json({
       message: 'email, fullName, username and password are required',
     });
   }
 
-  const dpuEmailRegex = /^\d{8}@dpu\.ac\.th$/i;
-
   if (!dpuEmailRegex.test(email)) {
     return res.status(400).json({
       message: 'Email must be in the format 12345678@dpu.ac.th',
+    });
+  }
+
+  if (!fullNameRegex.test(fullName)) {
+    return res.status(400).json({
+      message: 'Full name must be in English only',
+    });
+  }
+
+  if (!usernameRegex.test(username)) {
+    return res.status(400).json({
+      message: 'Username must be 3-30 characters and use only letters, numbers, or underscores',
     });
   }
 
@@ -29,118 +141,334 @@ authRouter.post('/register', async (req, res) => {
   }
 
   const studentId = email.slice(0, 8);
-  const cleanUserName = username.trim();
 
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [{ email }, { studentId }, { username: cleanUserName }],
-    },
-  });
+  try {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { studentId }, { username }],
+      },
+      select: {
+        id: true,
+      },
+    });
 
-  if (existingUser) {
-    return res.status(409).json({
-      message: 'This DPU account is already registered',
+    if (existingUser) {
+      return res.status(409).json({
+        message: 'This DPU account is already registered',
+      });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        fullName,
+        studentId,
+        username,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+      },
+      select: safeUserSelect,
+    });
+
+    return res.status(201).json({
+      message: 'User registered successfully',
+      user,
+    });
+  } catch (error) {
+    if (isPrismaKnownError(error) && error.code === 'P2002') {
+      return res.status(409).json({
+        message: 'This DPU account is already registered',
+      });
+    }
+
+    console.error('Failed to register user:', error);
+    return res.status(500).json({
+      message: 'Failed to register user',
+    });
+  }
+});
+
+authRouter.post('/login', async (req: Request, res: Response) => {
+  const { studentId: studentIdInput, password } = req.body;
+  const ipAddress = req.ip;
+  const userAgent = req.get('user-agent') || null;
+  const studentId = normalizeRequiredString(studentIdInput);
+
+  if (!studentId || typeof password !== 'string') {
+    return res.status(400).json({
+      message: 'studentId and password are required',
     });
   }
 
-  const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      fullName,
-      studentId,
-      username: cleanUserName,
-      passwordHash,
-    },
-  });
-
-  return res.status(201).json({
-    message: 'User registered successfully',
-    user,
-  });
-});
-
-authRouter.post('/login', async (req, res) => {
-    const { studentId, password } = req.body;
-    const ipAddress = req.ip;
-    const userAgent = req.get('user-agent') || null;
-
-    if (!studentId || !password) {
-        return res.status(400).json({
-            message: 'studentId and password are required',
-        });
-    }
-
+  try {
     const user = await prisma.user.findUnique({
-        where: {
-            studentId,
-        },
+      where: {
+        studentId,
+      },
+      select: {
+        ...safeUserSelect,
+        passwordHash: true,
+      },
     });
 
     if (!user || !user.passwordHash) {
-        try {
-            await prisma.loginLog.create({
-                data: {
-                    emailInput: studentId,
-                    status: LoginStatus.FAILED,
-                    reason: 'User not found',
-                    ipAddress,
-                    userAgent,
-                },
-            });
-            console.log(`LoginLog created (FAILED: User not found) for ${studentId}`);
-        } catch (error) {
-            console.error('Error creating LoginLog (User not found):', error);
-        }
+      await logLoginAttempt({
+        emailInput: studentId,
+        status: LoginStatus.FAILED,
+        reason: 'User not found',
+        ipAddress,
+        userAgent,
+      });
 
-        return res.status(401).json({
-            message: 'Invalid studentId or password',
-        });
+      return res.status(401).json({
+        message: 'Invalid studentId or password',
+      });
+    }
+
+    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.DEACTIVATED) {
+      await logLoginAttempt({
+        userId: user.id,
+        emailInput: studentId,
+        status: LoginStatus.LOCKED,
+        reason: `User status is ${user.status}`,
+        ipAddress,
+        userAgent,
+      });
+
+      return res.status(403).json({
+        message: 'This account is not allowed to sign in',
+      });
     }
 
     const isPasswordCorrect = await verifyPassword(password, user.passwordHash);
 
     if (!isPasswordCorrect) {
-        try {
-            await prisma.loginLog.create({
-                data: {
-                    userId: user.id,
-                    emailInput: studentId,
-                    status: LoginStatus.FAILED,
-                    reason: 'Incorrect password',
-                    ipAddress,
-                    userAgent,
-                },
-            });
-            console.log(`LoginLog created (FAILED: Incorrect password) for user ${user.id}`);
-        } catch (error) {
-            console.error('Error creating LoginLog (Incorrect password):', error);
-        }
+      await logLoginAttempt({
+        userId: user.id,
+        emailInput: studentId,
+        status: LoginStatus.FAILED,
+        reason: 'Incorrect password',
+        ipAddress,
+        userAgent,
+      });
 
-        return res.status(401).json({
-            message: 'Invalid studentId or password',
-        });
+      return res.status(401).json({
+        message: 'Invalid studentId or password',
+      });
     }
 
-    try {
-        await prisma.loginLog.create({
-            data: {
-                userId: user.id,
-                emailInput: studentId,
-                status: LoginStatus.SUCCESS,
-                ipAddress,
-                userAgent,
-            },
-        });
-        console.log(`LoginLog created (SUCCESS) for user ${user.id}`);
-    } catch (error) {
-        console.error('Error creating LoginLog (SUCCESS):', error);
-    }
-    
+    const { passwordHash: _passwordHash, ...safeUser } = user;
+
+    await Promise.all([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastLoginAt: new Date(),
+        },
+      }),
+      logLoginAttempt({
+        userId: user.id,
+        emailInput: studentId,
+        status: LoginStatus.SUCCESS,
+        ipAddress,
+        userAgent,
+      }),
+    ]);
+
     return res.status(200).json({
-        message: 'Login successful',
-        user,
-    })
-})
+      message: 'Login successful',
+      user: {
+        ...safeUser,
+        lastLoginAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error('Failed to log in:', error);
+    return res.status(500).json({
+      message: 'Failed to log in',
+    });
+  }
+});
+
+authRouter.get('/profile/:userId', async (req: Request, res: Response) => {
+  const userId = typeof req.params.userId === 'string' ? req.params.userId : null;
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({
+      message: 'Invalid user id',
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: safeUserSelect,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error('Failed to fetch profile:', error);
+    return res.status(500).json({
+      message: 'Failed to fetch profile',
+    });
+  }
+});
+
+authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
+  const userId = typeof req.params.userId === 'string' ? req.params.userId : null;
+  const {
+    fullName: fullNameInput,
+    username: usernameInput,
+    bio: bioInput,
+    avatarUrl: avatarUrlInput,
+    coverUrl: coverUrlInput,
+    gender: genderInput,
+    birthDate: birthDateInput,
+  } = req.body;
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({
+      message: 'Invalid user id',
+    });
+  }
+
+  const fullName = fullNameInput === undefined ? undefined : normalizeOptionalString(fullNameInput);
+  const username = usernameInput === undefined
+    ? undefined
+    : normalizeOptionalString(usernameInput)?.toLowerCase().replace(/\s+/g, '_');
+  const bio = bioInput === undefined ? undefined : typeof bioInput === 'string' ? bioInput.trim() : undefined;
+  const avatarUrl = avatarUrlInput === undefined ? undefined : typeof avatarUrlInput === 'string' ? avatarUrlInput.trim() || null : undefined;
+  const coverUrl = coverUrlInput === undefined ? undefined : typeof coverUrlInput === 'string' ? coverUrlInput.trim() || null : undefined;
+  const gender = genderInput === undefined ? undefined : parseGender(genderInput);
+  const birthDate = birthDateInput === undefined ? undefined : birthDateInput === null ? null : parseBirthDate(birthDateInput);
+
+  if (fullNameInput !== undefined && !fullName) {
+    return res.status(400).json({
+      message: 'fullName cannot be empty',
+    });
+  }
+
+  if (fullName && !fullNameRegex.test(fullName)) {
+    return res.status(400).json({
+      message: 'Full name must be in English only',
+    });
+  }
+
+  if (usernameInput !== undefined && !username) {
+    return res.status(400).json({
+      message: 'username cannot be empty',
+    });
+  }
+
+  if (username && !usernameRegex.test(username)) {
+    return res.status(400).json({
+      message: 'Username must be 3-30 characters and use only letters, numbers, or underscores',
+    });
+  }
+
+  if (bioInput !== undefined && typeof bioInput !== 'string') {
+    return res.status(400).json({
+      message: 'bio must be a string',
+    });
+  }
+
+  if (genderInput !== undefined && !gender) {
+    return res.status(400).json({
+      message: 'Invalid gender',
+    });
+  }
+
+  if (birthDateInput !== undefined && birthDateInput !== null && !birthDate) {
+    return res.status(400).json({
+      message: 'Invalid birthDate',
+    });
+  }
+
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    if (username) {
+      const duplicatedUser = await prisma.user.findFirst({
+        where: {
+          username,
+          id: {
+            not: userId,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (duplicatedUser) {
+        return res.status(409).json({
+          message: 'Username is already in use',
+        });
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        fullName,
+        username,
+        bio,
+        avatarUrl,
+        coverUrl,
+        gender: gender ?? undefined,
+        birthDate,
+      },
+      select: safeUserSelect,
+    });
+
+    return res.json({
+      message: 'Profile updated successfully',
+      user,
+    });
+  } catch (error) {
+    if (isPrismaKnownError(error) && error.code === 'P2002') {
+      return res.status(409).json({
+        message: 'Username is already in use',
+      });
+    }
+
+    console.error('Failed to update profile:', error);
+    return res.status(500).json({
+      message: 'Failed to update profile',
+    });
+  }
+});
+
+authRouter.get('/roles', (_req: Request, res: Response) => {
+  return res.json({
+    roles: Object.values(UserRole),
+    genders: Object.values(Gender),
+    statuses: Object.values(UserStatus),
+  });
+});
 
 export { authRouter };
