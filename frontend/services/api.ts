@@ -1,7 +1,58 @@
 import axios from "axios";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { User, Post, Comment, Conversation, Message } from "@/types/backend";
 
-export const BASE_URL = "http://192.168.1.109:8080"; 
+const API_PORT = "8080";
+const EMULATOR_BASE_URL = `http://10.0.2.2:${API_PORT}`;
+const IOS_SIMULATOR_BASE_URL = `http://127.0.0.1:${API_PORT}`;
+const LOCALHOST_BASE_URL = `http://localhost:${API_PORT}`;
+
+const normalizeBaseUrl = (value?: string | null) => value?.trim().replace(/\/+$/, "");
+
+const getExpoHostBaseUrl = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.expoGoConfig?.debuggerHost ||
+    Constants.manifest2?.extra?.expoClient?.hostUri;
+
+  if (!hostUri) {
+    return null;
+  }
+
+  const host = hostUri.split(":")[0]?.trim();
+  if (!host) {
+    return null;
+  }
+
+  return `http://${host}:${API_PORT}`;
+};
+
+const resolveBaseUrl = () => {
+  const envBaseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL);
+  if (envBaseUrl) {
+    return envBaseUrl;
+  }
+
+  const expoHostBaseUrl = getExpoHostBaseUrl();
+  if (expoHostBaseUrl) {
+    return expoHostBaseUrl;
+  }
+
+  if (Platform.OS === "android") {
+    return EMULATOR_BASE_URL;
+  }
+
+  if (Platform.OS === "ios") {
+    return IOS_SIMULATOR_BASE_URL;
+  }
+
+  return LOCALHOST_BASE_URL;
+};
+
+export const BASE_URL = resolveBaseUrl();
+
+console.log(`[API] Using base URL: ${BASE_URL}`);
 
 const API = axios.create({
   baseURL: BASE_URL,
@@ -138,3 +189,5 @@ export const chatService = {
     }
   }
 };
+
+

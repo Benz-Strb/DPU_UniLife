@@ -59,7 +59,7 @@ export default function HomeScreen() {
           style={{ borderBottomColor: themeColors.border }}
         >
           <Text className="text-2xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>
-            UniLife
+            DPU
           </Text>
           <View className="flex-row items-center">
             <TouchableOpacity onPress={() => router.push("/new-post")} className="mr-5">
@@ -71,9 +71,6 @@ export default function HomeScreen() {
             <TouchableOpacity onPress={() => router.push("/messenger")}>
               <View className="relative">
                 <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.text} />
-                <View className="absolute -top-1 -right-1 bg-red-500 w-4 h-4 rounded-full items-center justify-center border-2 border-white">
-                  <Text className="text-[8px] text-white font-black">2</Text>
-                </View>
               </View>
             </TouchableOpacity>
           </View>
@@ -95,7 +92,7 @@ export default function HomeScreen() {
               <Ionicons name="planet-outline" size={80} color={isDarkMode ? "#2D2D2D" : "#E5E7EB"} />
               <Text className="text-xl font-black mt-6" style={{ color: themeColors.subText }}>Welcome to UniLife</Text>
               <Text className="text-center mt-2 font-medium" style={{ color: themeColors.subText }}>
-                Follow some friends or start posting to see what's happening on campus!
+                Follow some friends or start posting to see what&apos;s happening on campus!
               </Text>
             </View>
           ) : (

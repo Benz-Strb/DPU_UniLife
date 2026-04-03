@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import { announcementRouter } from "./routes/announcement";
 import { authRouter } from "./routes/auth";
 import { postRouter } from "./routes/post";
 import { chatRouter } from "./routes/chat";
@@ -12,6 +13,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/auth', authRouter);
+app.use('/announcements', announcementRouter);
 app.use('/posts', postRouter);
 app.use('/chats', chatRouter);
 

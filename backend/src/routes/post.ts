@@ -123,5 +123,4 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
   }
 });
 
-
 export { postRouter };

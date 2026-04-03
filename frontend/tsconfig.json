@@ -1,19 +1,22 @@
 {
-  "extends": "expo/tsconfig.base",
-  "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.d.ts",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-  ]
+    "extends":  "expo/tsconfig.base",
+    "compilerOptions":  {
+                            "strict":  true,
+                            "paths":  {
+                                          "@/*":  [
+                                                      "./*"
+                                                  ]
+                                      }
+                        },
+    "include":  [
+                    "**/*.ts",
+                    "**/*.tsx",
+                    "**/*.d.ts",
+                    ".expo/types/**/*.ts",
+                    "expo-env.d.ts",
+                    "nativewind-env.d.ts"
+                ],
+    "exclude":  [
+                    "app-example"
+                ]
 }
