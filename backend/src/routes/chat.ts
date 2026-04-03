@@ -130,6 +130,22 @@ const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRe
   return error instanceof Prisma.PrismaClientKnownRequestError;
 };
 
+const canDirectMessage = async (senderId: string, recipientId: string): Promise<boolean> => {
+  const follow = await prisma.userFollow.findUnique({
+    where: {
+      followerId_followingId: {
+        followerId: senderId,
+        followingId: recipientId,
+      },
+    },
+    select: {
+      followerId: true,
+    },
+  });
+
+  return Boolean(follow);
+};
+
 chatRouter.get('/:userId', async (req: Request, res: Response) => {
   const userId = getSingleParam(req.params.userId);
 
@@ -329,6 +345,18 @@ chatRouter.post('/', async (req: Request, res: Response) => {
     }
 
     if (type === ConversationType.DIRECT) {
+      const recipientId = allParticipantIds.find((participantId) => participantId !== createdById);
+      if (!recipientId) {
+        return res.status(400).json({ error: 'Direct conversation must have exactly 2 participants' });
+      }
+
+      const allowedToMessage = await canDirectMessage(createdById, recipientId);
+      if (!allowedToMessage) {
+        return res.status(403).json({ error: 'You must follow this user before sending direct messages' });
+      }
+    }
+
+    if (type === ConversationType.DIRECT) {
       const existingConversation = await prisma.conversation.findFirst({
         where: {
           type: ConversationType.DIRECT,
@@ -418,11 +446,35 @@ chatRouter.post('/:convoId/messages', async (req: Request, res: Response) => {
           some: { userId: senderId },
         },
       },
-      select: { id: true },
+      include: {
+        participants: {
+          select: {
+            userId: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
 
     if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found or sender is not a participant' });
+    }
+
+    if (!conversation.group && conversation.participants.length === 2) {
+      const recipientId = conversation.participants.find((participant) => participant.userId !== senderId)?.userId;
+
+      if (!recipientId) {
+        return res.status(400).json({ error: 'Invalid direct conversation participants' });
+      }
+
+      const allowedToMessage = await canDirectMessage(senderId, recipientId);
+      if (!allowedToMessage) {
+        return res.status(403).json({ error: 'You must follow this user before sending direct messages' });
+      }
     }
 
     const message = await prisma.$transaction(async (tx) => {
