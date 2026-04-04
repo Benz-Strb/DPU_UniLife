@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { ReportStatus, ReportTargetType } from '../../generated/prisma/enums';
+import { Prisma, ReportStatus, ReportTargetType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const reportRouter = Router();

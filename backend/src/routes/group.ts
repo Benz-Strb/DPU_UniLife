@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { GroupMemberRole } from '../../generated/prisma/enums';
+import { Prisma, GroupMemberRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const groupRouter = Router();
