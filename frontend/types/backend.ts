@@ -23,6 +23,7 @@ export interface User {
   coverUrl?: string;
   gender: Gender;
   role: UserRole;
+  faculty?: string;
   createdAt: string;
   updatedAt: string;
 }

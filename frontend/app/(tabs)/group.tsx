@@ -43,7 +43,7 @@ export default function GroupScreen() {
   };
 
   const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return null;
+    if (!url) return undefined;
     if (url.startsWith('http')) return url;
     return `${BASE_URL}${url}`;
   };
