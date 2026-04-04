@@ -160,6 +160,24 @@ export const postService = {
       throw e;
     }
   },
+  deletePost: async (postId: string) => {
+    try {
+      await API.delete(`/posts/${postId}`);
+      return true;
+    } catch (e) {
+      console.error("Delete Post Error", e);
+      throw e;
+    }
+  },
+  updatePost: async (postId: string, data: any) => {
+    try {
+      const response = await API.patch(`/posts/${postId}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Update Post Error", e);
+      throw e;
+    }
+  },
   uploadImage: async (fileUri: string): Promise<string> => {
     try {
       const formData = new FormData();

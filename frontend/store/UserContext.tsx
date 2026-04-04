@@ -29,6 +29,8 @@ interface UserContextType {
   logout: () => void;
   posts: Post[];
   addPost: (postData: any) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
+  updatePost: (postId: string, data: any) => Promise<void>;
   toggleLike: (postId: string) => void;
   addComment: (postId: string, commentText: string) => void;
   refreshPosts: () => Promise<void>;
@@ -282,6 +284,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e) { console.error(e); }
   };
 
+  const deletePost = async (postId: string) => {
+    try {
+      await postService.deletePost(postId);
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (e) { console.error(e); }
+  };
+
+  const updatePost = async (postId: string, data: any) => {
+    try {
+      const updatedPost = await postService.updatePost(postId, data);
+      setPosts(prev => prev.map(p => p.id === postId ? updatedPost : p));
+    } catch (e) { console.error(e); }
+  };
+
   const toggleLike = async (postId: string) => {
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
@@ -399,7 +415,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       notifications, setNotifications,
       notificationList, addNotification: (n) => setNotificationList(prev => [n, ...prev]),
       isAdmin, isUniAdmin, login, signUp, logout,
-      posts, addPost, toggleLike, addComment,
+      posts, addPost, deletePost, updatePost, toggleLike, addComment,
       refreshPosts, isRefreshing,
       conversations, sendMessage, syncProfile, updateProfile,
       followingIds, toggleFollow, getDirectChat,

@@ -8,7 +8,8 @@ import {
   TextInput, 
   StatusBar, 
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  Alert
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -44,12 +45,47 @@ export default function HomeScreen() {
     unreadChatCount,
     unreadNotificationCount
   } = useUser();
+  const { deletePost, updatePost } = useUser();
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+
+  const handlePostOptions = (post: any) => {
+    const isOwner = post.authorId === userId;
+    
+    if (!isOwner) return;
+
+    Alert.alert(
+      "Post Options",
+      "Choose an action for your post",
+      [
+        {
+          text: post.commentsEnabled ? "Disable Comments" : "Enable Comments",
+          onPress: () => updatePost(post.id, { commentsEnabled: !post.commentsEnabled })
+        },
+        {
+          text: "Delete Post",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Delete Post",
+              "Are you sure you want to delete this post permanently?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => deletePost(post.id) }
+              ]
+            );
+          }
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
 
   const handleSendComment = (postId: string) => {
     if (commentText[postId]?.trim()) {
       addComment(postId, commentText[postId]);
       setCommentText({ ...commentText, [postId]: "" });
+      setActiveCommentPostId(null); // ซ่อนช่องคอมเมนต์ทันทีที่ส่ง
     }
   };
 
@@ -198,8 +234,11 @@ export default function HomeScreen() {
                       )}
                     </View>
                   ) : (
-                    <TouchableOpacity className="w-8 h-8 items-center justify-center rounded-full bg-gray-50/50">
-                      <Feather name="more-horizontal" size={18} color={themeColors.subText} />
+                    <TouchableOpacity 
+                      onPress={() => handlePostOptions(post)}
+                      className="w-10 h-10 items-center justify-center rounded-full bg-gray-50/50"
+                    >
+                      <Feather name="more-horizontal" size={20} color={themeColors.subText} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -238,10 +277,13 @@ export default function HomeScreen() {
                     <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
                   </TouchableOpacity>
 
-                  <View className="flex-row items-center">
+                  <TouchableOpacity 
+                    onPress={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)}
+                    className="flex-row items-center"
+                  >
                     <Feather name="message-circle" size={26} color={themeColors.text} />
                     <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Comments Section */}
@@ -261,34 +303,37 @@ export default function HomeScreen() {
                   </View>
                 )}
 
-                {/* Comment Input */}
-                <View className="px-6 pb-6 pt-2">
-                  <View 
-                    className="flex-row items-center px-4 py-2 rounded-[25px] border"
-                    style={{ backgroundColor: isDarkMode ? "#1E1E1E" : "#F8F9FE", borderColor: themeColors.border }}
-                  >
-                    <Image 
-                      source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Me')}&background=7C3AED&color=fff` }} 
-                      className="w-7 h-7 rounded-full mr-3" 
-                    />
-                    <TextInput 
-                      placeholder="Add a thought..."
-                      placeholderTextColor={isDarkMode ? "#555" : "#94A3B8"}
-                      className="flex-1 text-xs font-bold py-2"
-                      style={{ color: themeColors.text }}
-                      value={commentText[post.id] || ""}
-                      onChangeText={(text) => setCommentText({ ...commentText, [post.id]: text })}
-                    />
-                    {commentText[post.id]?.trim() && (
-                      <TouchableOpacity 
-                        onPress={() => handleSendComment(post.id)}
-                        className="bg-violet-500 w-8 h-8 rounded-full items-center justify-center shadow-sm"
-                      >
-                        <Ionicons name="arrow-up" size={18} color="white" />
-                      </TouchableOpacity>
-                    )}
+                {/* Comment Input (Conditional) */}
+                {activeCommentPostId === post.id && (
+                  <View className="px-6 pb-6 pt-2">
+                    <View 
+                      className="flex-row items-center px-4 py-2 rounded-[25px] border"
+                      style={{ backgroundColor: isDarkMode ? "#1E1E1E" : "#F8F9FE", borderColor: themeColors.border }}
+                    >
+                      <Image 
+                        source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Me')}&background=7C3AED&color=fff` }} 
+                        className="w-7 h-7 rounded-full mr-3" 
+                      />
+                      
+                      <TextInput 
+                        placeholder="Add a thought..."
+                        placeholderTextColor={isDarkMode ? "#555" : "#94A3B8"}
+                        className="flex-1 text-xs font-bold py-2"
+                        style={{ color: themeColors.text }}
+                        value={commentText[post.id] || ""}
+                        onChangeText={(text) => setCommentText({ ...commentText, [post.id]: text })}
+                        autoFocus={true}
+                        returnKeyType="send"
+                        onSubmitEditing={() => handleSendComment(post.id)}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setActiveCommentPostId(null);
+                          }, 150);
+                        }}
+                      />
+                    </View>
                   </View>
-                </View>
+                )}
               </View>
             ))
           )}
