@@ -18,6 +18,7 @@ const safeUserSelect = {
   birthDate: true,
   gender: true,
   role: true,
+  faculty: true,
   status: true,
   isVerified: true,
   verifiedAt: true,
@@ -104,11 +105,12 @@ const logLoginAttempt = async ({
 };
 
 authRouter.post('/register', async (req: Request, res: Response) => {
-  const { email: emailInput, fullName: fullNameInput, username: usernameInput, password } = req.body;
+  const { email: emailInput, fullName: fullNameInput, username: usernameInput, password, faculty: facultyInput } = req.body;
 
   const email = normalizeRequiredString(emailInput)?.toLowerCase();
   const fullName = normalizeRequiredString(fullNameInput);
   const username = normalizeRequiredString(usernameInput)?.toLowerCase().replace(/\s+/g, '_');
+  const faculty = typeof facultyInput === 'string' ? facultyInput.trim() : null;
 
   if (!email || !fullName || !username || typeof password !== 'string') {
     return res.status(400).json({
@@ -166,6 +168,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
         studentId,
         username,
         passwordHash,
+        faculty,
         status: UserStatus.ACTIVE,
       },
       select: safeUserSelect,
@@ -305,7 +308,44 @@ authRouter.get('/profile/:userId', async (req: Request, res: Response) => {
       where: {
         id: userId,
       },
-      select: safeUserSelect,
+      select: {
+        ...safeUserSelect,
+        authoredPosts: {
+          where: {
+            deletedAt: null,
+          },
+          include: {
+            media: true,
+            reactions: true,
+            comments: {
+              include: {
+                author: {
+                  select: {
+                    fullName: true,
+                    avatarUrl: true
+                  }
+                }
+              }
+            },
+            _count: {
+              select: {
+                reactions: true,
+                comments: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            authoredPosts: true
+          }
+        }
+      },
     });
 
     if (!user) {
@@ -333,6 +373,7 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
     coverUrl: coverUrlInput,
     gender: genderInput,
     birthDate: birthDateInput,
+    faculty: facultyInput,
   } = req.body;
 
   if (!userId || !isUuid(userId)) {
@@ -350,6 +391,7 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
   const coverUrl = coverUrlInput === undefined ? undefined : typeof coverUrlInput === 'string' ? coverUrlInput.trim() || null : undefined;
   const gender = genderInput === undefined ? undefined : parseGender(genderInput);
   const birthDate = birthDateInput === undefined ? undefined : birthDateInput === null ? null : parseBirthDate(birthDateInput);
+  const faculty = facultyInput === undefined ? undefined : typeof facultyInput === 'string' ? facultyInput.trim() : undefined;
 
   if (fullNameInput !== undefined && !fullName) {
     return res.status(400).json({
@@ -441,6 +483,7 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
         coverUrl,
         gender: gender ?? undefined,
         birthDate,
+        faculty,
       },
       select: safeUserSelect,
     });

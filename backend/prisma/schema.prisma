@@ -114,6 +114,7 @@ model User {
   birthDate            DateTime?
   gender               Gender                    @default(UNDISCLOSED)
   role                 UserRole                  @default(STUDENT)
+  faculty              String?
   status               UserStatus                @default(PENDING)
   isVerified           Boolean                   @default(false)
   verifiedAt           DateTime?
@@ -167,6 +168,7 @@ model Post {
   title          String?
   content        String?
   visibility     PostVisibility @default(PUBLIC)
+  facultyTag     String?
   isPinned       Boolean        @default(false)
   isArchived     Boolean        @default(false)
   commentsEnabled Boolean       @default(true)

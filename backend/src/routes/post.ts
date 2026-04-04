@@ -196,6 +196,7 @@ postRouter.get('/', async (req: Request, res: Response) => {
   const limit = parsePositiveInt(req.query.limit);
   const authorId = normalizeOptionalString(req.query.authorId);
   const groupId = normalizeOptionalString(req.query.groupId);
+  const facultyTag = normalizeOptionalString(req.query.facultyTag);
   const q = normalizeOptionalString(req.query.q);
   const visibilityQuery = req.query.visibility;
   const visibility = parsePostVisibility(visibilityQuery);
@@ -236,6 +237,7 @@ postRouter.get('/', async (req: Request, res: Response) => {
     isArchived: false,
     authorId,
     groupId,
+    facultyTag,
     visibility: visibility ?? undefined,
     commentsEnabled,
     ...(q
@@ -243,6 +245,7 @@ postRouter.get('/', async (req: Request, res: Response) => {
           OR: [
             { title: { contains: q, mode: 'insensitive' } },
             { content: { contains: q, mode: 'insensitive' } },
+            { facultyTag: { contains: q, mode: 'insensitive' } },
           ],
         }
       : {}),
@@ -368,6 +371,7 @@ postRouter.post('/', async (req: Request, res: Response) => {
         groupId: groupId ?? null,
         title,
         content,
+        facultyTag: req.body.facultyTag || null,
         visibility,
         commentsEnabled,
         media: imageUrl
@@ -638,6 +642,25 @@ postRouter.post('/:id/like', async (req: Request, res: Response) => {
       data: { postId, userId, reaction },
     });
 
+    // แจ้งเตือนเจ้าของโพสต์ (ถ้าไม่ใช่คนไลค์เอง)
+    const postOwner = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true }
+    });
+
+    if (postOwner && postOwner.authorId !== userId) {
+      await prisma.notification.create({
+        data: {
+          receiverId: postOwner.authorId,
+          senderId: userId,
+          type: "LIKE",
+          title: "New Like",
+          body: "Someone liked your post",
+          refPostId: postId
+        }
+      }).catch(err => console.error("Notification Error:", err));
+    }
+
     return res.json({ message: 'Reaction added', reaction: createdReaction });
   } catch (error) {
     console.error('Failed to toggle reaction:', error);
@@ -729,6 +752,26 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
         },
       },
     });
+
+    // แจ้งเตือนเจ้าของโพสต์
+    const postOwner = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true }
+    });
+
+    if (postOwner && postOwner.authorId !== authorId) {
+      await prisma.notification.create({
+        data: {
+          receiverId: postOwner.authorId,
+          senderId: authorId,
+          type: "COMMENT",
+          title: "New Comment",
+          body: "Someone commented on your post",
+          refPostId: postId,
+          refCommentId: comment.id
+        }
+      }).catch(err => console.error("Notification Error:", err));
+    }
 
     return res.status(201).json(comment);
   } catch (error) {

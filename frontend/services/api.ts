@@ -87,7 +87,8 @@ export const authService = {
         email: userData.email,
         fullName: userData.name,
         username: generatedUsername,
-        password: userData.password
+        password: userData.password,
+        faculty: userData.faculty
       });
       return { success: true, user: response.data.user };
     } catch (e: any) {
@@ -101,6 +102,15 @@ export const authService = {
       return response.data;
     } catch (e) {
       console.error("Get Profile Error", e);
+      throw e;
+    }
+  },
+  updateProfile: async (userId: string, data: any) => {
+    try {
+      const response = await API.patch(`/auth/profile/${userId}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Update Profile API Error", e);
       throw e;
     }
   }
@@ -118,7 +128,14 @@ export const postService = {
   },
   createPost: async (postData: any): Promise<Post> => {
     try {
-      const response = await API.post("/posts", postData);
+      const response = await API.post("/posts", {
+        authorId: postData.authorId,
+        content: postData.content,
+        image: postData.image,
+        facultyTag: postData.facultyTag,
+        groupId: postData.groupId,
+        visibility: postData.visibility
+      });
       return response.data;
     } catch (e) {
       console.error("Create Post Error", e);
@@ -179,6 +196,15 @@ export const chatService = {
       return [];
     }
   },
+  getOrCreateDirectChat: async (userId: string, targetId: string): Promise<Conversation> => {
+    try {
+      const response = await API.post("/chats/direct", { userId, targetId });
+      return response.data;
+    } catch (e) {
+      console.error("Get/Create Direct Chat Error", e);
+      throw e;
+    }
+  },
   sendMessage: async (convoId: string, senderId: string, body: string): Promise<Message> => {
     try {
       const response = await API.post(`/chats/${convoId}/messages`, { senderId, body });
@@ -186,6 +212,63 @@ export const chatService = {
     } catch (e) {
       console.error("Send Message Error", e);
       throw e;
+    }
+  },
+  markAsRead: async (convoId: string, userId: string, messageId: string) => {
+    try {
+      const response = await API.patch(`/chats/${convoId}/read`, { userId, messageId });
+      return response.data;
+    } catch (e) {
+      console.error("Mark Chat Read Error", e);
+    }
+  }
+};
+
+export const notificationService = {
+  getNotifications: async (userId: string) => {
+    try {
+      const response = await API.get(`/notifications/${userId}`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Notifications Error", e);
+      return { data: [], unreadCount: 0 };
+    }
+  },
+  markAsRead: async (notifId: string) => {
+    try {
+      const response = await API.patch(`/notifications/${notifId}/read`);
+      return response.data;
+    } catch (e) {
+      console.error("Mark Notif Read Error", e);
+    }
+  },
+  markAllAsRead: async (userId: string) => {
+    try {
+      const response = await API.patch(`/notifications/user/${userId}/read-all`);
+      return response.data;
+    } catch (e) {
+      console.error("Mark All Notif Read Error", e);
+    }
+  }
+};
+
+export const followService = {
+  toggleFollow: async (followerId: string, followingId: string) => {
+    try {
+      const response = await API.post("/follows/toggle", { followerId, followingId });
+      return response.data;
+    } catch (e) {
+      console.error("Toggle Follow Error", e);
+      throw e;
+    }
+  },
+  checkStatus: async (followerId: string, followingId: string) => {
+    try {
+      const response = await API.get("/follows/status", { params: { followerId, followingId } });
+      return response.data;
+    } catch (e) {
+      console.error("Check Follow Status Error", e);
+      return { followed: false };
     }
   }
 };

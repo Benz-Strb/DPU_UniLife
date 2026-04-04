@@ -1,93 +1,171 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Image, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { BASE_URL } from "@/services/api";
 
 export default function NotificationScreen() {
   const router = useRouter();
-  const { isDarkMode, notificationList } = useUser();
+  const { 
+    isDarkMode, 
+    notificationList, 
+    fetchNotifications, 
+    markNotificationAsRead, 
+    markAllNotificationsAsRead,
+    themeColors
+  } = useUser();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  const bgColor = isDarkMode ? "#121212" : "#F8F9FE";
-  const cardColor = isDarkMode ? "#1E1E1E" : "#FFFFFF";
-  const textColor = isDarkMode ? "#FFFFFF" : "#1F2937";
-  const subTextColor = isDarkMode ? "#A0A0A0" : "#6B7280";
-  const borderColor = isDarkMode ? "#333333" : "#F1F5F9";
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchNotifications();
+    setIsRefreshing(false);
+  };
+
+  const getFullImageUrl = (url: string | null | undefined) => {
+    if (!url) return `https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff`;
+    if (url.startsWith('http')) return url;
+    return `${BASE_URL}${url}`;
+  };
+
+  const handleNotificationPress = async (item: any) => {
+    // Mark as read
+    if (!item.isRead) {
+      await markNotificationAsRead(item.id);
+    }
+
+    // Navigate based on type
+    if (item.type === "LIKE" || item.type === "COMMENT") {
+      if (item.refPostId) {
+        // ในที่นี้สมมติว่าเรามีหน้า post-detail หรือไปหน้า home แล้วเลื่อนหา
+        // สำหรับตอนนี้เราจะลองส่งไปที่หน้า home หรือแจ้งเตือนว่าดูโพสต์
+        router.push({ pathname: "/(tabs)/home", params: { postId: item.refPostId } });
+      }
+    } else if (item.type === "FOLLOW") {
+      if (item.senderId) {
+        // ไปหน้าโปรไฟล์ของคนที่มาติดตาม (ถ้ามีหน้า profile-detail)
+        // router.push({ pathname: "/profile-detail", params: { userId: item.senderId } });
+      }
+    }
+  };
+
+  const getNotificationText = (item: any) => {
+    const senderName = item.sender?.fullName || "Someone";
+    switch (item.type) {
+      case 'LIKE': return `${senderName} liked your post`;
+      case 'COMMENT': return `${senderName} commented on your post`;
+      case 'FOLLOW': return `${senderName} started following you`;
+      default: return item.body || item.title;
+    }
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'like': return { name: 'heart', color: '#EF4444' };
-      case 'comment': return { name: 'chatbubble', color: '#3B82F6' };
-      case 'message': return { name: 'mail', color: '#7C3AED' };
-      case 'system': return { name: 'megaphone', color: '#F59E0B' };
+      case 'LIKE': return { name: 'heart', color: '#EF4444' };
+      case 'COMMENT': return { name: 'chatbubble', color: '#3B82F6' };
+      case 'FOLLOW': return { name: 'person-add', color: '#10B981' };
       default: return { name: 'notifications', color: theme.colors.primary };
     }
   };
 
-  const NotificationItem = ({ item }: { item: any }) => {
-    const icon = getIcon(item.type);
-    return (
-      <TouchableOpacity 
-        className="flex-row items-center p-5 mb-4 rounded-[35px] border border-white"
-        style={{ 
-          backgroundColor: cardColor, 
-          shadowColor: "#000", 
-          shadowOpacity: 0.03, 
-          elevation: 2 
-        }}
-      >
-        <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: `${icon.color}15` }}>
-          <Ionicons name={icon.name as any} size={24} color={icon.color} />
-        </View>
-        <View className="flex-1">
-          <View className="flex-row justify-between items-center mb-1">
-            <Text className="font-black text-sm" style={{ color: textColor }}>{item.title}</Text>
-            <Text className="text-[10px] font-bold text-gray-400">{item.timestamp}</Text>
-          </View>
-          <Text className="text-xs font-medium" style={{ color: subTextColor }} numberOfLines={2}>{item.description}</Text>
-        </View>
-        {!item.isRead && <View className="w-2 h-2 rounded-full ml-2" style={{ backgroundColor: theme.colors.primary }} />}
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <View className="flex-1" style={{ backgroundColor: bgColor }}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+    <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <StatusBar barStyle={themeColors.statusBar as any} />
       
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center justify-between px-6 py-4">
           <TouchableOpacity 
             onPress={() => router.back()}
             className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm"
+            style={{ backgroundColor: themeColors.card }}
           >
-            <Ionicons name="chevron-back" size={24} color={textColor} />
+            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
-          <Text className="text-xl font-black" style={{ color: textColor }}>Notifications</Text>
-          <TouchableOpacity className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm">
-            <Ionicons name="ellipsis-horizontal" size={20} color={textColor} />
+          <Text className="text-xl font-black" style={{ color: themeColors.text }}>Notifications</Text>
+          <TouchableOpacity 
+            onPress={markAllNotificationsAsRead}
+            className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm"
+            style={{ backgroundColor: themeColors.card }}
+          >
+            <Ionicons name="checkmark-done" size={20} color={themeColors.text} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          className="flex-1 px-6 pt-6" 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+          }
+        >
           {notificationList.length === 0 ? (
             <View className="items-center justify-center py-32">
-              <View className="w-24 h-24 rounded-[35px] bg-gray-50 items-center justify-center mb-6">
+              <View className="w-24 h-24 rounded-[35px] bg-gray-50 items-center justify-center mb-6" style={{ backgroundColor: themeColors.iconBg }}>
                 <Ionicons name="notifications-off-outline" size={44} color="#CBD5E1" />
               </View>
               <Text className="text-xl font-black text-gray-300">No Notifications</Text>
-              <Text className="text-center mt-2 px-10 text-gray-400 font-medium">
-                When you get likes, comments or messages, they will appear here.
-              </Text>
             </View>
           ) : (
             <>
-              <Text className="text-[10px] font-black uppercase tracking-[2px] text-gray-400 mb-6 ml-2">Recent</Text>
-              {notificationList.map((item) => (
-                <NotificationItem key={item.id} item={item} />
-              ))}
+              <View className="flex-row justify-between items-center mb-6 px-1">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">Activity</Text>
+                <TouchableOpacity onPress={markAllNotificationsAsRead}>
+                  <Text className="text-[10px] font-black uppercase text-violet-500">Clear All</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {notificationList.map((item) => {
+                const icon = getIcon(item.type);
+                const isRead = item.isRead;
+                
+                return (
+                  <TouchableOpacity 
+                    key={item.id}
+                    onPress={() => handleNotificationPress(item)}
+                    className="flex-row items-center p-4 mb-4 rounded-[28px] border"
+                    style={{ 
+                      backgroundColor: themeColors.card, 
+                      borderColor: isRead ? themeColors.border : theme.colors.primaryLight,
+                      opacity: isRead ? 0.7 : 1,
+                      elevation: isRead ? 0 : 2
+                    }}
+                  >
+                    <View className="relative">
+                      <Image 
+                        source={{ uri: getFullImageUrl(item.sender?.avatarUrl) }} 
+                        className="w-12 h-12 rounded-full mr-4" 
+                      />
+                      <View 
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2 border-white"
+                        style={{ backgroundColor: icon.color }}
+                      >
+                        <Ionicons name={icon.name as any} size={12} color="white" />
+                      </View>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-xs font-medium leading-4" style={{ color: themeColors.text }}>
+                        <Text className="font-black">{item.sender?.fullName || "Someone"} </Text>
+                        {item.type === 'LIKE' ? 'liked your post' : 
+                         item.type === 'COMMENT' ? 'commented on your post' : 
+                         item.type === 'FOLLOW' ? 'started following you' : item.body}
+                      </Text>
+                      <Text className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">
+                        {new Date(item.createdAt).toLocaleString()}
+                      </Text>
+                    </View>
+                    {!isRead && (
+                      <View className="w-2.5 h-2.5 rounded-full ml-2 bg-violet-500" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </>
           )}
           <View className="h-20" />

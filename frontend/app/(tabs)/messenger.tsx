@@ -5,10 +5,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { BASE_URL } from "@/services/api";
 
 export default function MessengerScreen() {
   const router = useRouter();
   const { isDarkMode, conversations, userId, themeColors } = useUser();
+
+  const getFullImageUrl = (url: string | null | undefined, name: string) => {
+    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7C3AED&color=fff`;
+    if (url.startsWith('http')) return url;
+    return `${BASE_URL}${url}`;
+  };
 
   const bgColor = themeColors.background;
   const cardColor = themeColors.card;
@@ -60,6 +67,8 @@ export default function MessengerScreen() {
               conversations.map((convo) => {
                 const otherParticipant = convo.participants?.find(p => p.userId !== userId)?.user;
                 const lastMsg = convo.messages && convo.messages.length > 0 ? convo.messages[convo.messages.length - 1] : null;
+                const participantName = otherParticipant?.fullName || "User";
+                const participantAvatar = getFullImageUrl(otherParticipant?.avatarUrl, participantName);
 
                 return (
                   <TouchableOpacity 
@@ -67,19 +76,19 @@ export default function MessengerScreen() {
                     onPress={() => router.push({
                       pathname: "/chat-detail",
                       params: { 
-                        convoId: convo.id,
-                        userName: otherParticipant?.fullName || "Chat", 
-                        userAvatar: otherParticipant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.fullName || 'User')}`,
+                        id: convo.id,
+                        userName: participantName, 
+                        userAvatar: participantAvatar,
                         userId: otherParticipant?.id 
                       }
                     })}
                     className="flex-row items-center mb-6 p-4 rounded-[30px] border border-white"
                     style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.03, elevation: 2 }}
                   >
-                    <Image source={{ uri: otherParticipant?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.fullName || 'User')}` }} className="w-14 h-14 rounded-[20px]" />
+                    <Image source={{ uri: participantAvatar }} className="w-14 h-14 rounded-[20px]" />
                     <View className="flex-1 ml-4">
                       <View className="flex-row justify-between items-center mb-1">
-                        <Text className="font-black text-sm" style={{ color: textColor }}>{otherParticipant?.fullName || "User"}</Text>
+                        <Text className="font-black text-sm" style={{ color: textColor }}>{participantName}</Text>
                         <Text className="text-[10px] font-bold text-gray-400">{lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</Text>
                       </View>
                       <Text className="text-xs font-medium" style={{ color: subTextColor }} numberOfLines={1}>

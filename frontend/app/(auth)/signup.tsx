@@ -96,13 +96,11 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      setName(name);
-      setFaculty(faculty);
-      
       const response = await signUp({ 
         email, 
         name, 
-        password 
+        password,
+        faculty: faculty
       });
       
       if (response.success) {

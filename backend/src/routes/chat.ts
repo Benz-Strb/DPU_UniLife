@@ -618,4 +618,77 @@ chatRouter.patch('/:convoId/read', async (req: Request, res: Response) => {
   }
 });
 
+// Get or Create Direct Conversation
+chatRouter.post("/direct", async (req, res) => {
+  const { userId, targetId } = req.body;
+
+  if (!userId || !targetId) {
+    return res.status(400).json({ error: "Missing userId or targetId" });
+  }
+
+  try {
+    // ค้นหาห้องแชทที่เป็นแบบ DIRECT ที่ทั้งคู่เป็นสมาชิกอยู่ร่วมกัน
+    const existingConversation = await prisma.conversation.findFirst({
+      where: {
+        type: "DIRECT",
+        participants: {
+          every: {
+            userId: { in: [userId, targetId] }
+          }
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // ถ้าเจอห้องแชทเดิมที่มีสมาชิก 2 คนพอดี
+    if (existingConversation && existingConversation.participants.length === 2) {
+      return res.json(existingConversation);
+    }
+
+    // ถ้าไม่เจอ ให้สร้างห้องแชทใหม่
+    const newConversation = await prisma.conversation.create({
+      data: {
+        type: "DIRECT",
+        createdById: userId,
+        participants: {
+          create: [
+            { userId: userId },
+            { userId: targetId }
+          ]
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json(newConversation);
+  } catch (error) {
+    console.error("Create direct chat error:", error);
+    res.status(500).json({ error: "Failed to create direct chat" });
+  }
+});
+
 export { chatRouter };

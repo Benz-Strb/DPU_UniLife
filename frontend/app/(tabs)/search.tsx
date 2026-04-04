@@ -1,104 +1,251 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { FACULTY_DATA } from "@/constants/data";
+import { BASE_URL } from "@/services/api";
+
+const { width } = Dimensions.get('window');
+
+const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
+  let iconName: any = 'school';
+  let IconComponent: any = Ionicons;
+  let iconColor = theme.colors.primary;
+  
+  switch(id) {
+    case 'LAW': 
+      iconName = 'scale-balance'; 
+      IconComponent = MaterialCommunityIcons;
+      iconColor = '#B45309'; // สีทอง/น้ำตาลเข้ม (คณะนิติศาสตร์)
+      break;
+    case 'CA': 
+      iconName = 'video'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#A855F7'; // สีม่วงเม็ดมะปราง (คณะนิเทศศาสตร์)
+      break;
+    case 'FA': 
+      iconName = 'palette'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#EA580C'; // สีแดงส้ม/อิฐ (คณะศิลปกรรมศาสตร์)
+      break;
+    case 'ARTS': 
+      iconName = 'language'; 
+      IconComponent = Ionicons;
+      iconColor = '#D97706'; // สีทอง (คณะศิลปศาสตร์)
+      break;
+    case 'PA': 
+      iconName = 'office-building'; 
+      IconComponent = MaterialCommunityIcons;
+      iconColor = '#78350F'; // สีน้ำตาล (คณะรัฐประศาสนศาสตร์)
+      break;
+    case 'HT': 
+      iconName = 'airplane'; 
+      IconComponent = Ionicons;
+      iconColor = '#0EA5E9'; // สีฟ้าคราม (คณะการท่องเที่ยวและการโรงแรม)
+      break;
+    case 'MT': 
+      iconName = 'microscope'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#DB2777'; // สีชมพูเข้ม (คณะเทคนิคการแพทย์)
+      break;
+    case 'CIBA': 
+      iconName = 'chart-line'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#2563EB'; // สีน้ำเงิน/ฟ้า (วิทยาลัย CIBA)
+      break;
+    case 'CITE': 
+      iconName = 'cog'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#991B1B'; // สีเลือดหมู (วิทยาลัย CITE)
+      break;
+    case 'CIM': 
+      iconName = 'leaf'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#65A30D'; // สีเขียวมะกอก (วิทยาลัย CIM)
+      break;
+    case 'CADT': 
+      iconName = 'plane-departure'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#1E3A8A'; // สีน้ำเงินกรมท่า (วิทยาลัย CADT)
+      break;
+    case 'ANT': 
+      iconName = 'gamepad'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#4C1D95'; // สีม่วงเข้ม/ดำ (วิทยาลัย ANT)
+      break;
+    case 'CHW': 
+      iconName = 'hand-holding-heart'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#84CC16'; // สีเขียวมะนาว (วิทยาลัยเฮลท์ แอนด์ เวลเนส)
+      break;
+    case 'DPUIC': 
+      iconName = 'globe-americas'; 
+      IconComponent = FontAwesome5;
+      iconColor = '#6366F1'; // สีม่วงฟ้า (วิทยาลัยนานาชาติ)
+      break;
+    default: 
+      iconName = 'school';
+      IconComponent = Ionicons;
+      iconColor = theme.colors.primary;
+  }
+
+  return { id, name, icon: iconName, Component: IconComponent, color: iconColor };
+});
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { isDarkMode, posts, themeColors } = useUser();
+  const { themeColors, isDarkMode, userId, posts } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const bgColor = themeColors.background;
-  const cardColor = themeColors.card;
-  const textColor = themeColors.text;
-  const subTextColor = themeColors.subText;
-  const borderColor = themeColors.border;
+  const getFullImageUrl = (url: string | null | undefined, name: string) => {
+    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+    if (url.startsWith('http')) return url;
+    return `${BASE_URL}${url}`;
+  };
 
-  const searchResults = searchQuery.trim() 
-    ? posts.filter(p => 
-        p.tags?.some(t => t.tag.name.toLowerCase().includes(searchQuery.toLowerCase())) || 
-        (p.content && p.content.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : [];
+  // ดึงรายชื่อนักศึกษาจากรายชื่อผู้เขียนโพสต์ (กรณีไม่มี API ดึงรายชื่อ User ทั้งหมด)
+  const uniqueUsers = Array.from(new Set(posts.map(p => p.authorId)))
+    .map(id => posts.find(p => p.authorId === id)?.author)
+    .filter(u => u && u.id !== userId && u.role === "STUDENT");
+
+  const filteredUsers = uniqueUsers.filter(u => 
+    u?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u?.faculty?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
-      <View 
-        className="px-6 py-4 border-b" 
-        style={{ backgroundColor: cardColor, borderBottomColor: borderColor }}
-      >
-        <View 
-          className="rounded-[24px] px-6 py-4 flex-row items-center border shadow-sm"
-          style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F9FAFB", borderColor: borderColor }}
-        >
-          <Ionicons name="search" size={20} color={theme.colors.primary} />
-          <TextInput
-            placeholder="ค้นหา #แท็ก หรือ เนื้อหา..."
-            placeholderTextColor={subTextColor}
-            className="ml-3 font-bold flex-1"
-            style={{ color: textColor }}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery !== "" && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-               <Ionicons name="close-circle" size={18} color={subTextColor} />
-            </TouchableOpacity>
-          )}
+    <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <StatusBar barStyle={themeColors.statusBar as any} />
+      
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <View className="px-6 py-4">
+          <Text className="text-3xl font-black mb-6 tracking-tight" style={{ color: themeColors.text }}>Discovery</Text>
+          
+          <View 
+            className="flex-row items-center px-5 py-3.5 rounded-2xl border" 
+            style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+          >
+            <Ionicons name="search" size={20} color={themeColors.subText} />
+            <TextInput 
+              placeholder="Search friends or faculty..."
+              placeholderTextColor={themeColors.subText}
+              className="flex-1 ml-3 font-bold text-sm"
+              style={{ color: themeColors.text }}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
         </View>
-      </View>
 
-      <ScrollView className="flex-1 px-8 pt-6" showsVerticalScrollIndicator={false}>
-        {searchQuery === "" ? (
-          <>
-            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-6" style={{ color: subTextColor }}>แท็กยอดนิยม</Text>
-            <View className="flex-row flex-wrap">
-              {["CITE", "LAW", "CA", "CIBA", "DPUIC", "ARTS", "FA"].map((tag) => (
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Browse Faculties */}
+          <View className="mb-8">
+            <View className="px-6 mb-4">
+              <Text className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">Browse Faculties</Text>
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
+              {FACULTY_LIST.map((f) => (
                 <TouchableOpacity 
-                  key={tag} 
-                  onPress={() => router.push({ pathname: "/tag", params: { tagName: tag } } as any)}
-                  className="px-6 py-3 rounded-full m-1 border"
-                  style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F5F3FF", borderColor: isDarkMode ? "#444" : "#DDD" }}
+                  key={f.id}
+                  onPress={() => router.push({ pathname: "/tag", params: { tagName: f.id } } as any)}
+                  className="mx-2 items-center"
                 >
-                  <Text className="font-black text-[10px] uppercase tracking-wider" style={{ color: theme.colors.primary }}>#{tag}</Text>
+                  <View 
+                    className="w-16 h-16 rounded-2xl items-center justify-center border-2 mb-2"
+                    style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+                  >
+                    <f.Component name={f.icon as any} size={24} color={f.color} />
+                  </View>
+                  <Text className="text-[9px] font-black uppercase text-center" style={{ color: themeColors.subText }}>{f.id}</Text>
                 </TouchableOpacity>
               ))}
+            </ScrollView>
+          </View>
+
+          {/* Community Members Grid */}
+          <View className="px-6 pb-20">
+            <View className="flex-row items-center justify-between mb-8">
+              <View className="flex-row items-center">
+                <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
+                <Text className="font-black text-xl tracking-tight" style={{ color: themeColors.text }}>Community Members</Text>
+              </View>
+              <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Students</Text>
             </View>
-          </>
-        ) : (
-          <View>
-            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-6" style={{ color: subTextColor }}>ผลการค้นหา ({searchResults.length})</Text>
-            {searchResults.length === 0 ? (
-              <View className="items-center py-20">
-                 <Ionicons name="search-outline" size={48} color={subTextColor} />
-                 <Text className="mt-4 font-bold" style={{ color: subTextColor }}>ไม่พบข้อมูลที่ตรงกัน</Text>
+
+            {filteredUsers.length === 0 ? (
+              <View className="items-center justify-center py-20 bg-gray-50/50 rounded-[40px] border border-dashed border-gray-200">
+                <Ionicons name="people-outline" size={60} color="#CBD5E1" />
+                <Text className="mt-4 font-black text-[10px] uppercase text-gray-400 tracking-widest">No members found</Text>
               </View>
             ) : (
-              searchResults.map((post) => (
-                <TouchableOpacity 
-                  key={post.id} 
-                  onPress={() => router.push({ pathname: "/tag", params: { tagName: post.tags?.[0]?.tag.name || "" } } as any)}
-                  className="p-6 rounded-[32px] border shadow-sm mb-4"
-                  style={{ backgroundColor: cardColor, borderColor: borderColor }}
-                >
-                  <View className="flex-row justify-between items-center mb-2">
-                    <Text className="font-bold text-xs" style={{ color: textColor }}>{post.author.fullName}</Text>
-                    {post.tags?.[0] && (
-                      <View className="bg-violet-50 px-2 py-1 rounded-md">
-                        <Text className="text-violet-500 text-[8px] font-black">#{post.tags[0].tag.name}</Text>
+              <View className="flex-row flex-wrap justify-between">
+                {filteredUsers.map((user: any) => (
+                  <TouchableOpacity 
+                    key={user.id}
+                    onPress={() => router.push({ pathname: "/user-profile", params: { userId: user.id } })}
+                    activeOpacity={0.7}
+                    className="mb-8 rounded-[40px] p-2"
+                    style={{ 
+                      width: (width - 64) / 2,
+                      backgroundColor: themeColors.card,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 15,
+                      elevation: 5
+                    }}
+                  >
+                    <View className="items-center pt-2">
+                      <View 
+                        className="w-28 h-28 rounded-[35px] items-center justify-center p-1"
+                        style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F5F3FF" }}
+                      >
+                        <Image 
+                          source={{ uri: getFullImageUrl(user.avatarUrl, user.fullName) }} 
+                          className="w-full h-full rounded-[30px]"
+                        />
                       </View>
-                    )}
-                  </View>
-                  <Text style={{ color: textColor }} numberOfLines={2}>{post.content}</Text>
-                </TouchableOpacity>
-              ))
+                      
+                      {user.faculty && (
+                        <View 
+                          className="absolute bottom-[-10] bg-violet-500 px-3 py-1 rounded-full border-2 border-white shadow-sm"
+                        >
+                          <Text className="text-[8px] text-white font-black uppercase tracking-tighter">{user.faculty}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View className="items-center mt-5 mb-4 px-2">
+                      <Text 
+                        className="font-black text-sm text-center tracking-tight" 
+                        numberOfLines={1} 
+                        style={{ color: themeColors.text }}
+                      >
+                        {user.fullName}
+                      </Text>
+                      <View className="flex-row items-center mt-1">
+                        <Ionicons name="sparkles" size={10} color="#A78BFA" />
+                        <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Member</Text>
+                      </View>
+                    </View>
+
+                    <View 
+                      className="mx-2 mb-2 py-2 rounded-2xl items-center"
+                      style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F8F9FF" }}
+                    >
+                      <Text className="text-[9px] font-black text-violet-500 uppercase">View Profile</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

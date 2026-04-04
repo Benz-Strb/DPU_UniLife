@@ -1,77 +1,145 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
+import React, { useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { BASE_URL } from "@/services/api";
 
 export default function TagScreen() {
   const router = useRouter();
-  const { tagName } = useLocalSearchParams<{ tagName: string }>();
-  const { isDarkMode, userId, posts, toggleLike, themeColors } = useUser();
-  const name = tagName || "DPU";
+  const params = useLocalSearchParams<{ tagName: string }>();
+  const tagName = params.tagName || "DPU";
+  const { isDarkMode, userId, posts, toggleLike, themeColors, refreshPosts, isRefreshing } = useUser();
 
-  const bgColor = themeColors.background;
-  const cardColor = themeColors.card;
-  const textColor = themeColors.text;
-  const subTextColor = themeColors.subText;
-  const borderColor = themeColors.border;
+  const getFullImageUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${BASE_URL}${url}`;
+  };
 
-  const filteredPosts = posts.filter(p => p.tags?.some(t => t.tag.name.toLowerCase() === name.toLowerCase()));
+  // กรองโพสต์ที่ติด Tag คณะนี้ (facultyTag)
+  const filteredPosts = posts.filter(p => p.facultyTag === tagName);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
-      <View 
-        className="flex-row items-center px-6 py-6 border-b" 
-        style={{ backgroundColor: cardColor, borderBottomColor: borderColor }}
-      >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color={textColor} />
-        </TouchableOpacity>
-        <View className="ml-4">
-           <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: subTextColor }}>Exploring Tag</Text>
-           <Text className="text-xl font-black" style={{ color: theme.colors.primary }}>#{name}</Text>
-        </View>
-      </View>
-
-      <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
-        {filteredPosts.length === 0 ? (
-          <View className="items-center justify-center py-20 bg-white rounded-[40px] border border-dashed" style={{ backgroundColor: cardColor, borderColor: borderColor }}>
-             <Ionicons name="pricetag-outline" size={48} color={borderColor} />
-             <Text className="mt-4 font-bold" style={{ color: subTextColor }}>ยังไม่มีโพสต์ในแท็ก #{name}</Text>
+    <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <StatusBar barStyle={themeColors.statusBar as any} />
+      
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <View 
+          className="flex-row items-center px-6 py-4 border-b shadow-sm" 
+          style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border }}
+        >
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            className="w-10 h-10 items-center justify-center rounded-2xl" 
+            style={{ backgroundColor: themeColors.iconBg }}
+          >
+            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
+          </TouchableOpacity>
+          <View className="ml-4">
+             <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: themeColors.subText }}>Exploring Space</Text>
+             <Text className="text-xl font-black" style={{ color: theme.colors.primary }}>#{tagName}</Text>
           </View>
-        ) : (
-          filteredPosts.map((post) => (
-            <View 
-              key={post.id} 
-              className="rounded-[40px] overflow-hidden border mb-8 shadow-sm"
-              style={{ backgroundColor: cardColor, borderColor: borderColor }}
-            >
-              <View className="flex-row items-center p-4">
-                 <Image source={{ uri: post.author.avatarUrl }} className="w-8 h-8 rounded-full mr-3" />
-                 <Text className="font-bold text-xs flex-1" style={{ color: textColor }}>{post.author.fullName}</Text>
-                 <Text className="text-[9px]" style={{ color: subTextColor }}>{new Date(post.createdAt).toLocaleDateString()}</Text>
-              </View>
-              {post.media && post.media.length > 0 && (
-                <Image source={{ uri: post.media[0].url }} className="w-full h-64" />
-              )}
-              <View className="p-6">
-                 <Text className="text-xs mb-4 leading-5" style={{ color: textColor }}>{post.content}</Text>
-                 <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center">
-                    <Ionicons 
-                      name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
-                      size={20} 
-                      color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : textColor} 
-                    />
-                    <Text className="ml-2 font-bold text-xs" style={{ color: textColor }}>{post._count?.reactions || 0}</Text>
-                 </TouchableOpacity>
-              </View>
+        </View>
+
+        <ScrollView 
+          className="flex-1 px-6 pt-6" 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />
+          }
+        >
+          {filteredPosts.length === 0 ? (
+            <View className="items-center justify-center py-32 bg-gray-50/50 rounded-[40px] border border-dashed border-gray-200">
+               <Ionicons name="planet-outline" size={60} color="#CBD5E1" />
+               <Text className="mt-4 font-black text-[10px] uppercase text-gray-400">No posts in #{tagName} Space</Text>
             </View>
-          ))
-        )}
-        <View className="h-10" />
-      </ScrollView>
-    </SafeAreaView>
+          ) : (
+            filteredPosts.map((post) => (
+              <View 
+                key={post.id} 
+                className="mb-10 rounded-[40px] overflow-hidden border shadow-sm"
+                style={{ 
+                  backgroundColor: themeColors.card, 
+                  borderColor: themeColors.border,
+                  elevation: 4,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 20
+                }}
+              >
+                {/* Header: User Info */}
+                <View className="flex-row items-center p-5">
+                   <View className="relative">
+                     <Image 
+                      source={{ uri: post.author?.avatarUrl ? getFullImageUrl(post.author.avatarUrl)! : `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}&background=random` }} 
+                      className="w-10 h-10 rounded-[18px] mr-3" 
+                     />
+                     <View className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+                   </View>
+                   <View className="flex-1">
+                     <Text className="font-black text-sm tracking-tight" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
+                     <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{new Date(post.createdAt).toLocaleDateString()} • Community</Text>
+                   </View>
+                   <TouchableOpacity className="w-8 h-8 items-center justify-center rounded-full bg-gray-50">
+                     <Ionicons name="ellipsis-horizontal" size={16} color={themeColors.subText} />
+                   </TouchableOpacity>
+                </View>
+                
+                {/* Content: Text */}
+                {post.content && (
+                  <View className="px-6 pb-4">
+                    <Text className="text-sm leading-6 font-medium" style={{ color: themeColors.text }}>{post.content}</Text>
+                  </View>
+                )}
+
+                {/* Content: Media (Correct Aspect Ratio) */}
+                {post.media && post.media.length > 0 && (
+                  <View className="px-4 pb-4">
+                    <View className="rounded-[30px] overflow-hidden bg-gray-100" style={{ aspectRatio: 1 }}>
+                      <Image 
+                        source={{ uri: getFullImageUrl(post.media[0].url)! }} 
+                        className="w-full h-full"
+                        resizeMode="cover" 
+                      />
+                    </View>
+                  </View>
+                )}
+                
+                {/* Footer: Actions */}
+                <View className="px-6 py-5 flex-row items-center justify-between border-t" style={{ borderTopColor: themeColors.border }}>
+                   <View className="flex-row items-center">
+                     <TouchableOpacity 
+                        onPress={() => toggleLike(post.id)} 
+                        className="flex-row items-center mr-6"
+                      >
+                        <Ionicons 
+                          name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
+                          size={24} 
+                          color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : themeColors.text} 
+                        />
+                        <Text className="ml-2 font-black text-xs" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
+                     </TouchableOpacity>
+
+                     <TouchableOpacity className="flex-row items-center">
+                        <Ionicons name="chatbubble-outline" size={22} color={themeColors.text} />
+                        <Text className="ml-2 font-black text-xs" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
+                     </TouchableOpacity>
+                   </View>
+
+                   <TouchableOpacity>
+                      <Ionicons name="bookmark-outline" size={22} color={themeColors.text} />
+                   </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+          <View className="h-20" />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

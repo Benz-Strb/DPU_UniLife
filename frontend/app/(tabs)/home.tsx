@@ -11,7 +11,7 @@ import {
   RefreshControl
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
@@ -23,7 +23,6 @@ const DEFAULT_AVATAR = `https://ui-avatars.com/api/?name=${encodeURIComponent('U
 const getFullImageUrl = (url: string | null | undefined) => {
   if (!url) return DEFAULT_AVATAR;
   if (url.startsWith('http')) return url;
-  
   return `${BASE_URL}${url}`;
 };
 
@@ -38,7 +37,12 @@ export default function HomeScreen() {
     name, 
     themeColors, 
     refreshPosts, 
-    isRefreshing 
+    isRefreshing,
+    followingIds,
+    toggleFollow,
+    getDirectChat,
+    unreadChatCount,
+    unreadNotificationCount
   } = useUser();
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
 
@@ -49,28 +53,71 @@ export default function HomeScreen() {
     }
   };
 
+  const handleChatPress = async (targetId: string, targetName: string, targetAvatar: string | null) => {
+    const convo = await getDirectChat(targetId);
+    if (convo) {
+      router.push({
+        pathname: "/chat-detail",
+        params: { 
+          id: convo.id, 
+          userName: targetName, 
+          userAvatar: getFullImageUrl(targetAvatar),
+          userId: targetId
+        }
+      });
+    }
+  };
+
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <StatusBar barStyle={themeColors.statusBar as any} />
       
       <SafeAreaView className="flex-1" edges={['top']}>
+        {/* Modern Header */}
         <View 
-          className="flex-row justify-between items-center px-5 py-3 border-b" 
-          style={{ borderBottomColor: themeColors.border }}
+          className="flex-row justify-between items-center px-6 py-4 border-b" 
+          style={{ borderBottomColor: themeColors.border, backgroundColor: themeColors.card }}
         >
-          <Text className="text-2xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>
-            DPU
-          </Text>
+          <View>
+            <Text className="text-3xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>
+              DPU
+            </Text>
+            <Text className="text-[8px] font-black uppercase tracking-[3.5px] -mt-1 opacity-40" style={{ color: themeColors.text }}>UNILIFE</Text>
+          </View>
           <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.push("/new-post")} className="mr-5">
-              <Ionicons name="add-circle-outline" size={28} color={themeColors.text} />
+            <TouchableOpacity 
+              onPress={() => router.push("/new-post")} 
+              className="w-10 h-10 items-center justify-center rounded-2xl mr-3 shadow-sm"
+              style={{ backgroundColor: theme.colors.primaryLight }}
+            >
+              <Feather name="plus" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/notifications")} className="mr-5">
-              <Ionicons name="heart-outline" size={28} color={themeColors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/messenger")}>
+            <TouchableOpacity 
+              onPress={() => router.push("/notifications")} 
+              className="w-10 h-10 items-center justify-center rounded-2xl mr-3"
+              style={{ backgroundColor: themeColors.iconBg }}
+            >
               <View className="relative">
-                <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.text} />
+                <Feather name="heart" size={22} color={themeColors.text} />
+                {unreadNotificationCount > 0 && (
+                  <View className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => router.push("/messenger")}
+              className="w-10 h-10 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: themeColors.iconBg }}
+            >
+              <View className="relative">
+                <Feather name="message-circle" size={22} color={themeColors.text} />
+                {unreadChatCount > 0 && (
+                  <View 
+                    className="absolute -top-2 -right-2 bg-red-500 rounded-full min-w-[18px] h-[18px] items-center justify-center px-1 border-2 border-white shadow-sm"
+                  >
+                    <Text className="text-[8px] text-white font-black">{unreadChatCount}</Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           </View>
@@ -78,6 +125,7 @@ export default function HomeScreen() {
 
         <ScrollView 
           showsVerticalScrollIndicator={false}
+          className="px-4 pt-6"
           refreshControl={
             <RefreshControl 
               refreshing={isRefreshing} 
@@ -87,109 +135,164 @@ export default function HomeScreen() {
             />
           }
         >
-          {posts.length === 0 ? (
-            <View className="items-center justify-center py-20 px-10">
-              <Ionicons name="planet-outline" size={80} color={isDarkMode ? "#2D2D2D" : "#E5E7EB"} />
-              <Text className="text-xl font-black mt-6" style={{ color: themeColors.subText }}>Welcome to UniLife</Text>
-              <Text className="text-center mt-2 font-medium" style={{ color: themeColors.subText }}>
-                Follow some friends or start posting to see what&apos;s happening on campus!
+          {posts.filter(p => p.author?.role === "STUDENT").length === 0 ? (
+            <View className="items-center justify-center py-32 bg-white rounded-[50px] border border-dashed border-gray-100 shadow-sm mx-2">
+              <View className="w-24 h-24 rounded-[40px] bg-violet-50 items-center justify-center mb-6">
+                <Ionicons name="planet-outline" size={50} color={theme.colors.primary} />
+              </View>
+              <Text className="text-xl font-black" style={{ color: themeColors.text }}>Empty Galaxy</Text>
+              <Text className="text-center mt-2 font-medium px-10 leading-5" style={{ color: themeColors.subText }}>
+                Start exploring faculties or post something to see life on campus!
               </Text>
             </View>
           ) : (
-            posts.map((post) => (
-              <View key={post.id} className="mb-4">
-                <View className="flex-row items-center justify-between px-4 py-3">
-                  <View className="flex-row items-center">
-                    <Image 
-                      source={{ uri: getFullImageUrl(post.author?.avatarUrl) }} 
-                      className="w-9 h-9 rounded-full mr-3 border border-gray-100" 
-                    />
-                    <View>
-                      <Text className="font-black text-sm" style={{ color: themeColors.text }}>{post.author?.fullName || "User"}</Text>
-                      <Text className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: themeColors.subText }}>DPU • {new Date(post.createdAt).toLocaleDateString()}</Text>
+            posts.filter(p => p.author?.role === "STUDENT").map((post) => (
+              <View 
+                key={post.id} 
+                className="mb-10 rounded-[45px] overflow-hidden border shadow-xl mx-1"
+                style={{ 
+                  backgroundColor: themeColors.card, 
+                  borderColor: themeColors.border,
+                  elevation: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 15 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 25
+                }}
+              >
+                {/* Post Header */}
+                <View className="flex-row items-center justify-between px-6 py-5">
+                  <View className="flex-row items-center flex-1">
+                    <TouchableOpacity 
+                      onPress={() => router.push({ pathname: "/user-profile", params: { userId: post.authorId } })}
+                      className="relative"
+                    >
+                      <Image 
+                        source={{ uri: getFullImageUrl(post.author?.avatarUrl) }} 
+                        className="w-11 h-11 rounded-[20px] mr-3 border-2 border-white shadow-sm" 
+                      />
+                      <View className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                    </TouchableOpacity>
+                    <View className="flex-1">
+                      <Text className="font-black text-sm tracking-tight" style={{ color: themeColors.text }}>{post.author?.fullName || "User"}</Text>
+                      <View className="flex-row items-center mt-0.5">
+                        {post.author?.faculty && (
+                          <Text className="text-[9px] font-black text-violet-500 uppercase mr-2">{post.author.faculty}</Text>
+                        )}
+                        <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{new Date(post.createdAt).toLocaleDateString()}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-
-                {post.media && post.media.length > 0 ? (
-                  <Image 
-                    source={{ uri: getFullImageUrl(post.media[0].url) }} 
-                    style={{ width: width, height: width }} 
-                    className="bg-gray-100"
-                  />
-                ) : (
-                  <View 
-                    className="px-8 py-12 items-center justify-center"
-                    style={{ backgroundColor: isDarkMode ? "#1E1E1E" : "#F5F3FF" }}
-                  >
-                    <Text 
-                      className="text-lg font-bold text-center"
-                      style={{ color: isDarkMode ? "#EDE9FE" : "#5B21B6" }}
-                    >
-                      {post.content}
-                    </Text>
-                  </View>
-                )}
-
-                <View className="flex-row justify-between items-center px-4 pt-3 pb-2">
-                  <View className="flex-row items-center">
-                    <TouchableOpacity onPress={() => toggleLike(post.id)} className="mr-4">
-                      <Ionicons 
-                        name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
-                        size={28} 
-                        color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : themeColors.text} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity>
-                      <Ionicons name="chatbubble-outline" size={26} color={themeColors.text} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View className="px-4">
-                  <Text className="font-black text-sm mb-1" style={{ color: themeColors.text }}>
-                    {(post.reactions?.length || 0).toLocaleString()} likes
-                  </Text>
-                  <View className="flex-row flex-wrap">
-                    <Text className="font-black text-sm mr-2" style={{ color: themeColors.text }}>{post.author?.fullName || "User"}</Text>
-                    <Text className="text-sm flex-1" style={{ color: themeColors.text }}>{post.content}</Text>
-                  </View>
                   
-                  {post.comments && post.comments.length > 0 && (
-                    <TouchableOpacity className="mt-1">
-                      <Text className="text-sm font-medium" style={{ color: themeColors.subText }}>
-                        View all {post.comments.length} comments
-                      </Text>
+                  {/* ย้ายป้าย Follow มาไว้มุมขวาบน */}
+                  {post.authorId !== userId ? (
+                    <View className="flex-row items-center">
+                      {followingIds.includes(post.authorId) ? (
+                        <TouchableOpacity onPress={() => handleChatPress(post.authorId, post.author?.fullName || "User", post.author?.avatarUrl || null)} className="bg-gray-100 px-4 py-2 rounded-2xl">
+                          <Text className="font-black text-[10px] text-gray-500 uppercase">Message</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity onPress={() => toggleFollow(post.authorId)} className="bg-violet-500 px-4 py-2 rounded-2xl shadow-sm">
+                          <Text className="font-black text-[10px] text-white uppercase">Follow</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ) : (
+                    <TouchableOpacity className="w-8 h-8 items-center justify-center rounded-full bg-gray-50/50">
+                      <Feather name="more-horizontal" size={18} color={themeColors.subText} />
                     </TouchableOpacity>
                   )}
                 </View>
 
-                <View className="flex-row items-center px-4 mt-2">
-                  <Image 
-                    source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Me')}&background=random` }} 
-                    className="w-6 h-6 rounded-full mr-2" 
-                  />
-                  <TextInput 
-                    placeholder="Add a comment..."
-                    placeholderTextColor={isDarkMode ? "#666" : "#94A3B8"}
-                    className="flex-1 text-xs font-medium py-2"
-                    style={{ color: themeColors.text }}
-                    value={commentText[post.id] || ""}
-                    onChangeText={(text) => setCommentText({ ...commentText, [post.id]: text })}
-                  />
-                  <TouchableOpacity onPress={() => handleSendComment(post.id)}>
-                    <Text 
-                      className="font-black text-xs" 
-                      style={{ color: theme.colors.primary, opacity: commentText[post.id] ? 1 : 0.4 }}
-                    >
-                      Post
-                    </Text>
+                {/* Post Content */}
+                {post.content && (
+                  <View className="px-7 pb-5">
+                    <Text className="text-[13px] leading-6 font-medium" style={{ color: themeColors.text }}>{post.content}</Text>
+                  </View>
+                )}
+
+                {/* Post Media (Aspect 1:1) */}
+                {post.media && post.media.length > 0 && (
+                  <View className="px-4 pb-4">
+                    <View className="rounded-[35px] overflow-hidden bg-gray-100" style={{ aspectRatio: 1 }}>
+                      <Image 
+                        source={{ uri: getFullImageUrl(post.media[0].url) }} 
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Actions: Like & Comment Count */}
+                <View className="px-7 py-6 flex-row items-center border-t" style={{ borderTopColor: themeColors.border }}>
+                  <TouchableOpacity 
+                    onPress={() => toggleLike(post.id)} 
+                    className="flex-row items-center mr-10"
+                  >
+                    <Ionicons 
+                      name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
+                      size={28} 
+                      color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : themeColors.text} 
+                    />
+                    <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
                   </TouchableOpacity>
+
+                  <View className="flex-row items-center">
+                    <Feather name="message-circle" size={26} color={themeColors.text} />
+                    <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
+                  </View>
+                </View>
+
+                {/* Comments Section */}
+                {post.comments && post.comments.length > 0 && (
+                  <View className="px-7 pb-4">
+                    {post.comments.slice(-2).map((comment, idx) => (
+                      <View key={comment.id || idx} className="flex-row mb-2">
+                        <Text className="font-black text-xs mr-2" style={{ color: themeColors.text }}>{comment.author?.fullName || "User"}</Text>
+                        <Text className="text-xs flex-1" style={{ color: themeColors.subText }} numberOfLines={2}>{comment.content}</Text>
+                      </View>
+                    ))}
+                    {post.comments.length > 2 && (
+                      <TouchableOpacity className="mt-1">
+                        <Text className="text-[10px] font-black text-violet-500 uppercase tracking-widest">View all {post.comments.length} comments</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                {/* Comment Input */}
+                <View className="px-6 pb-6 pt-2">
+                  <View 
+                    className="flex-row items-center px-4 py-2 rounded-[25px] border"
+                    style={{ backgroundColor: isDarkMode ? "#1E1E1E" : "#F8F9FE", borderColor: themeColors.border }}
+                  >
+                    <Image 
+                      source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Me')}&background=7C3AED&color=fff` }} 
+                      className="w-7 h-7 rounded-full mr-3" 
+                    />
+                    <TextInput 
+                      placeholder="Add a thought..."
+                      placeholderTextColor={isDarkMode ? "#555" : "#94A3B8"}
+                      className="flex-1 text-xs font-bold py-2"
+                      style={{ color: themeColors.text }}
+                      value={commentText[post.id] || ""}
+                      onChangeText={(text) => setCommentText({ ...commentText, [post.id]: text })}
+                    />
+                    {commentText[post.id]?.trim() && (
+                      <TouchableOpacity 
+                        onPress={() => handleSendComment(post.id)}
+                        className="bg-violet-500 w-8 h-8 rounded-full items-center justify-center shadow-sm"
+                      >
+                        <Ionicons name="arrow-up" size={18} color="white" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
             ))
           )}
-          <View className="h-20" />
+          <View className="h-24" />
         </ScrollView>
       </SafeAreaView>
     </View>

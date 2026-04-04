@@ -7,12 +7,16 @@ import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { FACULTY_DATA } from "@/constants/data";
+import { BASE_URL } from "@/services/api";
 
 export default function GroupScreen() {
   const router = useRouter();
-  const { faculty, userId, posts, toggleLike, themeColors, isDarkMode } = useUser();
-  const [selectedGroup, setSelectedGroup] = useState(faculty);
+  const { userId, posts, toggleLike, themeColors, isDarkMode, user } = useUser();
+  const [selectedGroup, setSelectedGroup] = useState("DPU");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // ดึงคณะจากข้อมูลผู้ใช้จริง
+  const userFaculty = user?.faculty || "No Faculty";
 
   const bgColor = themeColors.background;
   const cardColor = themeColors.card;
@@ -21,11 +25,27 @@ export default function GroupScreen() {
   const borderColor = themeColors.border;
 
   const fullName = selectedGroup === "DPU" ? "Dhurakij Pundit University" : (FACULTY_DATA[selectedGroup] || selectedGroup);
-  const filteredPosts = posts.filter(p => p.group?.name === selectedGroup);
+  
+  // กรองโพสต์ตามเงื่อนไขประกาศ Official
+  const filteredPosts = posts.filter(p => {
+    if (selectedGroup === "DPU") {
+      // DPU Space: แสดงเฉพาะโพสต์จาก University Admin (SUPER_ADMIN) เท่านั้น
+      return p.author?.role === "SUPER_ADMIN";
+    } else {
+      // Faculty Space: แสดงเฉพาะโพสต์จาก Faculty Admin (ADMIN) ของคณะนั้นๆ เท่านั้น
+      return p.author?.role === "ADMIN" && p.author?.faculty === selectedGroup;
+    }
+  });
 
   const toggleGroup = (group: string) => {
     setSelectedGroup(group);
     setIsDropdownOpen(false);
+  };
+
+  const getFullImageUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${BASE_URL}${url}`;
   };
 
   return (
@@ -64,12 +84,11 @@ export default function GroupScreen() {
                   >
                     <Text className={`font-black ${selectedGroup === "DPU" ? 'text-white' : 'text-violet-600'}`}>DPU</Text>
                   </TouchableOpacity>
-                  <View className="h-[1px]" style={{ backgroundColor: borderColor }} />
                   <TouchableOpacity 
-                    onPress={() => toggleGroup(faculty)}
-                    className={`p-4 items-center ${selectedGroup === faculty ? 'bg-violet-600' : ''}`}
+                    onPress={() => toggleGroup(userFaculty)}
+                    className={`p-4 items-center ${selectedGroup === userFaculty ? 'bg-violet-600' : ''}`}
                   >
-                    <Text className={`font-black ${selectedGroup === faculty ? 'text-white' : 'text-violet-600'}`}>{faculty}</Text>
+                    <Text className={`font-black ${selectedGroup === userFaculty ? 'text-white' : 'text-violet-600'}`}>{userFaculty}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -104,7 +123,7 @@ export default function GroupScreen() {
           {filteredPosts.length === 0 ? (
             <View className="p-16 rounded-[48px] border shadow-sm items-center justify-center" style={{ backgroundColor: cardColor, borderColor: borderColor }}>
               <Ionicons name="newspaper-outline" size={48} color={borderColor} />
-              <Text className="mt-6 font-bold text-center" style={{ color: subTextColor }}>ยังไม่มีโพสต์</Text>
+              <Text className="mt-6 font-bold text-center" style={{ color: subTextColor }}>ยังไม่มีโพสต์ใน {selectedGroup}</Text>
             </View>
           ) : (
             filteredPosts.map((post) => (
@@ -114,7 +133,7 @@ export default function GroupScreen() {
                 style={{ backgroundColor: cardColor, borderColor: post.group?.isOfficial ? theme.colors.primary : borderColor }}
               >
                 <View className="flex-row items-center p-4">
-                   <Image source={{ uri: post.author?.avatarUrl }} className="w-8 h-8 rounded-full mr-3" />
+                   <Image source={{ uri: getFullImageUrl(post.author?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}` }} className="w-8 h-8 rounded-full mr-3" />
                    <View className="flex-1">
                      <View className="flex-row items-center">
                         <Text className="font-bold text-[11px] mr-2" style={{ color: textColor }}>{post.author?.fullName}</Text>
@@ -123,25 +142,20 @@ export default function GroupScreen() {
                             <Text className="text-amber-700 text-[7px] font-bold uppercase">{post.author?.role}</Text>
                           </View>
                         )}
-                        {post.group?.name && post.group.name !== "DPU" && (
-                          <View className="bg-violet-100 px-1.5 py-0.5 rounded-md border border-violet-200">
-                            <Text className="text-violet-700 text-[7px] font-bold uppercase">{post.group.name}</Text>
+                        {post.author?.faculty && (
+                          <View className="bg-blue-100 px-1.5 py-0.5 rounded-md border border-blue-200">
+                            <Text className="text-blue-700 text-[7px] font-bold uppercase">{post.author.faculty}</Text>
                           </View>
                         )}
                      </View>
                      <Text className="text-[9px]" style={{ color: subTextColor }}>{new Date(post.createdAt).toLocaleDateString()}</Text>
                    </View>
-                   {post.group?.isOfficial && (
-                     <View className="bg-red-500 px-3 py-1 rounded-full">
-                        <Text className="text-white text-[8px] font-black">NEWS</Text>
-                     </View>
-                   )}
                 </View>
                 {post.media && post.media.length > 0 && (
-                  <Image source={{ uri: post.media[0].url }} className="w-full h-64" />
+                  <Image source={{ uri: getFullImageUrl(post.media[0].url) }} className="w-full h-64 bg-gray-50" />
                 )}
                 <View className="p-6">
-                   <Text className="text-xs mb-4" style={{ color: textColor }}>{post.content}</Text>
+                   <Text className="text-xs mb-4 leading-5" style={{ color: textColor }}>{post.content}</Text>
                    <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center">
                       <Ionicons 
                         name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 

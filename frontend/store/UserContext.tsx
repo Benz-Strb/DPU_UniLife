@@ -37,6 +37,14 @@ interface UserContextType {
   sendMessage: (convoId: string, body: string) => Promise<void>;
   syncProfile: (name: string, faculty: string, img: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) => Promise<void>;
+  followingIds: string[];
+  toggleFollow: (targetId: string) => Promise<void>;
+  getDirectChat: (targetId: string) => Promise<Conversation | null>;
+  unreadChatCount: number;
+  unreadNotificationCount: number;
+  fetchNotifications: () => Promise<void>;
+  markNotificationAsRead: (notifId: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -53,9 +61,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isUniAdmin, setIsUniAdmin] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [notificationList, setNotificationList] = useState<any[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [posts, setPosts] = useState<Post[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   const fetchPosts = async () => {
     try {
@@ -64,6 +75,41 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e) { 
       setPosts([]); 
     }
+  };
+
+  const fetchNotifications = async () => {
+    if (!userId) return;
+    try {
+      const { notificationService } = require("@/services/api");
+      const result = await notificationService.getNotifications(userId);
+      if (result && result.data) {
+        setNotificationList(result.data);
+        setUnreadNotificationCount(result.unreadCount || 0);
+      }
+    } catch (e) { console.error("Fetch Notifications Error", e); }
+  };
+
+  const markNotificationAsRead = async (notifId: string) => {
+    try {
+      const { notificationService } = require("@/services/api");
+      await notificationService.markAsRead(notifId);
+      fetchNotifications();
+    } catch (e) { console.error(e); }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const { notificationService } = require("@/services/api");
+      await notificationService.markAllAsRead(userId);
+      fetchNotifications();
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchFollowing = async (id: string) => {
+    try {
+      // ในความเป็นจริงควรมี API getFollowing แต่ตอนนี้เราจะจำลองจาก user data ถ้ามี
+      // หรือใช้ข้อมูลจากการกด toggle follow
+    } catch (e) { console.error(e); }
   };
 
   const refreshPosts = async () => {
@@ -75,7 +121,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const fetchChats = async (currentUserId: string) => {
     try {
       const data = await chatService.getConversations(currentUserId);
-      setConversations(Array.isArray(data) ? data : []);
+      const convos = Array.isArray(data) ? data : [];
+      setConversations(convos);
+      
+      let count = 0;
+      convos.forEach(c => {
+        const myParticipant = c.participants.find(p => p.userId === currentUserId);
+        if (myParticipant && c.messages && c.messages.length > 0) {
+          const lastMsg = c.messages[c.messages.length - 1];
+          if (lastMsg.senderId !== currentUserId) {
+             if (!myParticipant.lastReadAt || new Date(myParticipant.lastReadAt) < new Date(lastMsg.createdAt)) {
+               count++;
+             }
+          }
+        }
+      });
+      setUnreadChatCount(count);
     } catch (e) { 
       setConversations([]); 
     }
@@ -85,17 +146,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (userId) {
       fetchPosts();
       fetchChats(userId);
+      fetchNotifications();
+      fetchFollowing(userId);
 
-      const interval = setInterval(() => {
+      const postInterval = setInterval(() => {
         fetchPosts();
       }, 10000);
-      return () => clearInterval(interval);
+
+      const chatInterval = setInterval(() => {
+        fetchChats(userId);
+        fetchNotifications();
+      }, 3000); // ดึงข้อมูลแชทและแจ้งเตือนทุก 3 วินาที
+
+      return () => {
+        clearInterval(postInterval);
+        clearInterval(chatInterval);
+      };
     }
   }, [userId]);
 
   const login = async (email: string, pass: string) => {
     try {
       console.log("Attempting login for:", email);
+      const { authService, followService } = require("@/services/api");
       const response = await authService.login(email, pass);
       console.log("Login response:", response);
       if (response.success && response.user && response.user.id) {
@@ -109,6 +182,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setIsAdmin(u.role === UserRole.ADMIN || u.role === UserRole.SUPER_ADMIN);
         setIsUniAdmin(u.role === UserRole.SUPER_ADMIN);
         
+        // ดึงรายการ following (ถ้ามี API) 
+        // เบื้องต้นอาจจะยังว่างอยู่
+        
         fetchPosts();
         fetchChats(u.id);
         
@@ -118,6 +194,49 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Login Error in Context:", e);
       return false;
+    }
+  };
+
+  const toggleFollow = async (targetId: string) => {
+    if (!userId) return;
+    
+    // Optimistic Update
+    const isFollowing = followingIds.includes(targetId);
+    if (isFollowing) {
+      setFollowingIds(prev => prev.filter(id => id !== targetId));
+    } else {
+      setFollowingIds(prev => [...prev, targetId]);
+    }
+
+    try {
+      const { followService } = require("@/services/api");
+      const result = await followService.toggleFollow(userId, targetId);
+      // Update state อีกครั้งตามผลลัพธ์จริงจาก server
+      if (result.followed) {
+        setFollowingIds(prev => [...new Set([...prev, targetId])]);
+      } else {
+        setFollowingIds(prev => prev.filter(id => id !== targetId));
+      }
+    } catch (e) {
+      console.error(e);
+      // Revert state if error
+      if (isFollowing) {
+        setFollowingIds(prev => [...prev, targetId]);
+      } else {
+        setFollowingIds(prev => prev.filter(id => id !== targetId));
+      }
+    }
+  };
+
+  const getDirectChat = async (targetId: string) => {
+    try {
+      const { chatService } = require("@/services/api");
+      const convo = await chatService.getOrCreateDirectChat(userId, targetId);
+      fetchChats(userId); // Refresh chat list
+      return convo;
+    } catch (e) {
+      console.error(e);
+      return null;
     }
   };
 
@@ -156,7 +275,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const newPost = await postService.createPost({
         ...postData,
         image: finalImageUrl,
-        authorId: userId
+        authorId: userId,
+        facultyTag: postData.tag
       });
       setPosts(prev => [newPost, ...prev]);
     } catch (e) { console.error(e); }
@@ -238,15 +358,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (updateData: any) => {
     try {
+      let finalAvatarUrl = updateData.avatarUrl;
+
+      // ถ้าเป็นรูปจากเครื่องให้ Upload ก่อน
+      if (finalAvatarUrl && finalAvatarUrl.startsWith('file')) {
+        const { postService } = require("@/services/api");
+        finalAvatarUrl = await postService.uploadImage(finalAvatarUrl);
+      }
+
+      const { authService } = require("@/services/api");
+      const response = await authService.updateProfile(userId, {
+        ...updateData,
+        avatarUrl: finalAvatarUrl
+      });
+
       if (updateData.fullName) setName(updateData.fullName);
       if (updateData.bio) setBio(updateData.bio);
-      if (updateData.avatarUrl) setProfileImage(updateData.avatarUrl);
+      if (finalAvatarUrl) setProfileImage(finalAvatarUrl);
       
       if (user) {
-        setUser({ ...user, ...updateData });
+        setUser({ ...user, ...updateData, avatarUrl: finalAvatarUrl });
       }
       
-      fetchPosts();
+      fetchPosts(); // เพื่อให้อัปเดตรูปในหน้า Feed
     } catch (e) { console.error("Update Profile Error", e); }
   };
 
@@ -267,7 +401,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       isAdmin, isUniAdmin, login, signUp, logout,
       posts, addPost, toggleLike, addComment,
       refreshPosts, isRefreshing,
-      conversations, sendMessage, syncProfile, updateProfile
+      conversations, sendMessage, syncProfile, updateProfile,
+      followingIds, toggleFollow, getDirectChat,
+      unreadChatCount, unreadNotificationCount,
+      fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead
     }}>
       {children}
     </UserContext.Provider>

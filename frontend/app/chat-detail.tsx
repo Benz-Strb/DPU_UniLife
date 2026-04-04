@@ -5,16 +5,37 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { BASE_URL } from "@/services/api";
 
 export default function ChatDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; convoId: string }>();
-  const { userName, userAvatar, userId: targetUserId, convoId } = params;
-  const { isDarkMode, userId, conversations, sendMessage } = useUser();
+  const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string }>();
+  const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams } = params;
+  const { isDarkMode, userId, conversations, sendMessage, getDirectChat } = useUser();
   const [inputText, setInputText] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
+  const [activeConvoId, setActiveConvoId] = useState(convoIdFromParams);
 
-  const currentConversation = conversations.find(c => c.id === convoId || c.participants.some(p => p.userId === targetUserId));
+  // หา conversation จาก ID หรือจากผู้เข้าร่วม
+  const currentConversation = conversations.find(c => 
+    c.id === activeConvoId || 
+    (targetUserId && c.type === "DIRECT" && c.participants.some(p => p.userId === targetUserId))
+  );
+
+  // หาข้อมูลคู่สนทนาจากห้องแชทจริง (ถ้ามี)
+  const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
+  const userName = recipient?.fullName || nameFromParams || "Chat";
+  const userAvatar = recipient?.avatarUrl ? (recipient.avatarUrl.startsWith('http') ? recipient.avatarUrl : `${BASE_URL}${recipient.avatarUrl}`) : (avatarFromParams || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=7C3AED&color=fff`);
+
+  // ถ้าเข้ามาแล้วไม่มี convoId แต่มี targetUserId ให้ลองหาหรือสร้างห้อง
+  React.useEffect(() => {
+    if (!activeConvoId && targetUserId) {
+      getDirectChat(targetUserId).then(convo => {
+        if (convo) setActiveConvoId(convo.id);
+      });
+    }
+  }, [targetUserId]);
+
   const messages = currentConversation ? currentConversation.messages : [];
 
   const bgColor = isDarkMode ? "#121212" : "#FFFFFF";
