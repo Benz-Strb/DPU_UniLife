@@ -109,9 +109,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const fetchFollowing = async (id: string) => {
     try {
-      // ในความเป็นจริงควรมี API getFollowing แต่ตอนนี้เราจะจำลองจาก user data ถ้ามี
-      // หรือใช้ข้อมูลจากการกด toggle follow
-    } catch (e) { console.error(e); }
+      const { followService } = require("@/services/api");
+      const ids = await followService.getFollowingIds(id);
+      setFollowingIds(ids || []);
+    } catch (e) { console.error("Fetch Following Error", e); }
   };
 
   const refreshPosts = async () => {
@@ -200,33 +201,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleFollow = async (targetId: string) => {
-    if (!userId) return;
+    if (!userId || !targetId) return;
+    
+    const isFollowing = followingIds.includes(targetId);
     
     // Optimistic Update
-    const isFollowing = followingIds.includes(targetId);
-    if (isFollowing) {
-      setFollowingIds(prev => prev.filter(id => id !== targetId));
-    } else {
-      setFollowingIds(prev => [...prev, targetId]);
-    }
+    setFollowingIds(prev => 
+      isFollowing ? prev.filter(id => id !== targetId) : [...prev, targetId]
+    );
 
     try {
       const { followService } = require("@/services/api");
       const result = await followService.toggleFollow(userId, targetId);
-      // Update state อีกครั้งตามผลลัพธ์จริงจาก server
-      if (result.followed) {
-        setFollowingIds(prev => [...new Set([...prev, targetId])]);
-      } else {
-        setFollowingIds(prev => prev.filter(id => id !== targetId));
-      }
+      
+      // Sync กับสถานะจริงจาก Server
+      const currentIds = await followService.getFollowingIds(userId);
+      setFollowingIds(currentIds || []);
     } catch (e) {
-      console.error(e);
+      console.error("Toggle Follow Error:", e);
       // Revert state if error
-      if (isFollowing) {
-        setFollowingIds(prev => [...prev, targetId]);
-      } else {
-        setFollowingIds(prev => prev.filter(id => id !== targetId));
-      }
+      setFollowingIds(prev => 
+        isFollowing ? [...prev, targetId] : prev.filter(id => id !== targetId)
+      );
     }
   };
 

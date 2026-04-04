@@ -90,19 +90,28 @@ export default function HomeScreen() {
   };
 
   const handleChatPress = async (targetId: string, targetName: string, targetAvatar: string | null) => {
-    const convo = await getDirectChat(targetId);
-    if (convo) {
-      router.push({
-        pathname: "/chat-detail",
-        params: { 
-          id: convo.id, 
-          userName: targetName, 
-          userAvatar: getFullImageUrl(targetAvatar),
-          userId: targetId
-        }
-      });
+    try {
+      const convo = await getDirectChat(targetId);
+      if (convo) {
+        router.push({
+          pathname: "/chat-detail",
+          params: { 
+            id: convo.id, 
+            userName: targetName, 
+            userAvatar: getFullImageUrl(targetAvatar),
+            userId: targetId
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
     }
   };
+
+  // ปรับปรุงการ Filter โพสต์ให้เสถียรขึ้น
+  const studentPosts = React.useMemo(() => {
+    return posts.filter(p => p.author?.role === "STUDENT");
+  }, [posts]);
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>

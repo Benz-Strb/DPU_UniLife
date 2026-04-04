@@ -288,6 +288,15 @@ export const followService = {
       console.error("Check Follow Status Error", e);
       return { followed: false };
     }
+  },
+  getFollowingIds: async (userId: string): Promise<string[]> => {
+    try {
+      const response = await API.get(`/follows/ids/${userId}`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Following IDs Error", e);
+      return [];
+    }
   }
 };
 
