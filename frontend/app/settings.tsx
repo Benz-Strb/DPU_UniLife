@@ -71,6 +71,26 @@ export default function SettingsScreen() {
         </View>
 
         <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
+          {/* Academic Section */}
+          <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Academic</Text>
+          <View 
+            className="rounded-[35px] px-6 mb-8 border border-white/5" 
+            style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
+          >
+            <SettingItem 
+              icon="calendar-outline" 
+              label="Manage Semester Schedule" 
+              type="link"
+              onPress={() => router.push("/add-course")}
+            />
+            <SettingItem 
+              icon="time-outline" 
+              label="View Full Timetable" 
+              type="link"
+              onPress={() => router.push("/schedule")}
+            />
+          </View>
+
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Appearance</Text>
           <View 
             className="rounded-[35px] px-6 mb-8 border border-white/5" 
@@ -105,7 +125,7 @@ export default function SettingsScreen() {
               icon="mail-outline" 
               label="Email Updates" 
               value={false} 
-              onToggle={() => Alert.alert("Feature unavailable", "Email updates are currently not available for your account type.")}
+              onToggle={() => Alert.alert("Feature unavailable", "Email updates are currently not available.")}
             />
           </View>
 
@@ -124,7 +144,7 @@ export default function SettingsScreen() {
               icon="lock-closed-outline" 
               label="Privacy & Security" 
               type="link"
-              onPress={() => Alert.alert("Privacy Settings", "Your profile is currently visible to all DPU students.")}
+              onPress={() => Alert.alert("Privacy Settings", "Your profile is visible to all DPU students.")}
             />
           </View>
 
@@ -137,7 +157,7 @@ export default function SettingsScreen() {
               icon="help-circle-outline" 
               label="Help Center" 
               type="link" 
-              onPress={() => Alert.alert("Support", "Please contact support@dpu.ac.th for any assistance.")}
+              onPress={() => Alert.alert("Support", "Please contact support@dpu.ac.th")}
             />
             <SettingItem 
               icon="information-circle-outline" 

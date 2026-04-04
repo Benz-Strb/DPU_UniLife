@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { Prisma } from '../../generated/prisma/client';
-import { PostVisibility, ReactionType } from '../../generated/prisma/enums';
+import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const postRouter = Router();

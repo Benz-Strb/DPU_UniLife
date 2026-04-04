@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { ConversationType, MediaType } from '../../generated/prisma/enums';
+import { Prisma, ConversationType, MediaType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const chatRouter = Router();

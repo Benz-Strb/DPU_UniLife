@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { NotificationType } from '../../generated/prisma/enums';
+import { Prisma, NotificationType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const notificationRouter = Router();

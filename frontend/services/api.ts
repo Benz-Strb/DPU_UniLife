@@ -273,4 +273,34 @@ export const followService = {
   }
 };
 
+export const scheduleService = {
+  getSchedule: async (userId: string) => {
+    try {
+      const response = await API.get("/schedule", { params: { userId } });
+      return response.data;
+    } catch (e) {
+      console.error("Get Schedule Error", e);
+      return [];
+    }
+  },
+  addCourse: async (data: any) => {
+    try {
+      const response = await API.post("/schedule", data);
+      return response.data;
+    } catch (e) {
+      console.error("Add Course Error", e);
+      throw e;
+    }
+  },
+  deleteCourse: async (id: string) => {
+    try {
+      await API.delete(`/schedule/${id}`);
+      return true;
+    } catch (e) {
+      console.error("Delete Course Error", e);
+      throw e;
+    }
+  }
+};
+
 

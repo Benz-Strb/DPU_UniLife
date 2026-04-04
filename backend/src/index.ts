@@ -8,6 +8,7 @@ import { notificationRouter } from "./routes/notification";
 import { groupRouter } from "./routes/group";
 import { reportRouter } from "./routes/report";
 import { followRouter } from "./routes/follow";
+import scheduleRouter from "./routes/schedule";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -24,6 +25,7 @@ app.use('/notifications', notificationRouter);
 app.use('/groups', groupRouter);
 app.use('/reports', reportRouter);
 app.use('/follows', followRouter);
+app.use('/schedule', scheduleRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "DPU UniLife backend is running" });

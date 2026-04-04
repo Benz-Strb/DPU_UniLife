@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { Gender, LoginStatus, UserRole, UserStatus } from '../../generated/prisma/enums';
+import { Prisma, Gender, LoginStatus, UserRole, UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword, verifyPassword } from '../password';
 

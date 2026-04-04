@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { Prisma } from '../../generated/prisma/client';
-import { AnnouncementStatus, UserRole } from '../../generated/prisma/enums';
+import { Prisma, AnnouncementStatus, UserRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const announcementRouter = Router();

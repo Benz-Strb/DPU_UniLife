@@ -14,21 +14,9 @@ export default function EditProfileScreen() {
   const [fullName, setFullNameInput] = useState(name);
   const [bioInput, setBioInput] = useState(bio);
 
-  const validateEnglishOnly = (text: string) => /^[A-Za-z0-9_\s]+$/.test(text);
-
   const handleSave = async () => {
     if (!fullName.trim() || !username.trim()) {
-      Alert.alert("Error", "Name and Username are required.");
-      return;
-    }
-
-    if (!validateEnglishOnly(fullName)) {
-      Alert.alert("Invalid Name", "Full Name must be in English only.");
-      return;
-    }
-
-    if (!validateEnglishOnly(username)) {
-      Alert.alert("Invalid Username", "Username must be in English and can only contain letters, numbers, and underscores.");
+      Alert.alert("Error", "Required fields missing");
       return;
     }
 
@@ -39,18 +27,11 @@ export default function EditProfileScreen() {
       avatarUrl: profileImage
     });
 
-    Alert.alert("Success", "Profile updated successfully!");
+    Alert.alert("Success", "Profile updated");
     router.back();
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('ขออภัย', 'เราต้องการสิทธิ์ในการเข้าถึงรูปภาพของคุณเพื่อเปลี่ยนรูปโปรไฟล์');
-      return;
-    }
-
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -72,7 +53,7 @@ export default function EditProfileScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color={themeColors.text} />
         </TouchableOpacity>
-        <Text className="text-lg font-black ml-4" style={{ color: themeColors.text }}>Edit profile</Text>
+        <Text className="text-lg font-black ml-4" style={{ color: themeColors.text }}>Edit Profile</Text>
       </View>
 
       <ScrollView className="flex-1 px-8 py-6" showsVerticalScrollIndicator={false}>
@@ -95,50 +76,38 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <View className="space-y-8">
+        <View className="space-y-6">
           <View>
-            <View className="flex-row items-center mb-2 ml-1">
-              <Ionicons name="person-outline" size={16} color={theme.colors.primary} />
-              <Text className="text-[10px] font-black uppercase tracking-[2px] ml-2" style={{ color: themeColors.subText }}>Full Name (English Only)</Text>
-            </View>
+            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-2" style={{ color: themeColors.subText }}>Full Name</Text>
             <TextInput 
               className="px-6 py-4 rounded-3xl border font-bold"
               style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }}
               value={fullName}
               onChangeText={setFullNameInput}
-              placeholder="Your Full Name"
-              placeholderTextColor={themeColors.subText}
+              placeholder="Full Name"
             />
           </View>
 
-          <View className="mt-6">
-            <View className="flex-row items-center mb-2 ml-1">
-              <Ionicons name="at-circle-outline" size={16} color={theme.colors.primary} />
-              <Text className="text-[10px] font-black uppercase tracking-[2px] ml-2" style={{ color: themeColors.subText }}>Username (English Only)</Text>
-            </View>
+          <View className="mt-4">
+            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-2" style={{ color: themeColors.subText }}>Username</Text>
             <TextInput 
               className="px-6 py-4 rounded-3xl border font-bold"
               style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }}
               value={username}
               onChangeText={setUsernameInput}
-              placeholder="username"
-              placeholderTextColor={themeColors.subText}
+              placeholder="Username"
               autoCapitalize="none"
             />
           </View>
 
-          <View className="mt-6">
-            <View className="flex-row items-center mb-2 ml-1">
-              <Ionicons name="document-text-outline" size={16} color={theme.colors.primary} />
-              <Text className="text-[10px] font-black uppercase tracking-[2px] ml-2" style={{ color: themeColors.subText }}>About You</Text>
-            </View>
+          <View className="mt-4">
+            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-2" style={{ color: themeColors.subText }}>Bio</Text>
             <TextInput 
               className="px-6 py-4 rounded-3xl border font-bold h-24"
               style={{ backgroundColor: themeColors.card, borderColor: themeColors.border, color: themeColors.text }}
               value={bioInput}
               onChangeText={setBioInput}
               placeholder="Write a bio..."
-              placeholderTextColor={themeColors.subText}
               multiline
             />
           </View>
@@ -149,7 +118,7 @@ export default function EditProfileScreen() {
           className="w-full py-5 rounded-[24px] mt-12 mb-10 items-center shadow-md"
           style={{ backgroundColor: theme.colors.primary }}
         >
-          <Text className="text-white font-black tracking-widest uppercase text-xs">Save Changes</Text>
+          <Text className="text-white font-black uppercase text-xs tracking-widest">Save Changes</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
