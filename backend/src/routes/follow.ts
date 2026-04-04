@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "../lib/prisma";
+import { createNotification } from "../lib/notifications";
 
 const followRouter = express.Router();
 
@@ -39,22 +40,25 @@ followRouter.post("/toggle", async (req, res) => {
       return res.json({ success: true, followed: false, message: "Unfollowed successfully" });
     } else {
       // ถ้ายังไม่ได้ติดตาม ให้ Follow
-      await prisma.userFollow.create({
+      const follow = await prisma.userFollow.create({
         data: {
           followerId,
           followingId,
         },
+        include: {
+          follower: {
+            select: { fullName: true }
+          }
+        }
       });
       
-      // สร้าง Notification (Optional)
-      await prisma.notification.create({
-        data: {
-          receiverId: followingId,
-          senderId: followerId,
-          type: "FOLLOW",
-          title: "New Follower",
-          body: "Someone started following you",
-        }
+      // สร้าง Notification
+      await createNotification({
+        receiverId: followingId,
+        senderId: followerId,
+        type: "FOLLOW",
+        title: "New Follower",
+        body: `${follow.follower.fullName} started following you`,
       }).catch(err => console.error("Failed to create notification", err));
 
       return res.json({ success: true, followed: true, message: "Followed successfully" });

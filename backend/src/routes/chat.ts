@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Prisma, ConversationType, MediaType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { createNotification } from '../lib/notifications';
 
 const chatRouter = Router();
 
@@ -528,6 +529,20 @@ chatRouter.post('/:convoId/messages', async (req: Request, res: Response) => {
 
       return createdMessage;
     });
+
+    // --- ย้ายการแจ้งเตือนมาไว้นอก Transaction ---
+    const otherParticipants = conversation.participants.filter(p => p.userId !== senderId);
+    for (const p of otherParticipants) {
+      createNotification({
+        receiverId: p.userId,
+        senderId: senderId,
+        type: "MESSAGE",
+        title: `New message from ${message.sender.fullName}`,
+        body: body || "Sent an attachment",
+        refMessageId: message.id,
+        refConversationId: conversationId,
+      }).catch(err => console.error("Message Notification Error:", err));
+    }
 
     return res.status(201).json(message);
   } catch (error) {

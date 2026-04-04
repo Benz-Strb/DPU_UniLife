@@ -34,19 +34,19 @@ const resolveBaseUrl = () => {
     return envBaseUrl;
   }
 
+  // ลองหา IP จาก Expo Host ก่อน (สำคัญที่สุดสำหรับมือถือจริง)
   const expoHostBaseUrl = getExpoHostBaseUrl();
   if (expoHostBaseUrl) {
+    console.log(`[API] Detected Expo host: ${expoHostBaseUrl}`);
     return expoHostBaseUrl;
   }
 
+  // ถ้าเป็น Android Emulator ทั่วไป
   if (Platform.OS === "android") {
     return EMULATOR_BASE_URL;
   }
 
-  if (Platform.OS === "ios") {
-    return IOS_SIMULATOR_BASE_URL;
-  }
-
+  // ถ้าเป็น iOS Simulator หรือรันผ่าน Web/Desktop
   return LOCALHOST_BASE_URL;
 };
 
@@ -74,8 +74,17 @@ export const authService = {
 
       return { success: true, user: response.data.user };
     } catch (e: any) {
-      console.error("Auth Login Error", e.response?.data || e.message);
-      throw e;
+      // ถ้าเป็น 401 (รหัสผิด/ไม่พบผู้ใช้) ให้ส่งค่ากลับไปแจ้งเตือนปกติ ไม่ต้อง throw error
+      if (e.response?.status === 401) {
+        return { 
+          success: false, 
+          message: e.response.data?.message || "Invalid studentId or password" 
+        };
+      }
+      
+      // กรณีอื่นๆ เช่น Server ล่ม ให้เก็บไว้ตรวจสอบ
+      console.warn("Network or Server Error:", e.message);
+      return { success: false, message: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่" };
     }
   },
   signUp: async (userData: any) => {

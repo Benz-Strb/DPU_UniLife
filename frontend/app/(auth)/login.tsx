@@ -42,13 +42,12 @@ export default function LoginScreen() {
     
     setLoading(true);
     try {
-      const success = await login(email, password);
-      if (!success) {
-        Alert.alert("Login Failed", "Invalid email or password");
+      const result = await login(email, password);
+      if (!result.success) {
+        Alert.alert("Login Failed", result.message || "Invalid email or password");
       }
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Connection error";
-      Alert.alert("Error", errorMsg);
+      Alert.alert("Error", "เกิดข้อผิดพลาดในการเชื่อมต่อ");
     } finally {
       setLoading(false);
     }

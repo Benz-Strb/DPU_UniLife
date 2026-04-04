@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { createNotification } from '../lib/notifications';
 
 const postRouter = Router();
 
@@ -648,15 +649,14 @@ postRouter.post('/:id/like', async (req: Request, res: Response) => {
     });
 
     if (postOwner && postOwner.authorId !== userId) {
-      await prisma.notification.create({
-        data: {
-          receiverId: postOwner.authorId,
-          senderId: userId,
-          type: "LIKE",
-          title: "New Like",
-          body: "Someone liked your post",
-          refPostId: postId
-        }
+      const sender = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+      await createNotification({
+        receiverId: postOwner.authorId,
+        senderId: userId,
+        type: "LIKE",
+        title: "New Reaction",
+        body: `${sender?.fullName || 'Someone'} liked your post`,
+        refPostId: postId
       }).catch(err => console.error("Notification Error:", err));
     }
 
@@ -759,16 +759,14 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
     });
 
     if (postOwner && postOwner.authorId !== authorId) {
-      await prisma.notification.create({
-        data: {
-          receiverId: postOwner.authorId,
-          senderId: authorId,
-          type: "COMMENT",
-          title: "New Comment",
-          body: "Someone commented on your post",
-          refPostId: postId,
-          refCommentId: comment.id
-        }
+      await createNotification({
+        receiverId: postOwner.authorId,
+        senderId: authorId,
+        type: "COMMENT",
+        title: "New Comment",
+        body: `${comment.author.fullName} commented on your post`,
+        refPostId: postId,
+        refCommentId: comment.id
       }).catch(err => console.error("Notification Error:", err));
     }
 

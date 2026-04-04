@@ -81,7 +81,10 @@ export default function SignUpScreen() {
       <SafeAreaView className="flex-1">
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           <View className="px-8 pt-4 pb-10">
-            <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center bg-gray-50 rounded-2xl mb-6">
+            <TouchableOpacity 
+              onPress={() => router.canGoBack() ? router.back() : router.replace("/login")} 
+              className="w-10 h-10 items-center justify-center bg-gray-50 rounded-2xl mb-6"
+            >
               <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
 

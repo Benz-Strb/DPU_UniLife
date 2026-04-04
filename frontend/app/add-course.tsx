@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { scheduleService } from "@/services/api";
+import { scheduleCourseReminders } from "@/services/notificationHelper";
 
 const DAYS = [
   { label: "Mon", value: "MONDAY" },
@@ -23,6 +24,7 @@ export default function AddCourseScreen() {
   const router = useRouter();
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
+  const [existingCourses, setExistingCourses] = useState<any[]>([]);
   
   const [courseName, setCourseName] = useState("");
   const [courseCode, setCourseCode] = useState("");
@@ -30,6 +32,19 @@ export default function AddCourseScreen() {
   const [schedules, setSchedules] = useState([
     { dayOfWeek: "MONDAY", startTime: "", endTime: "", room: "", instructor: "" }
   ]);
+
+  // โหลดตารางเรียนที่มีอยู่เพื่อเตรียมตรวจสอบ Overlap
+  useEffect(() => {
+    const loadData = async () => {
+      if (user?.id) {
+        try {
+          const data = await scheduleService.getSchedule(user.id);
+          setExistingCourses(data);
+        } catch (e) { console.error(e); }
+      }
+    };
+    loadData();
+  }, [user?.id]);
 
   const addNewTimeSlot = () => {
     setSchedules([...schedules, { dayOfWeek: "MONDAY", startTime: "", endTime: "", room: "", instructor: "" }]);
@@ -47,11 +62,50 @@ export default function AddCourseScreen() {
     setSchedules(newSchedules);
   };
 
+  // แปลง "HH:mm" เป็นนาทีรวมเพื่อให้เปรียบเทียบง่าย
+  const timeToMinutes = (timeStr: string) => {
+    const [hrs, mins] = timeStr.split(':').map(Number);
+    return hrs * 60 + mins;
+  };
+
   const handleSave = async () => {
     if (!courseName) {
       Alert.alert("Error", "Please enter course name");
       return;
     }
+
+    // --- Overlap Detection Logic ---
+    for (const newSession of schedules) {
+      if (!newSession.startTime || !newSession.endTime) continue;
+      
+      const newStart = timeToMinutes(newSession.startTime);
+      const newEnd = timeToMinutes(newSession.endTime);
+
+      if (newStart >= newEnd) {
+        Alert.alert("Invalid Time", "End time must be after start time");
+        return;
+      }
+
+      // ตรวจสอบกับตารางเรียนที่มีอยู่แล้วในระบบ
+      for (const course of existingCourses) {
+        for (const session of course.schedules) {
+          if (session.dayOfWeek === newSession.dayOfWeek) {
+            const existingStart = timeToMinutes(session.startTime);
+            const existingEnd = timeToMinutes(session.endTime);
+
+            // เช็คว่าคาบเวลาซ้อนทับกันหรือไม่
+            if (newStart < existingEnd && newEnd > existingStart) {
+              Alert.alert(
+                "Schedule Conflict",
+                `This slot conflicts with "${course.courseName}" on ${newSession.dayOfWeek.toLowerCase()}.`
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+    // -------------------------------
 
     setLoading(true);
     try {
@@ -63,7 +117,10 @@ export default function AddCourseScreen() {
         schedules
       });
       
-      Alert.alert("Success", "Course added", [
+      // ตั้งเวลาแจ้งเตือน
+      await scheduleCourseReminders(courseName, schedules);
+      
+      Alert.alert("Success", "Course added and reminders set!", [
         { text: "OK", onPress: () => router.back() }
       ]);
     } catch (error) {
@@ -119,10 +176,10 @@ export default function AddCourseScreen() {
 
                 <View className="flex-row space-x-3 mb-4">
                   <View className="flex-1">
-                    <TextInput placeholder="Start Time" value={s.startTime} onChangeText={(v) => updateSchedule(idx, 'startTime', v)} className="bg-white p-4 rounded-2xl border border-gray-100 font-bold text-center" />
+                    <TextInput placeholder="09:00" value={s.startTime} onChangeText={(v) => updateSchedule(idx, 'startTime', v)} className="bg-white p-4 rounded-2xl border border-gray-100 font-bold text-center" keyboardType="numbers-and-punctuation" />
                   </View>
                   <View className="flex-1">
-                    <TextInput placeholder="End Time" value={s.endTime} onChangeText={(v) => updateSchedule(idx, 'endTime', v)} className="bg-white p-4 rounded-2xl border border-gray-100 font-bold text-center" />
+                    <TextInput placeholder="12:00" value={s.endTime} onChangeText={(v) => updateSchedule(idx, 'endTime', v)} className="bg-white p-4 rounded-2xl border border-gray-100 font-bold text-center" keyboardType="numbers-and-punctuation" />
                   </View>
                 </View>
 

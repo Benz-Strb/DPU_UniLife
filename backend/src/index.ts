@@ -1,5 +1,7 @@
 import express from "express";
 import path from "path";
+import { createServer } from "http";
+import { initSocket } from "./lib/socket";
 import { announcementRouter } from "./routes/announcement";
 import { authRouter } from "./routes/auth";
 import { postRouter } from "./routes/post";
@@ -13,8 +15,11 @@ import scheduleRouter from "./routes/schedule";
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Create HTTP Server and Initialize Socket.io
+const httpServer = createServer(app);
+initSocket(httpServer);
+
 app.use(express.json());
-// ทำให้เข้าถึงรูปภาพได้ผ่าน http://IP:8080/uploads/filename.jpg
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/auth', authRouter);
@@ -28,9 +33,10 @@ app.use('/follows', followRouter);
 app.use('/schedule', scheduleRouter);
 
 app.get("/", (req, res) => {
-  res.json({ message: "DPU UniLife backend is running" });
+  res.json({ message: "DPU UniLife backend is running with Socket.io" });
 });
 
-app.listen(port, () => {
+// สำคัญ: ต้องเปลี่ยนจาก app.listen เป็น httpServer.listen
+httpServer.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

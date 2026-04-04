@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,15 +6,41 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { BASE_URL } from "@/services/api";
+import socket from "@/services/socket";
 
 export default function ChatDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string }>();
   const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams } = params;
-  const { isDarkMode, userId, conversations, sendMessage, getDirectChat } = useUser();
+  const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId } = useUser();
   const [inputText, setInputText] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
   const [activeConvoId, setActiveConvoId] = useState(convoIdFromParams);
+
+  // เชื่อมต่อ Socket เมื่อเปิดหน้าแชท
+  useEffect(() => {
+    socket.connect();
+    
+    if (activeConvoId) {
+      socket.emit("join_room", activeConvoId);
+      setActiveChatId(activeConvoId); // แจ้ง Context ว่าเราอยู่ในห้องนี้
+    }
+
+    // ฟังข้อความใหม่จาก Socket
+    socket.on("receive_message", (data) => {
+      // เมื่อได้รับข้อความใหม่ ให้สั่ง Refresh รายการแชทใน Context
+      // (Context ของเรามีการ Fetch ทุก 3 วินาทีอยู่แล้ว แต่ Socket จะช่วยให้เร็วขึ้น)
+      // ในที่นี้ Socket จะเป็นตัวกระตุ้นให้เกิดการอัปเดต UI ทันที
+    });
+
+    return () => {
+      socket.off("receive_message");
+      if (activeConvoId) {
+        socket.emit("leave_room", activeConvoId);
+      }
+      setActiveChatId(null); // ออกจากห้องแชทแล้ว
+    };
+  }, [activeConvoId]);
 
   // หา conversation จาก ID หรือจากผู้เข้าร่วม
   const currentConversation = conversations.find(c => 
@@ -22,13 +48,7 @@ export default function ChatDetailScreen() {
     (targetUserId && c.type === "DIRECT" && c.participants.some(p => p.userId === targetUserId))
   );
 
-  // หาข้อมูลคู่สนทนาจากห้องแชทจริง (ถ้ามี)
-  const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
-  const userName = recipient?.fullName || nameFromParams || "Chat";
-  const userAvatar = recipient?.avatarUrl ? (recipient.avatarUrl.startsWith('http') ? recipient.avatarUrl : `${BASE_URL}${recipient.avatarUrl}`) : (avatarFromParams || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=7C3AED&color=fff`);
-
-  // ถ้าเข้ามาแล้วไม่มี convoId แต่มี targetUserId ให้ลองหาหรือสร้างห้อง
-  React.useEffect(() => {
+  useEffect(() => {
     if (!activeConvoId && targetUserId) {
       getDirectChat(targetUserId).then(convo => {
         if (convo) setActiveConvoId(convo.id);
@@ -38,18 +58,32 @@ export default function ChatDetailScreen() {
 
   const messages = currentConversation ? currentConversation.messages : [];
 
+  const handleSendMessage = () => {
+    if (inputText.trim() && activeConvoId) {
+      const messageBody = inputText.trim();
+      sendMessage(activeConvoId, messageBody);
+      
+      // ส่งผ่าน Socket ไปบอกคนในห้อง
+      socket.emit("send_message", {
+        convoId: activeConvoId,
+        senderId: userId,
+        body: messageBody,
+        createdAt: new Date().toISOString()
+      });
+
+      setInputText("");
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  };
+
   const bgColor = isDarkMode ? "#121212" : "#FFFFFF";
   const textColor = isDarkMode ? "#FFFFFF" : "#1F2937";
   const subTextColor = isDarkMode ? "#A0A0A0" : "#6B7280";
   const inputBgColor = isDarkMode ? "#2D2D2D" : "#F3F4F6";
 
-  const handleSendMessage = () => {
-    if (inputText.trim() && currentConversation) {
-      sendMessage(currentConversation.id, inputText.trim());
-      setInputText("");
-      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-    }
-  };
+  const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
+  const userName = recipient?.fullName || nameFromParams || "Chat";
+  const userAvatar = recipient?.avatarUrl ? (recipient.avatarUrl.startsWith('http') ? recipient.avatarUrl : `${BASE_URL}${recipient.avatarUrl}`) : (avatarFromParams || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=7C3AED&color=fff`);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
@@ -62,12 +96,6 @@ export default function ChatDetailScreen() {
           <Text className="font-bold text-sm" style={{ color: textColor }}>{userName}</Text>
           <Text className="text-[10px]" style={{ color: theme.colors.primary }}>Active now</Text>
         </View>
-        <TouchableOpacity className="p-2">
-          <Ionicons name="call-outline" size={22} color={textColor} />
-        </TouchableOpacity>
-        <TouchableOpacity className="p-2 ml-1">
-          <Ionicons name="videocam-outline" size={24} color={textColor} />
-        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView 
@@ -80,11 +108,11 @@ export default function ChatDetailScreen() {
           className="flex-1 px-4 py-4"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
         >
-          {messages.map((msg) => {
+          {messages.map((msg, idx) => {
             const isMe = msg.senderId === userId;
             return (
               <View 
-                key={msg.id} 
+                key={msg.id || idx} 
                 className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}
               >
                 {!isMe && (
@@ -110,9 +138,6 @@ export default function ChatDetailScreen() {
         </ScrollView>
 
         <View className="p-4 flex-row items-center border-t" style={{ borderTopColor: isDarkMode ? "#333" : "#F3F4F6" }}>
-          <TouchableOpacity className="bg-violet-500 w-9 h-9 rounded-full items-center justify-center mr-3">
-             <Ionicons name="camera" size={20} color="white" />
-          </TouchableOpacity>
           <View className="flex-1 flex-row items-center rounded-full px-5 py-2" style={{ backgroundColor: inputBgColor }}>
             <TextInput 
               placeholder="Message..."
@@ -122,20 +147,15 @@ export default function ChatDetailScreen() {
               value={inputText}
               onChangeText={setInputText}
               multiline
+              returnKeyType="send"
+              onSubmitEditing={handleSendMessage}
             />
             {inputText.trim() ? (
               <TouchableOpacity onPress={handleSendMessage}>
                 <Text className="font-bold text-violet-500 ml-2">Send</Text>
               </TouchableOpacity>
             ) : (
-              <View className="flex-row space-x-3 ml-2">
-                <TouchableOpacity>
-                  <Ionicons name="mic-outline" size={22} color={textColor} />
-                </TouchableOpacity>
-                <TouchableOpacity>
-                  <Ionicons name="image-outline" size={22} color={textColor} />
-                </TouchableOpacity>
-              </View>
+              <Ionicons name="mic-outline" size={22} color={textColor} />
             )}
           </View>
         </View>
