@@ -27,7 +27,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const validateEmail = (email: string) => /^[0-9]{8}@dpu\.ac\.th$/.test(email.toLowerCase());
+  const validateEmail = (email: string) => /^([0-9]{8}|admin)@dpu\.ac\.th$/.test(email.toLowerCase());
 
   const handleLogin = async () => {
     if (!email || !password) {

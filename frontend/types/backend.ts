@@ -61,6 +61,9 @@ export interface Post {
   group?: Group;
   title?: string;
   content?: string;
+  facultyTag?: string;
+  isOfficial: boolean;
+  isPinned: boolean;
   createdAt: string;
   updatedAt: string;
   media: PostMedia[];

@@ -1,23 +1,88 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
+import React, { useState, useMemo } from "react";
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { usePosts } from "@/hooks/usePosts";
 import { LinearGradient } from "expo-linear-gradient";
 import { FACULTY_DATA } from "@/constants/data";
-import { BASE_URL } from "@/services/api";
+import { authService, BASE_URL } from "@/services/api";
 
 export default function GroupScreen() {
   const router = useRouter();
-  const { userId, posts, toggleLike, themeColors, isDarkMode, user } = useUser();
-  const [selectedGroup, setSelectedGroup] = useState("DPU");
+  const { userId, toggleLike, themeColors, isDarkMode, user, isAdmin, isUniAdmin, getDirectChat } = useUser();
+  const { posts, updateCommentsStatus, deletePost, togglePin } = usePosts();
+  
+  // [SPACE_LOGIC] แยกหน้าจอแอดมิน (Super Admin ล็อกที่ DPU)
+  const [selectedGroup, setSelectedGroup] = useState(isUniAdmin ? "DPU" : "DPU");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [expandedPosts, setExpandedPosts] = useState<{ [key: string]: boolean }>({});
 
-  // ดึงคณะจากข้อมูลผู้ใช้จริง
+  React.useEffect(() => {
+    if (isUniAdmin && selectedGroup !== "DPU") {
+      setSelectedGroup("DPU");
+    }
+  }, [isUniAdmin]);
+
+  const lastTap = React.useRef<{ [key: string]: number }>({});
+
+  // [SUPPORT_CHAT] ระบบค้นหาแอดมินเพื่อเริ่มการสนทนา
+  const handleSupportChat = async () => {
+    try {
+      console.log(`[SupportChat] Searching admin for: ${selectedGroup}`);
+      const query = selectedGroup === "DPU" 
+        ? { role: "SUPER_ADMIN" } 
+        : { faculty: selectedGroup };
+        
+      const admins = await authService.getAdmins(query);
+      const targetAdmin = admins && admins.length > 0 ? admins[0] : null;
+
+      if (!targetAdmin) {
+        Alert.alert("ไม่พบเจ้าหน้าที่", `ขณะนี้ยังไม่มีเจ้าหน้าที่จาก ${selectedGroup} ในระบบ`);
+        return;
+      }
+
+      const convo = await getDirectChat(targetAdmin.id);
+      if (convo) {
+        router.push({
+          pathname: "/chat-detail",
+          params: { 
+            id: convo.id, 
+            userName: targetAdmin.fullName, 
+            userAvatar: getFullImageUrl(targetAdmin.avatarUrl), 
+            userId: targetAdmin.id 
+          }
+        });
+      }
+    } catch (error) {
+      Alert.alert("Error", "ไม่สามารถติดต่อเจ้าหน้าที่ได้ในขณะนี้");
+    }
+  };
+
+  const toggleExpand = (postId: string) => {
+    setExpandedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
+  };
+
+  const handleImagePress = (postId: string) => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
+    
+    if (lastTap.current[postId] && (now - lastTap.current[postId]) < DOUBLE_PRESS_DELAY) {
+      toggleLike(postId);
+      delete lastTap.current[postId];
+    } else {
+      lastTap.current[postId] = now;
+      setTimeout(() => {
+        if (lastTap.current[postId] === now) {
+          delete lastTap.current[postId];
+        }
+      }, DOUBLE_PRESS_DELAY);
+    }
+  };
+
   const userFaculty = user?.faculty || "No Faculty";
-
   const bgColor = themeColors.background;
   const cardColor = themeColors.card;
   const textColor = themeColors.text;
@@ -25,17 +90,47 @@ export default function GroupScreen() {
   const borderColor = themeColors.border;
 
   const fullName = selectedGroup === "DPU" ? "Dhurakij Pundit University" : (FACULTY_DATA[selectedGroup] || selectedGroup);
-  
-  // กรองโพสต์ตามเงื่อนไขประกาศ Official
-  const filteredPosts = posts.filter(p => {
-    if (selectedGroup === "DPU") {
-      // DPU Space: แสดงเฉพาะโพสต์จาก University Admin (SUPER_ADMIN) เท่านั้น
-      return p.author?.role === "SUPER_ADMIN";
-    } else {
-      // Faculty Space: แสดงเฉพาะโพสต์จาก Faculty Admin (ADMIN) ของคณะนั้นๆ เท่านั้น
-      return p.author?.role === "ADMIN" && p.author?.faculty === selectedGroup;
-    }
-  });
+
+  const handlePostOptions = (post: any) => {
+    if (post.authorId !== userId && !isUniAdmin && !(isAdmin && post.facultyTag === userFaculty)) return;
+
+    Alert.alert(
+      "จัดการประกาศ",
+      "กรุณาเลือกรายการที่ต้องการ",
+      [
+        {
+          text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
+          onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled)
+        },
+        {
+          text: "ลบประกาศ",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert("ยืนยันการลบ", "คุณต้องการลบประกาศนี้ถาวรใช่หรือไม่?", [
+              { text: "ยกเลิก", style: "cancel" },
+              { text: "ลบ", style: "destructive", onPress: () => deletePost(post.id) }
+            ]);
+          }
+        },
+        { text: "ยกเลิก", style: "cancel" }
+      ]
+    );
+  };
+
+  // [SPACE_FILTER] กรองประกาศแยกตาม DPU หรือ คณะที่เลือก
+  const filteredPosts = useMemo(() => {
+    const filtered = posts.filter(p => {
+      if (!p.isOfficial) return false;
+      if (selectedGroup === "DPU") {
+        return p.facultyTag === "DPU";
+      }
+      return p.facultyTag === selectedGroup;
+    });
+
+    return [...filtered].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [posts, selectedGroup]);
 
   const toggleGroup = (group: string) => {
     setSelectedGroup(group);
@@ -62,15 +157,29 @@ export default function GroupScreen() {
           <View className="absolute -bottom-10 -left-10 w-40 h-40 bg-black/10 rounded-full" />
 
           <SafeAreaView className="flex-1 items-center justify-center px-8">
+            {!isAdmin && !isUniAdmin && (
+              <View className="absolute top-12 right-7">
+                <TouchableOpacity 
+                  onPress={handleSupportChat}
+                  className="w-12 h-12 rounded-2xl items-center justify-center bg-white/20 border border-white/30"
+                >
+                  <Ionicons name="chatbubble-ellipses" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View className="relative">
               <TouchableOpacity 
-                onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                onPress={() => !isUniAdmin && setIsDropdownOpen(!isDropdownOpen)}
+                activeOpacity={isUniAdmin ? 1 : 0.7}
                 className="bg-white w-32 h-32 rounded-[40px] items-center justify-center shadow-2xl border-4 border-violet-200"
               >
                   <Text className="text-violet-700 font-black text-4xl tracking-tighter">{selectedGroup}</Text>
-                  <View className="absolute -bottom-2 -right-2 bg-violet-600 rounded-2xl p-2 border-2 border-white shadow-lg">
-                    <Ionicons name="chevron-down" size={16} color="white" />
-                  </View>
+                  {!isUniAdmin && (
+                    <View className="absolute -bottom-2 -right-2 bg-violet-600 rounded-2xl p-2 border-2 border-white shadow-lg">
+                      <Ionicons name="chevron-down" size={16} color="white" />
+                    </View>
+                  )}
               </TouchableOpacity>
 
               {isDropdownOpen && (
@@ -126,49 +235,90 @@ export default function GroupScreen() {
               <Text className="mt-6 font-bold text-center" style={{ color: subTextColor }}>ยังไม่มีโพสต์ใน {selectedGroup}</Text>
             </View>
           ) : (
-            filteredPosts.map((post) => (
-              <View 
-                key={post.id} 
-                className="rounded-[40px] overflow-hidden border mb-10 shadow-sm"
-                style={{ backgroundColor: cardColor, borderColor: post.group?.isOfficial ? theme.colors.primary : borderColor }}
-              >
-                <View className="flex-row items-center p-4">
-                   <Image source={{ uri: getFullImageUrl(post.author?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}` }} className="w-8 h-8 rounded-full mr-3" />
-                   <View className="flex-1">
-                     <View className="flex-row items-center">
-                        <Text className="font-bold text-[11px] mr-2" style={{ color: textColor }}>{post.author?.fullName}</Text>
-                        {post.author?.role !== "STUDENT" && (
-                          <View className="bg-amber-100 px-1.5 py-0.5 rounded-md mr-1 border border-amber-200">
-                            <Text className="text-amber-700 text-[7px] font-bold uppercase">{post.author?.role}</Text>
+            filteredPosts.map((post) => {
+              const isExpanded = expandedPosts[post.id];
+              const contentLines = post.content?.split('\n').length || 0;
+              const isLongContent = (post.content?.length || 0) > 100 || contentLines > 2;
+
+              return (
+                <View 
+                  key={post.id} 
+                  className="rounded-[40px] overflow-hidden border mb-10 shadow-sm"
+                  style={{ backgroundColor: cardColor, borderColor: borderColor }}
+                >
+                  <View className="flex-row items-center justify-between p-4">
+                    <View className="flex-row items-center flex-1">
+                        <Image source={{ uri: getFullImageUrl(post.author?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}` }} className="w-8 h-8 rounded-full mr-3" />
+                        <View className="flex-1">
+                          <View className="flex-row items-center flex-wrap">
+                              <Text className="font-bold text-[11px] mr-2" style={{ color: textColor }}>{post.author?.fullName}</Text>
+                              {post.author?.role !== "STUDENT" && (
+                                <View className="bg-amber-100 px-1.5 py-0.5 rounded-md mr-1 border border-amber-200">
+                                  <Text className="text-amber-700 text-[7px] font-bold uppercase">{post.author?.role}</Text>
+                                </View>
+                              )}
                           </View>
-                        )}
-                        {post.author?.faculty && (
-                          <View className="bg-blue-100 px-1.5 py-0.5 rounded-md border border-blue-200">
-                            <Text className="text-blue-700 text-[7px] font-bold uppercase">{post.author.faculty}</Text>
-                          </View>
-                        )}
-                     </View>
-                     <Text className="text-[9px]" style={{ color: subTextColor }}>{new Date(post.createdAt).toLocaleDateString()}</Text>
-                   </View>
-                </View>
-                {post.media && post.media.length > 0 && (
-                  <Image source={{ uri: getFullImageUrl(post.media[0].url) }} className="w-full h-64 bg-gray-50" />
-                )}
-                <View className="p-6">
-                   <Text className="text-xs mb-4 leading-5" style={{ color: textColor }}>{post.content}</Text>
-                   <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center">
-                      <Ionicons 
-                        name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
-                        size={20} 
-                        color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : textColor} 
+                          <Text className="text-[9px]" style={{ color: subTextColor }}>{new Date(post.createdAt).toLocaleDateString()}</Text>
+                        </View>
+                    </View>
+
+                    {(post.authorId === userId || isUniAdmin || (isAdmin && post.facultyTag === userFaculty)) && (
+                      <TouchableOpacity 
+                          onPress={() => handlePostOptions(post)}
+                          className="w-8 h-8 items-center justify-center rounded-full bg-gray-50/50"
+                      >
+                          <Feather name="more-horizontal" size={18} color={subTextColor} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {post.media && post.media.length > 0 && (
+                    <TouchableOpacity 
+                      activeOpacity={0.9}
+                      onPress={() => handleImagePress(post.id)}
+                    >
+                      <Image 
+                        source={{ uri: getFullImageUrl(post.media[0].url) }} 
+                        className="w-full bg-gray-50" 
+                        style={{ aspectRatio: 4/5 }} 
+                        resizeMode="cover"
                       />
-                      <Text className="ml-2 font-bold text-xs" style={{ color: textColor }}>
-                        {post._count?.reactions || 0}
+                    </TouchableOpacity>
+                  )}
+
+                  <View className="p-6">
+                    <View>
+                      <Text 
+                        className="text-xs mb-2 leading-5" 
+                        style={{ color: textColor }}
+                        numberOfLines={isExpanded ? undefined : 2}
+                      >
+                        {post.content}
                       </Text>
-                   </TouchableOpacity>
+                      
+                      {isLongContent && (
+                        <TouchableOpacity onPress={() => toggleExpand(post.id)} className="mb-4">
+                          <Text className="text-violet-500 font-bold text-[10px] uppercase">
+                            {isExpanded ? "Show Less" : "Show More"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center">
+                        <Ionicons 
+                          name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} 
+                          size={20} 
+                          color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : textColor} 
+                        />
+                        <Text className="ml-2 font-bold text-xs" style={{ color: textColor }}>
+                          {post._count?.reactions || 0}
+                        </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>

@@ -122,6 +122,15 @@ export const authService = {
       console.error("Update Profile API Error", e);
       throw e;
     }
+  },
+  getAdmins: async (query: { faculty?: string; role?: string }) => {
+    try {
+      const response = await API.get("/auth/admins", { params: query });
+      return response.data;
+    } catch (e) {
+      console.error("Get Admins Error", e);
+      return [];
+    }
   }
 };
 
@@ -142,6 +151,7 @@ export const postService = {
         content: postData.content,
         image: postData.image,
         facultyTag: postData.facultyTag,
+        isOfficial: postData.isOfficial,
         groupId: postData.groupId,
         visibility: postData.visibility
       });
@@ -247,6 +257,15 @@ export const chatService = {
       return response.data;
     } catch (e) {
       console.error("Mark Chat Read Error", e);
+    }
+  },
+  deleteConversation: async (convoId: string, userId: string) => {
+    try {
+      await API.delete(`/chats/${convoId}`, { params: { userId } });
+      return true;
+    } catch (e) {
+      console.error("Delete Conversation Error", e);
+      throw e;
     }
   }
 };

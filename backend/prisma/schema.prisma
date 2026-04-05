@@ -179,6 +179,7 @@ model Post {
   content        String?
   visibility     PostVisibility @default(PUBLIC)
   facultyTag     String?
+  isOfficial     Boolean        @default(false)
   isPinned       Boolean        @default(false)
   isArchived     Boolean        @default(false)
   commentsEnabled Boolean       @default(true)

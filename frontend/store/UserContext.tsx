@@ -64,6 +64,7 @@ interface UserContextType {
   markNotificationAsRead: (notifId: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
   setActiveChatId: (id: string | null) => void;
+  deleteConversation: (convoId: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -229,6 +230,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUserId(u.id);
         setUser(u);
         setName(u.fullName);
+        setFaculty(u.faculty || "");
         setBio(u.bio || "");
         setProfileImage(u.avatarUrl || "");
         setIsAdmin(u.role === UserRole.ADMIN || u.role === UserRole.SUPER_ADMIN);
@@ -326,7 +328,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       fetchNotifications, 
       markNotificationAsRead: async (id) => { await notificationService.markAsRead(id); fetchNotifications(); },
       markAllNotificationsAsRead: async () => { await notificationService.markAllAsRead(userId); fetchNotifications(); },
-      setActiveChatId
+      setActiveChatId,
+      deleteConversation: async (convoId) => {
+        try {
+          await chatService.deleteConversation(convoId, userId);
+          setConversations(prev => prev.filter(c => c.id !== convoId));
+        } catch (e) {
+          console.error("Delete Chat Error", e);
+          throw e;
+        }
+      }
     }}>
       {children}
       

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,10 +13,37 @@ const FACULTIES = ["DPU", ...Object.keys(FACULTY_DATA)];
 export default function NewPostScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tag: string }>();
-  const { isDarkMode, faculty, addPost, userId, isAdmin, isUniAdmin, themeColors } = useUser();
+  const { isDarkMode, faculty, addPost, userId, isAdmin, isUniAdmin, themeColors, user } = useUser();
   const [content, setContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedTag, setSelectedTag] = useState(params.tag || faculty || "DPU");
+  
+  // Filter available tags based on user role and requirements
+  const availableTags = useMemo(() => {
+    if (isUniAdmin) {
+      // Super Admin: เห็นทุกอย่าง (DPU + ทุกคณะ)
+      return FACULTIES;
+    }
+    if (isAdmin) {
+      // Admin คณะ: เห็นคณะตัวเอง และ DPU (เพื่อให้ประกาศลงส่วนกลางได้)
+      const tags = ["DPU"];
+      if (faculty) tags.push(faculty);
+      return tags;
+    }
+    // นักศึกษาทั่วไป: เห็นทุกคณะ แต่ห้ามเห็น DPU
+    return Object.keys(FACULTY_DATA);
+  }, [isAdmin, isUniAdmin, faculty]);
+
+  // Default tag: 
+  // - ถ้าเป็น UniAdmin ให้เริ่มที่ DPU 
+  // - ถ้าเป็น Admin คณะ/นักศึกษา ให้เริ่มที่คณะตัวเอง (ถ้ามี) หรือคณะแรกในลิสต์
+  const initialTag = useMemo(() => {
+    if (params.tag && availableTags.includes(params.tag)) return params.tag;
+    if (isUniAdmin) return "DPU";
+    if (faculty && availableTags.includes(faculty)) return faculty;
+    return availableTags[0] || "DPU";
+  }, [params.tag, isUniAdmin, faculty, availableTags]);
+
+  const [selectedTag, setSelectedTag] = useState(initialTag);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -28,9 +55,18 @@ export default function NewPostScreen() {
 
     setLoading(true);
     try {
-      const autoOfficial = isAdmin && (isUniAdmin || (selectedTag !== "DPU" && selectedTag === faculty));
-      await addPost({ userId, content, image: selectedImage, tag: selectedTag, isOfficial: autoOfficial });
-      Alert.alert("Success", "Post shared!");
+      // Official posts are only from Admins (Super or Faculty)
+      const isOfficial = isAdmin || isUniAdmin;
+      
+      await addPost({ 
+        userId, 
+        content, 
+        image: selectedImage, 
+        tag: selectedTag, 
+        isOfficial: isOfficial 
+      });
+      
+      Alert.alert("Success", isOfficial ? "Official Announcement shared!" : "Post shared!");
       router.back();
     } catch (error) {
       Alert.alert("Error", "Failed to share post.");
@@ -54,7 +90,7 @@ export default function NewPostScreen() {
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       <View className="flex-row items-center justify-between px-6 py-4 border-b" style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border }}>
         <TouchableOpacity onPress={() => router.back()}><Ionicons name="close" size={32} color={themeColors.text} /></TouchableOpacity>
-        <Text className="text-lg font-black" style={{ color: themeColors.text }}>{isAdmin ? "Official Post" : "New Post"}</Text>
+        <Text className="text-lg font-black" style={{ color: themeColors.text }}>{isAdmin || isUniAdmin ? "Official Post" : "New Post"}</Text>
         <TouchableOpacity onPress={handlePost} disabled={loading || (!selectedImage && !content)}>
            <Text className={`font-black ${(loading || (!selectedImage && !content)) ? 'opacity-20' : ''}`} style={{ color: theme.colors.primary }}>Share</Text>
         </TouchableOpacity>
@@ -85,7 +121,7 @@ export default function NewPostScreen() {
               </TouchableOpacity>
               {showTagPicker && (
                 <View className="mt-2 p-2 rounded-2xl border flex-row flex-wrap" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
-                  {FACULTIES.map((tag) => (
+                  {availableTags.map((tag) => (
                     <TouchableOpacity key={tag} onPress={() => { setSelectedTag(tag); setShowTagPicker(false); }} className={`px-4 py-2 rounded-full m-1 border ${selectedTag === tag ? 'bg-violet-500 border-violet-500' : 'bg-gray-50 border-gray-100'}`} style={selectedTag === tag ? {} : { backgroundColor: isDarkMode ? "#2D2D2D" : "#F9FAFB", borderColor: themeColors.border }}>
                       <Text className={`text-[10px] font-bold ${selectedTag === tag ? 'text-white' : themeColors.subText}`}>#{tag}</Text>
                     </TouchableOpacity>

@@ -307,11 +307,15 @@ postRouter.post('/', async (req: Request, res: Response) => {
     visibility: visibilityInput,
     commentsEnabled: commentsEnabledInput,
     tags: tagsInput,
+    facultyTag: facultyTagInput,
+    isOfficial: isOfficialInput,
   } = req.body;
 
   const title = normalizeOptionalString(titleInput);
   const content = normalizeOptionalString(contentInput);
   const imageUrl = normalizeOptionalString(image);
+  const facultyTag = normalizeOptionalString(facultyTagInput);
+  const isOfficial = parseBooleanInput(isOfficialInput) ?? false;
   const tagNames = parseTagNames(tagsInput);
 
   if (typeof authorId !== 'string' || !isUuid(authorId)) {
@@ -371,7 +375,8 @@ postRouter.post('/', async (req: Request, res: Response) => {
         groupId: groupId ?? null,
         title,
         content,
-        facultyTag: req.body.facultyTag || null,
+        facultyTag,
+        isOfficial,
         visibility,
         commentsEnabled,
         media: imageUrl

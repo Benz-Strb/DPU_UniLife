@@ -38,11 +38,13 @@ export default function HomeScreen() {
     toggleFollow,
     getDirectChat,
     name,
-    isDarkMode
+    isDarkMode,
+    isAdmin,
+    isUniAdmin
   } = useUser();
 
   const {
-    posts,
+    posts: allPosts,
     isRefreshing,
     refreshPosts,
     activeCommentPostId,
@@ -55,6 +57,36 @@ export default function HomeScreen() {
     updateCommentsStatus,
     userId
   } = usePosts();
+
+  const lastTap = React.useRef<{ [key: string]: number }>({});
+
+  const handleImagePress = (postId: string) => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
+    
+    if (lastTap.current[postId] && (now - lastTap.current[postId]) < DOUBLE_PRESS_DELAY) {
+      // Double tap: Like the post
+      toggleLike(postId);
+      delete lastTap.current[postId];
+    } else {
+      lastTap.current[postId] = now;
+      // Single tap: Navigate after a short delay
+      setTimeout(() => {
+        if (lastTap.current[postId] === now) {
+          router.push({
+            pathname: "/post-detail",
+            params: { id: postId }
+          });
+          delete lastTap.current[postId];
+        }
+      }, DOUBLE_PRESS_DELAY);
+    }
+  };
+
+  // Filter only regular student posts for Home feed
+  const posts = useMemo(() => {
+    return allPosts.filter(p => !p.isOfficial);
+  }, [allPosts]);
 
   const handlePostOptions = (post: any) => {
     if (post.authorId !== userId) return;
@@ -144,14 +176,33 @@ export default function HomeScreen() {
                     </View>
                   </TouchableOpacity>
                   
-                  {post.authorId !== userId ? (
-                    <TouchableOpacity onPress={() => toggleFollow(post.authorId)} className={`px-4 py-2 rounded-2xl ${followingIds.includes(post.authorId) ? 'bg-gray-100' : 'bg-violet-500'}`}>
-                      <Text className={`font-black text-[10px] uppercase ${followingIds.includes(post.authorId) ? 'text-gray-500' : 'text-white'}`}>
-                        {followingIds.includes(post.authorId) ? 'Following' : 'Follow'}
-                      </Text>
+                  {/* Actions for students only, hide for admins */}
+                  {post.authorId !== userId && !isAdmin && !isUniAdmin && (
+                    <View className="flex-row items-center">
+                      {followingIds.includes(post.authorId) ? (
+                        <TouchableOpacity 
+                          onPress={() => handleChatPress(post.authorId, post.author?.fullName, post.author?.avatarUrl)}
+                          className="w-10 h-10 items-center justify-center rounded-2xl bg-indigo-50 mr-2"
+                        >
+                          <Ionicons name="chatbubble-ellipses" size={20} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                      ) : null}
+                      
+                      <TouchableOpacity 
+                        onPress={() => toggleFollow(post.authorId)} 
+                        className={`px-4 py-2 rounded-2xl ${followingIds.includes(post.authorId) ? 'bg-gray-100' : 'bg-violet-500'}`}
+                      >
+                        <Text className={`font-black text-[10px] uppercase ${followingIds.includes(post.authorId) ? 'text-gray-500' : 'text-white'}`}>
+                          {followingIds.includes(post.authorId) ? 'Following' : 'Follow'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  
+                  {post.authorId === userId && (
+                    <TouchableOpacity onPress={() => handlePostOptions(post)} className="w-10 h-10 items-center justify-center rounded-full bg-gray-50/50">
+                      <Feather name="more-horizontal" size={20} color={themeColors.subText} />
                     </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity onPress={() => handlePostOptions(post)} className="w-10 h-10 items-center justify-center rounded-full bg-gray-50/50"><Feather name="more-horizontal" size={20} color={themeColors.subText} /></TouchableOpacity>
                   )}
                 </View>
 
@@ -159,9 +210,14 @@ export default function HomeScreen() {
 
                 {post.media && post.media.length > 0 && (
                   <View className="px-4 pb-4">
-                    <View className="rounded-[35px] overflow-hidden bg-gray-100" style={{ aspectRatio: 1 }}>
+                    <TouchableOpacity 
+                      activeOpacity={0.9} 
+                      onPress={() => handleImagePress(post.id)}
+                      className="rounded-[35px] overflow-hidden bg-gray-100" 
+                      style={{ aspectRatio: 1 }}
+                    >
                       <Image source={{ uri: getFullImageUrl(post.media[0].url) }} className="w-full h-full" resizeMode="cover" />
-                    </View>
+                    </TouchableOpacity>
                   </View>
                 )}
 

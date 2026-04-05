@@ -18,10 +18,8 @@ export function usePosts() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
 
-  // กรองเฉพาะโพสต์ของนักศึกษา
-  const studentPosts = useMemo(() => {
-    return posts.filter(p => p.author?.role === "STUDENT");
-  }, [posts]);
+  // Return all posts and let screens decide how to filter (e.g. Home shows students, DPU Space shows admins)
+  const allPosts = useMemo(() => posts, [posts]);
 
   const toggleLike = useCallback(async (postId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -63,8 +61,17 @@ export function usePosts() {
     }
   }, [contextUpdatePost]);
 
+  const togglePin = useCallback(async (postId: string, currentPinned: boolean) => {
+    try {
+      await contextUpdatePost(postId, { isPinned: !currentPinned });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      handleApiError(error);
+    }
+  }, [contextUpdatePost]);
+
   return {
-    posts: studentPosts,
+    posts: allPosts,
     isRefreshing,
     refreshPosts,
     activeCommentPostId,
@@ -75,6 +82,7 @@ export function usePosts() {
     sendComment,
     deletePost,
     updateCommentsStatus,
+    togglePin,
     userId
   };
 }

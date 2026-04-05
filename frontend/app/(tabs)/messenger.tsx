@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, StatusBar } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, StatusBar, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -9,12 +9,33 @@ import { BASE_URL } from "@/services/api";
 
 export default function MessengerScreen() {
   const router = useRouter();
-  const { isDarkMode, conversations, userId, themeColors } = useUser();
+  const { isDarkMode, conversations, userId, themeColors, deleteConversation } = useUser();
 
   const getFullImageUrl = (url: string | null | undefined, name: string) => {
     if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7C3AED&color=fff`;
     if (url.startsWith('http')) return url;
     return `${BASE_URL}${url}`;
+  };
+
+  const handleDeleteConversation = (convoId: string, name: string) => {
+    Alert.alert(
+      "Delete Chat",
+      `Are you sure you want to delete the chat with ${name}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await deleteConversation(convoId);
+            } catch (e) {
+              Alert.alert("Error", "Could not delete the chat.");
+            }
+          } 
+        }
+      ]
+    );
   };
 
   const bgColor = themeColors.background;
@@ -82,6 +103,7 @@ export default function MessengerScreen() {
                         userId: otherParticipant?.id 
                       }
                     })}
+                    onLongPress={() => handleDeleteConversation(convo.id, participantName)}
                     className="flex-row items-center mb-6 p-4 rounded-[30px] border border-white"
                     style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.03, elevation: 2 }}
                   >

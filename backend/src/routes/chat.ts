@@ -131,6 +131,17 @@ const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRe
 };
 
 const canDirectMessage = async (senderId: string, recipientId: string): Promise<boolean> => {
+  // [CHAT_BYPASS] แอดมินทักแชทหาได้เลยไม่ต้องกดติดตาม (Support Chat)
+  const recipient = await prisma.user.findUnique({
+    where: { id: recipientId },
+    select: { role: true },
+  });
+
+  if (recipient?.role === 'ADMIN' || recipient?.role === 'SUPER_ADMIN') {
+    return true;
+  }
+
+  // [CHAT_SAFETY] นักศึกษาทั่วไปต้อง Follow กันก่อนถึงจะแชทได้
   const follow = await prisma.userFollow.findUnique({
     where: {
       followerId_followingId: {
@@ -702,6 +713,45 @@ chatRouter.post("/direct", async (req, res) => {
   } catch (error) {
     console.error("Create direct chat error:", error);
     res.status(500).json({ error: "Failed to create direct chat" });
+  }
+});
+
+chatRouter.delete("/:convoId", async (req: Request, res: Response) => {
+  const conversationId = getSingleParam(req.params.convoId);
+  const userId = normalizeRequiredString(req.query.userId); // หรือดึงจาก Auth Token
+
+  if (!conversationId || !isUuid(conversationId)) {
+    return res.status(400).json({ error: 'Invalid conversation id' });
+  }
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required to verify ownership' });
+  }
+
+  try {
+    // ตรวจสอบว่าเป็นสมาชิกในห้องแชทนั้นหรือไม่
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId,
+        },
+      },
+    });
+
+    if (!participant) {
+      return res.status(403).json({ error: 'You are not a participant of this conversation' });
+    }
+
+    // ลบห้องแชท (Cascade จะลบ participants และ messages อัตโนมัติ)
+    await prisma.conversation.delete({
+      where: { id: conversationId },
+    });
+
+    return res.json({ message: 'Conversation deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete conversation:', error);
+    return res.status(500).json({ error: 'Failed to delete conversation' });
   }
 });
 

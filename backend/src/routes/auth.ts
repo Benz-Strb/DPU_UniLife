@@ -26,9 +26,9 @@ const safeUserSelect = {
   updatedAt: true,
 } as const;
 
-const dpuEmailRegex = /^\d{8}@dpu\.ac\.th$/i;
+const dpuEmailRegex = /^(\d{8}|admin)@dpu\.ac\.th$/i;
 const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
-const fullNameRegex = /^[A-Za-z0-9_\s]+$/;
+const fullNameRegex = /^[A-Za-z0-9_\s\u0E00-\u0E7F.]+$/;
 
 const isUuid = (value: string): boolean => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -119,7 +119,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 
   if (!dpuEmailRegex.test(email)) {
     return res.status(400).json({
-      message: 'Email must be in the format 12345678@dpu.ac.th',
+      message: 'Email must be in the format 12345678@dpu.ac.th or admin@dpu.ac.th',
     });
   }
 
@@ -141,7 +141,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     });
   }
 
-  const studentId = email.slice(0, 8);
+  const isSuperAdmin = email === 'admin@dpu.ac.th';
+  const studentId = isSuperAdmin ? '00000000' : email.slice(0, 8);
+  
+  // [ROLE_MAP] กำหนดสิทธิ์อัตโนมัติ (รหัส 1111 = แอดมินคณะ)
+  const isFacultyAdmin = !isSuperAdmin && studentId.startsWith('1111');
 
   try {
     const existingUser = await prisma.user.findFirst({
@@ -168,6 +172,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
         username,
         passwordHash,
         faculty,
+        role: isSuperAdmin ? UserRole.SUPER_ADMIN : (isFacultyAdmin ? UserRole.ADMIN : UserRole.STUDENT),
         status: UserStatus.ACTIVE,
       },
       select: safeUserSelect,
@@ -204,9 +209,13 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    // Support login with studentId OR email
+    const user = await prisma.user.findFirst({
       where: {
-        studentId,
+        OR: [
+          { studentId },
+          { email: studentId.includes('@') ? studentId : `${studentId}@dpu.ac.th` }
+        ]
       },
       select: {
         ...safeUserSelect,
@@ -400,7 +409,7 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
 
   if (fullName && !fullNameRegex.test(fullName)) {
     return res.status(400).json({
-      message: 'Full name must be in English only',
+      message: 'Full name must be in English or Thai only',
     });
   }
 
@@ -502,6 +511,41 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
     return res.status(500).json({
       message: 'Failed to update profile',
     });
+  }
+});
+
+authRouter.get('/admins', async (req: Request, res: Response) => {
+  const faculty = typeof req.query.faculty === 'string' ? req.query.faculty : null;
+  const role = typeof req.query.role === 'string' ? req.query.role : null;
+
+  try {
+    const whereClause: any = {
+      status: UserStatus.ACTIVE,
+    };
+
+    if (role === 'SUPER_ADMIN') {
+      whereClause.role = UserRole.SUPER_ADMIN;
+    } else if (faculty) {
+      whereClause.role = UserRole.ADMIN;
+      // ค้นหาคณะแบบไม่สนใจตัวพิมพ์เล็ก-ใหญ่ (Case-insensitive)
+      whereClause.faculty = {
+        equals: faculty,
+        mode: 'insensitive',
+      };
+    } else {
+      whereClause.role = { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] };
+    }
+
+    const admins = await prisma.user.findMany({
+      where: whereClause,
+      select: safeUserSelect,
+      take: 5, // เอามาแค่บางส่วนพอ
+    });
+
+    return res.json(admins);
+  } catch (error) {
+    console.error('Failed to fetch admins:', error);
+    return res.status(500).json({ error: 'Failed to fetch admins' });
   }
 });
 
