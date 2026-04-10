@@ -12,5 +12,14 @@ export default function AuthLayout() {
     }
   }, [userId]);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "fade_from_bottom",
+        animationDuration: 160,
+        gestureEnabled: true,
+      }}
+    />
+  );
 }

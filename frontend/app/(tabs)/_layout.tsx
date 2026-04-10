@@ -20,6 +20,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
+        animation: "fade",
         tabBarStyle: {
           backgroundColor: themeColors.tabBar,
           borderTopWidth: 1,

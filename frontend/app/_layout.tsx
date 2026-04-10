@@ -8,7 +8,16 @@ export default function RootLayout() {
   return (
     <UserProvider>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 180,
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+            presentation: "card"
+          }}
+        >
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

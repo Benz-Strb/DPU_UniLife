@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from "react";
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  Image, 
-  TextInput, 
-  StatusBar, 
-  Dimensions,
+import React, { useMemo } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  TouchableOpacity,
+  Image,
+  StatusBar,
   RefreshControl,
   Alert
 } from "react-native";
@@ -19,26 +18,23 @@ import { useUser } from "@/store/UserContext";
 import { usePosts } from "@/hooks/usePosts";
 import { BASE_URL } from "@/services/api";
 
-const { width } = Dimensions.get("window");
+const DEFAULT_AVATAR = `https://ui-avatars.com/api/?name=${encodeURIComponent("User")}&background=7C3AED&color=fff`;
 
-const DEFAULT_AVATAR = `https://ui-avatars.com/api/?name=${encodeURIComponent('User')}&background=7C3AED&color=fff`;
 const getFullImageUrl = (url: string | null | undefined) => {
   if (!url) return DEFAULT_AVATAR;
-  if (url.startsWith('http')) return url;
+  if (url.startsWith("http")) return url;
   return `${BASE_URL}${url}`;
 };
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { 
-    themeColors, 
+  const {
+    themeColors,
     unreadChatCount,
     unreadNotificationCount,
     followingIds,
     toggleFollow,
     getDirectChat,
-    name,
-    isDarkMode,
     isAdmin,
     isUniAdmin
   } = useUser();
@@ -47,46 +43,29 @@ export default function HomeScreen() {
     posts: allPosts,
     isRefreshing,
     refreshPosts,
-    activeCommentPostId,
-    setActiveCommentPostId,
-    commentText,
-    setCommentText,
     toggleLike,
-    sendComment,
     deletePost,
     updateCommentsStatus,
     userId
   } = usePosts();
 
-  const lastTap = React.useRef<{ [key: string]: number }>({});
+  const posts = useMemo(() => {
+    return allPosts.filter((post) => !post.isOfficial);
+  }, [allPosts]);
 
-  const handleImagePress = (postId: string) => {
-    const now = Date.now();
-    const DOUBLE_PRESS_DELAY = 300;
-    
-    if (lastTap.current[postId] && (now - lastTap.current[postId]) < DOUBLE_PRESS_DELAY) {
-      // Double tap: Like the post
-      toggleLike(postId);
-      delete lastTap.current[postId];
-    } else {
-      lastTap.current[postId] = now;
-      // Single tap: Navigate after a short delay
-      setTimeout(() => {
-        if (lastTap.current[postId] === now) {
-          router.push({
-            pathname: "/post-detail",
-            params: { id: postId }
-          });
-          delete lastTap.current[postId];
-        }
-      }, DOUBLE_PRESS_DELAY);
-    }
+  const openPostDetail = (postId: string, focusComments = false) => {
+    router.push({
+      pathname: "/post-detail",
+      params: {
+        id: postId,
+        ...(focusComments ? { focusComments: "1" } : {})
+      }
+    });
   };
 
-  // Filter only regular student posts for Home feed
-  const posts = useMemo(() => {
-    return allPosts.filter(p => !p.isOfficial);
-  }, [allPosts]);
+  const stopPropagation = (event?: { stopPropagation?: () => void }) => {
+    event?.stopPropagation?.();
+  };
 
   const handlePostOptions = (post: any) => {
     if (post.authorId !== userId) return;
@@ -120,25 +99,33 @@ export default function HomeScreen() {
       if (convo) {
         router.push({
           pathname: "/chat-detail",
-          params: { id: convo.id, userName: targetName, userAvatar: getFullImageUrl(targetAvatar), userId: targetId }
+          params: {
+            id: convo.id,
+            userName: targetName,
+            userAvatar: getFullImageUrl(targetAvatar),
+            userId: targetId
+          }
         });
       }
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <StatusBar barStyle={themeColors.statusBar as any} />
-      
-      <SafeAreaView className="flex-1" edges={['top']}>
-        {/* Header */}
+
+      <SafeAreaView className="flex-1" edges={["top"]}>
         <View className="flex-row justify-between items-center px-6 py-4 border-b" style={{ borderBottomColor: themeColors.border, backgroundColor: themeColors.card }}>
           <View>
             <Text className="text-3xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>DPU</Text>
             <Text className="text-[8px] font-black uppercase tracking-[3.5px] -mt-1 opacity-40" style={{ color: themeColors.text }}>UNILIFE</Text>
           </View>
           <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.push("/new-post")} className="w-10 h-10 items-center justify-center rounded-2xl mr-3 bg-indigo-50"><Feather name="plus" size={24} color={theme.colors.primary} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/new-post")} className="w-10 h-10 items-center justify-center rounded-2xl mr-3 bg-indigo-50">
+              <Feather name="plus" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push("/notifications")} className="w-10 h-10 items-center justify-center rounded-2xl mr-3" style={{ backgroundColor: themeColors.iconBg }}>
               <View className="relative">
                 <Feather name="heart" size={22} color={themeColors.text} />
@@ -158,7 +145,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} className="px-4 pt-6" refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          className="px-4 pt-6"
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />}
+        >
           {posts.length === 0 ? (
             <View className="items-center justify-center py-32 bg-white rounded-[50px] border border-dashed border-gray-100 mx-2">
               <Ionicons name="planet-outline" size={50} color={theme.colors.primary} />
@@ -166,93 +157,104 @@ export default function HomeScreen() {
             </View>
           ) : (
             posts.map((post) => (
-              <View key={post.id} className="mb-10 rounded-[45px] border shadow-xl mx-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
+              <Pressable
+                key={post.id}
+                onPress={() => openPostDetail(post.id)}
+                className="mb-10 rounded-[45px] border shadow-xl mx-1"
+                style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+              >
                 <View className="flex-row items-center justify-between px-6 py-5">
-                  <TouchableOpacity onPress={() => router.push({ pathname: "/user-profile", params: { userId: post.authorId } })} className="flex-row items-center flex-1">
+                  <TouchableOpacity
+                    onPress={(event) => {
+                      stopPropagation(event);
+                      router.push({ pathname: "/user-profile", params: { userId: post.authorId } });
+                    }}
+                    className="flex-row items-center flex-1"
+                  >
                     <Image source={{ uri: getFullImageUrl(post.author?.avatarUrl) }} className="w-11 h-11 rounded-[20px] mr-3 border-2 border-white shadow-sm" />
                     <View className="flex-1">
                       <Text className="font-black text-sm tracking-tight" style={{ color: themeColors.text }}>{post.author?.fullName || "User"}</Text>
                       <Text className="text-[9px] font-black text-violet-500 uppercase">{post.author?.faculty}</Text>
                     </View>
                   </TouchableOpacity>
-                  
-                  {/* Actions for students only, hide for admins */}
+
                   {post.authorId !== userId && !isAdmin && !isUniAdmin && (
                     <View className="flex-row items-center">
                       {followingIds.includes(post.authorId) ? (
-                        <TouchableOpacity 
-                          onPress={() => handleChatPress(post.authorId, post.author?.fullName, post.author?.avatarUrl)}
+                        <TouchableOpacity
+                          onPress={(event) => {
+                            stopPropagation(event);
+                            handleChatPress(post.authorId, post.author?.fullName, post.author?.avatarUrl);
+                          }}
                           className="w-10 h-10 items-center justify-center rounded-2xl bg-indigo-50 mr-2"
                         >
                           <Ionicons name="chatbubble-ellipses" size={20} color={theme.colors.primary} />
                         </TouchableOpacity>
                       ) : null}
-                      
-                      <TouchableOpacity 
-                        onPress={() => toggleFollow(post.authorId)} 
-                        className={`px-4 py-2 rounded-2xl ${followingIds.includes(post.authorId) ? 'bg-gray-100' : 'bg-violet-500'}`}
+
+                      <TouchableOpacity
+                        onPress={(event) => {
+                          stopPropagation(event);
+                          toggleFollow(post.authorId);
+                        }}
+                        className={`px-4 py-2 rounded-2xl ${followingIds.includes(post.authorId) ? "bg-gray-100" : "bg-violet-500"}`}
                       >
-                        <Text className={`font-black text-[10px] uppercase ${followingIds.includes(post.authorId) ? 'text-gray-500' : 'text-white'}`}>
-                          {followingIds.includes(post.authorId) ? 'Following' : 'Follow'}
+                        <Text className={`font-black text-[10px] uppercase ${followingIds.includes(post.authorId) ? "text-gray-500" : "text-white"}`}>
+                          {followingIds.includes(post.authorId) ? "Following" : "Follow"}
                         </Text>
                       </TouchableOpacity>
                     </View>
                   )}
-                  
+
                   {post.authorId === userId && (
-                    <TouchableOpacity onPress={() => handlePostOptions(post)} className="w-10 h-10 items-center justify-center rounded-full bg-gray-50/50">
+                    <TouchableOpacity
+                      onPress={(event) => {
+                        stopPropagation(event);
+                        handlePostOptions(post);
+                      }}
+                      className="w-10 h-10 items-center justify-center rounded-full bg-gray-50/50"
+                    >
                       <Feather name="more-horizontal" size={20} color={themeColors.subText} />
                     </TouchableOpacity>
                   )}
                 </View>
 
-                {post.content && <View className="px-7 pb-5"><Text className="text-[13px] leading-6 font-medium" style={{ color: themeColors.text }}>{post.content}</Text></View>}
+                {post.content && (
+                  <View className="px-7 pb-5">
+                    <Text className="text-[13px] leading-6 font-medium" style={{ color: themeColors.text }}>{post.content}</Text>
+                  </View>
+                )}
 
                 {post.media && post.media.length > 0 && (
                   <View className="px-4 pb-4">
-                    <TouchableOpacity 
-                      activeOpacity={0.9} 
-                      onPress={() => handleImagePress(post.id)}
-                      className="rounded-[35px] overflow-hidden bg-gray-100" 
-                      style={{ aspectRatio: 1 }}
-                    >
-                      <Image source={{ uri: getFullImageUrl(post.media[0].url) }} className="w-full h-full" resizeMode="cover" />
-                    </TouchableOpacity>
+                    <Image source={{ uri: getFullImageUrl(post.media[0].url) }} className="w-full rounded-[35px] bg-gray-100" style={{ aspectRatio: 1 }} resizeMode="cover" />
                   </View>
                 )}
 
                 <View className="px-7 py-6 flex-row items-center border-t" style={{ borderTopColor: themeColors.border }}>
-                  <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center mr-10">
-                    <Ionicons name={post.reactions?.some(r => r.userId === userId) ? "heart" : "heart-outline"} size={28} color={post.reactions?.some(r => r.userId === userId) ? "#EF4444" : themeColors.text} />
+                  <TouchableOpacity
+                    onPress={(event) => {
+                      stopPropagation(event);
+                      toggleLike(post.id);
+                    }}
+                    className="flex-row items-center mr-10"
+                  >
+                    <Ionicons name={post.reactions?.some((reaction: any) => reaction.userId === userId) ? "heart" : "heart-outline"} size={28} color={post.reactions?.some((reaction: any) => reaction.userId === userId) ? "#EF4444" : themeColors.text} />
                     <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)} className="flex-row items-center">
+                  <TouchableOpacity
+                    onPress={(event) => {
+                      stopPropagation(event);
+                      openPostDetail(post.id, true);
+                    }}
+                    className="flex-row items-center"
+                  >
                     <Feather name="message-circle" size={26} color={themeColors.text} />
                     <Text className="ml-2.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
                   </TouchableOpacity>
                 </View>
-
-                {activeCommentPostId === post.id && (
-                  <View className="px-6 pb-6 pt-2">
-                    <View className="flex-row items-center px-4 py-2 rounded-[25px] border" style={{ backgroundColor: isDarkMode ? "#1E1E1E" : "#F8F9FE", borderColor: themeColors.border }}>
-                      <Image source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Me')}&background=7C3AED&color=fff` }} className="w-7 h-7 rounded-full mr-3" />
-                      <TextInput 
-                        placeholder="เพิ่มความคิดเห็น..." 
-                        placeholderTextColor={isDarkMode ? "#555" : "#94A3B8"} 
-                        className="flex-1 text-xs font-bold py-2" 
-                        style={{ color: themeColors.text }} 
-                        value={commentText[post.id] || ""} 
-                        onChangeText={(text) => setCommentText({ ...commentText, [post.id]: text })} 
-                        autoFocus={true} 
-                        returnKeyType="send" 
-                        onSubmitEditing={() => sendComment(post.id)}
-                        onBlur={() => setTimeout(() => setActiveCommentPostId(null), 150)}
-                      />
-                    </View>
-                  </View>
-                )}
-              </View>
+              </Pressable>
             ))
           )}
           <View className="h-24" />

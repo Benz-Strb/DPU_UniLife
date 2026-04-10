@@ -1,16 +1,12 @@
 ไฟล์นี้เก็บข้อมูลสำหรับเข้าใช้งานในฐานะผู้ดูแลระบบ (Admin) สำหรับการทดสอบระบบ
 
 University Admin (แอดมินมหาวิทยาลัย)
-บทบาท: `SUPER_ADMIN`
-สิทธิ์: โพสต์ข่าวสารใน DPU Space และจัดการภาพรวมทั้งหมด
 
 | Email | Student ID | Password | Role |
 |-------|------------|----------|------|
 | admin@dpu.ac.th | 00000000 | Admin@1234 | SUPER_ADMIN |
 
 Faculty Admins (แอดมินคณะ)
-บทบาท: `ADMIN`
-สิทธิ์: โพสต์ข่าวสารเฉพาะคณะของตนเอง
 
 | Faculty | Email (Student ID) | Password | Role |
 |---------|-------------------|----------|------|
@@ -28,7 +24,3 @@ Faculty Admins (แอดมินคณะ)
 | ANT | 11110012@dpu.ac.th | Admin@ANT12 | ADMIN |
 | CHW | 11110013@dpu.ac.th | Admin@CHW13 | ADMIN |
 | DPUIC | 11110014@dpu.ac.th | Admin@DPUIC14 | ADMIN |
-
-
-
-****รายชื่อเหล่านี้เป็นแผนการสร้าง ID คุณต้องทำการสมัครสมาชิก (Register) ด้วยข้อมูลเหล่านี้ในระบบก่อน หรือให้ Admin ระบบจัดการผ่าน Database โดยตรง

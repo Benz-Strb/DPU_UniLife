@@ -1,21 +1,33 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, StatusBar } from "react-native";
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, StatusBar, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useUser } from "@/store/UserContext";
-import { theme } from "@/constants/theme";
 import { BASE_URL } from "@/services/api";
 import * as Haptics from 'expo-haptics';
 
 export default function PostDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { posts, userId, toggleLike, addComment, themeColors, deletePost } = useUser();
+  const { id, focusComments } = useLocalSearchParams<{ id: string; focusComments?: string }>();
+  const { posts, userId, toggleLike, addComment, themeColors } = useUser();
   const [commentText, setCommentText] = useState("");
+  const [showFullImage, setShowFullImage] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const shouldFocusComments = focusComments === "1";
 
   const post = posts.find(p => p.id === id);
+  const commentCount = post?.comments?.length ?? 0;
+
+  useEffect(() => {
+    if (!shouldFocusComments || !post) return;
+
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [commentCount, post, shouldFocusComments]);
 
   if (!post) {
     return (
@@ -79,11 +91,13 @@ export default function PostDetailScreen() {
             {/* Post Media */}
             {post.media && post.media.length > 0 && (
               <View className="px-4">
-                <Image 
-                  source={{ uri: getFullImageUrl(post.media[0].url) }} 
-                  className="w-full h-96 rounded-[40px] bg-gray-50"
-                  resizeMode="cover"
-                />
+                <TouchableOpacity activeOpacity={0.9} onPress={() => setShowFullImage(true)}>
+                  <Image
+                    source={{ uri: getFullImageUrl(post.media[0].url) }}
+                    className="w-full h-96 rounded-[40px] bg-gray-50"
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               </View>
             )}
 
@@ -136,6 +150,7 @@ export default function PostDetailScreen() {
               value={commentText}
               onChangeText={setCommentText}
               placeholderTextColor="#9CA3AF"
+              autoFocus={shouldFocusComments}
             />
             <TouchableOpacity 
               onPress={handleSendComment}
@@ -146,6 +161,22 @@ export default function PostDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      <Modal visible={showFullImage} transparent animationType="fade" onRequestClose={() => setShowFullImage(false)}>
+        <View className="flex-1 bg-black/95 items-center justify-center">
+          <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={() => setShowFullImage(false)} />
+          {post.media && post.media.length > 0 && (
+            <Image
+              source={{ uri: getFullImageUrl(post.media[0].url) }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="contain"
+            />
+          )}
+          <TouchableOpacity className="absolute top-12 right-6 bg-black/60 p-3 rounded-full" onPress={() => setShowFullImage(false)}>
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
