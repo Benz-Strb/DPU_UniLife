@@ -61,6 +61,54 @@ const API = axios.create({
   },
 });
 
+export const adminService = {
+  getDashboard: async () => {
+    try {
+      const response = await API.get("/admin/dashboard");
+      return response.data;
+    } catch (e) {
+      console.error("Get Dashboard Error", e);
+      throw e;
+    }
+  },
+  getLoginLogs: async (params?: { page?: number; limit?: number; status?: string; userId?: string }) => {
+    try {
+      const response = await API.get("/admin/logs/login", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Login Logs Error", e);
+      throw e;
+    }
+  },
+  getAuditLogs: async (params?: { page?: number; limit?: number; actorId?: string; entityType?: string }) => {
+    try {
+      const response = await API.get("/admin/logs/audit", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Audit Logs Error", e);
+      throw e;
+    }
+  },
+  getSettings: async () => {
+    try {
+      const response = await API.get("/admin/settings");
+      return response.data;
+    } catch (e) {
+      console.error("Get Settings Error", e);
+      throw e;
+    }
+  },
+  updateSetting: async (key: string, value: any, actorId: string, description?: string) => {
+    try {
+      const response = await API.put(`/admin/settings/${key}`, { value, actorId, description });
+      return response.data;
+    } catch (e) {
+      console.error("Update Setting Error", e);
+      throw e;
+    }
+  },
+};
+
 export const authService = {
   login: async (email: string, pass: string) => {
     try {
@@ -131,7 +179,25 @@ export const authService = {
       console.error("Get Admins Error", e);
       return [];
     }
-  }
+  },
+  getUsers: async (params?: { q?: string; status?: string; role?: string; faculty?: string; page?: number; limit?: number }) => {
+    try {
+      const response = await API.get("/auth/users", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Users Error", e);
+      throw e;
+    }
+  },
+  updateUserStatus: async (userId: string, status: string, actorId: string) => {
+    try {
+      const response = await API.patch(`/auth/users/${userId}/status`, { status, actorId });
+      return response.data;
+    } catch (e) {
+      console.error("Update User Status Error", e);
+      throw e;
+    }
+  },
 };
 
 export const postService = {
@@ -149,7 +215,7 @@ export const postService = {
       const response = await API.post("/posts", {
         authorId: postData.authorId,
         content: postData.content,
-        image: postData.image,
+        images: postData.images,
         facultyTag: postData.facultyTag,
         isOfficial: postData.isOfficial,
         groupId: postData.groupId,
@@ -176,6 +242,33 @@ export const postService = {
       return response.data;
     } catch (e) {
       console.error("Add Comment Error", e);
+      throw e;
+    }
+  },
+  getPost: async (postId: string) => {
+    try {
+      const response = await API.get(`/posts/${postId}`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Post Error", e);
+      throw e;
+    }
+  },
+  sharePost: async (postId: string, userId: string, sharedToText?: string) => {
+    try {
+      const response = await API.post(`/posts/${postId}/share`, { userId, sharedToText });
+      return response.data;
+    } catch (e) {
+      console.error("Share Post Error", e);
+      throw e;
+    }
+  },
+  deleteComment: async (postId: string, commentId: string, userId: string) => {
+    try {
+      await API.delete(`/posts/${postId}/comments/${commentId}`, { data: { userId } });
+      return true;
+    } catch (e) {
+      console.error("Delete Comment Error", e);
       throw e;
     }
   },
@@ -328,6 +421,181 @@ export const followService = {
   }
 };
 
+export const announcementService = {
+  getAnnouncements: async (params?: { status?: string; page?: number; limit?: number }) => {
+    try {
+      const response = await API.get("/announcements", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Announcements Error", e);
+      return [];
+    }
+  },
+  getAnnouncement: async (id: string) => {
+    try {
+      const response = await API.get(`/announcements/${id}`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Announcement Error", e);
+      throw e;
+    }
+  },
+  createAnnouncement: async (data: { title: string; content: string; coverUrl?: string; authorId: string; status?: string }) => {
+    try {
+      const response = await API.post("/announcements", data);
+      return response.data;
+    } catch (e) {
+      console.error("Create Announcement Error", e);
+      throw e;
+    }
+  },
+  updateAnnouncement: async (id: string, data: any) => {
+    try {
+      const response = await API.patch(`/announcements/${id}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Update Announcement Error", e);
+      throw e;
+    }
+  },
+  deleteAnnouncement: async (id: string) => {
+    try {
+      await API.delete(`/announcements/${id}`);
+      return true;
+    } catch (e) {
+      console.error("Delete Announcement Error", e);
+      throw e;
+    }
+  },
+};
+
+export const groupService = {
+  getGroups: async (params?: { q?: string; page?: number; limit?: number }) => {
+    try {
+      const response = await API.get("/groups", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Groups Error", e);
+      return [];
+    }
+  },
+  getGroup: async (groupId: string) => {
+    try {
+      const response = await API.get(`/groups/${groupId}`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Group Error", e);
+      throw e;
+    }
+  },
+  getMembers: async (groupId: string) => {
+    try {
+      const response = await API.get(`/groups/${groupId}/members`);
+      return response.data;
+    } catch (e) {
+      console.error("Get Group Members Error", e);
+      return [];
+    }
+  },
+  createGroup: async (data: { name: string; slug: string; description?: string; createdById: string; isOfficial?: boolean }) => {
+    try {
+      const response = await API.post("/groups", data);
+      return response.data;
+    } catch (e) {
+      console.error("Create Group Error", e);
+      throw e;
+    }
+  },
+  updateGroup: async (groupId: string, data: any) => {
+    try {
+      const response = await API.patch(`/groups/${groupId}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Update Group Error", e);
+      throw e;
+    }
+  },
+  joinGroup: async (groupId: string, userId: string) => {
+    try {
+      const response = await API.post(`/groups/${groupId}/join`, { userId });
+      return response.data;
+    } catch (e) {
+      console.error("Join Group Error", e);
+      throw e;
+    }
+  },
+  removeMember: async (groupId: string, userId: string, actorId: string) => {
+    try {
+      await API.delete(`/groups/${groupId}/members/${userId}`, { data: { actorId } });
+      return true;
+    } catch (e) {
+      console.error("Remove Member Error", e);
+      throw e;
+    }
+  },
+  deleteGroup: async (groupId: string, actorId: string) => {
+    try {
+      await API.delete(`/groups/${groupId}`, { data: { actorId } });
+      return true;
+    } catch (e) {
+      console.error("Delete Group Error", e);
+      throw e;
+    }
+  },
+};
+
+export const reportService = {
+  createReport: async (data: {
+    reporterId: string;
+    targetType: string;
+    reason: string;
+    detail?: string;
+    targetUserId?: string;
+    targetPostId?: string;
+    targetCommentId?: string;
+    targetMessageId?: string;
+    targetGroupId?: string;
+  }) => {
+    try {
+      const response = await API.post("/reports", data);
+      return response.data;
+    } catch (e) {
+      console.error("Create Report Error", e);
+      throw e;
+    }
+  },
+  getReports: async (params?: { status?: string; page?: number; limit?: number }) => {
+    try {
+      const response = await API.get("/reports", { params });
+      return response.data;
+    } catch (e) {
+      console.error("Get Reports Error", e);
+      throw e;
+    }
+  },
+  updateReportStatus: async (reportId: string, status: string, handledById: string) => {
+    try {
+      const response = await API.patch(`/reports/${reportId}/status`, { status, handledById });
+      return response.data;
+    } catch (e) {
+      console.error("Update Report Status Error", e);
+      throw e;
+    }
+  },
+};
+
+export const searchService = {
+  search: async (q: string, type: "all" | "users" | "posts" | "groups" = "all", userId?: string, limit = 10) => {
+    try {
+      const response = await API.get("/search", { params: { q, type, userId, limit } });
+      return response.data;
+    } catch (e) {
+      console.error("Search Error", e);
+      return { q, users: [], posts: [], groups: [] };
+    }
+  },
+};
+
 export const scheduleService = {
   getSchedule: async (userId: string) => {
     try {
@@ -347,6 +615,15 @@ export const scheduleService = {
       throw e;
     }
   },
+  updateCourse: async (id: string, data: any) => {
+    try {
+      const response = await API.put(`/schedule/${id}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Update Course Error", e);
+      throw e;
+    }
+  },
   deleteCourse: async (id: string) => {
     try {
       await API.delete(`/schedule/${id}`);
@@ -355,7 +632,7 @@ export const scheduleService = {
       console.error("Delete Course Error", e);
       throw e;
     }
-  }
+  },
 };
 
 
