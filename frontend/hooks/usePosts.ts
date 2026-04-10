@@ -1,16 +1,20 @@
 import { useState, useMemo, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { useUser } from '@/store/UserContext';
 import * as Haptics from 'expo-haptics';
 import { handleApiError } from '@/services/errorHandler';
+import { postService, reportService } from '@/services/api';
 
 export function usePosts() {
-  const { 
-    posts, 
-    toggleLike: contextToggleLike, 
-    addComment: contextAddComment, 
+  const {
+    posts,
+    toggleLike: contextToggleLike,
+    addComment: contextAddComment,
     deletePost: contextDeletePost,
     updatePost: contextUpdatePost,
     userId,
+    isAdmin,
+    isUniAdmin,
     isRefreshing,
     refreshPosts
   } = useUser();
@@ -18,7 +22,6 @@ export function usePosts() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
 
-  // Return all posts and let screens decide how to filter (e.g. Home shows students, DPU Space shows admins)
   const allPosts = useMemo(() => posts, [posts]);
 
   const toggleLike = useCallback(async (postId: string) => {
@@ -33,7 +36,6 @@ export function usePosts() {
   const sendComment = useCallback(async (postId: string) => {
     const text = commentText[postId]?.trim();
     if (!text) return;
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
       await contextAddComment(postId, text);
@@ -70,6 +72,55 @@ export function usePosts() {
     }
   }, [contextUpdatePost]);
 
+  const toggleComments = useCallback((postId: string) => {
+    setActiveCommentPostId(prev => prev === postId ? null : postId);
+  }, []);
+
+  const handleDeleteComment = useCallback((postId: string, commentId: string) => {
+    Alert.alert("Delete Comment", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          try {
+            await postService.deleteComment(postId, commentId, userId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await refreshPosts();
+          } catch {
+            Alert.alert("Error", "Could not delete comment.");
+          }
+        },
+      },
+    ]);
+  }, [userId, refreshPosts]);
+
+  const handleCommentLongPress = useCallback((postId: string, comment: any) => {
+    const isCommentOwner = comment.authorId === userId;
+    const canDelete = isCommentOwner || isAdmin || isUniAdmin;
+    const options: any[] = [];
+    if (canDelete) {
+      options.push({
+        text: "Delete Comment", style: "destructive",
+        onPress: () => handleDeleteComment(postId, comment.id),
+      });
+    }
+    if (!isCommentOwner) {
+      options.push({
+        text: "Report Comment",
+        onPress: async () => {
+          try {
+            await reportService.createReport({ reporterId: userId, targetType: "COMMENT", targetCommentId: comment.id, reason: "Inappropriate content" });
+            Alert.alert("Reported", "Thank you. Our team will review this.");
+          } catch {
+            Alert.alert("Error", "Could not submit report.");
+          }
+        },
+      });
+    }
+    options.push({ text: "Cancel", style: "cancel" });
+    if (options.length > 1) Alert.alert("Comment Options", undefined, options);
+  }, [userId, isAdmin, isUniAdmin, handleDeleteComment]);
+
   return {
     posts: allPosts,
     isRefreshing,
@@ -83,6 +134,9 @@ export function usePosts() {
     deletePost,
     updateCommentsStatus,
     togglePin,
+    toggleComments,
+    handleDeleteComment,
+    handleCommentLongPress,
     userId
   };
 }
