@@ -5,7 +5,8 @@ import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { authService, BASE_URL } from "@/services/api";
+import { authService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { Post, UserRole } from "@/types/backend";
 import { usePosts } from "@/hooks/usePosts";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,11 +30,6 @@ function AdminDashboard() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'A')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
@@ -93,7 +89,7 @@ function AdminDashboard() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(profileImage) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(profileImage, name) }} className="w-full h-full rounded-[28px]" />
               </View>
               
               <TouchableOpacity onPress={() => router.push("/edit-profile")} className="px-6 py-3 rounded-2xl bg-amber-400">
@@ -137,7 +133,7 @@ function AdminDashboard() {
             adminPosts.map((post) => (
               <TouchableOpacity key={post.id} onPress={() => handlePostOptions(post)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                 <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Admin&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
+                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                   {post.isPinned && (
                     <View className="absolute top-2 right-2 bg-amber-400 p-1 rounded-full border border-white">
                        <Ionicons name="pin" size={8} color="white" />
@@ -189,11 +185,6 @@ function StudentProfile() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -229,7 +220,7 @@ function StudentProfile() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(profileImage) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(profileImage, name) }} className="w-full h-full rounded-[28px]" />
               </View>
               
               <TouchableOpacity onPress={() => router.push("/edit-profile")} className="px-6 py-3 rounded-2xl bg-violet-500">
@@ -290,7 +281,7 @@ function StudentProfile() {
             userPosts.map((post) => (
               <TouchableOpacity key={post.id} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                 <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Post&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
+                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                   {(!post.media || post.media.length === 0) && (
                     <View className="absolute inset-0 items-center justify-center p-3 bg-violet-50/90">
                        <Text className="text-[9px] font-black text-violet-500 text-center uppercase leading-3" numberOfLines={4}>{post.content}</Text>

@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
-import { BASE_URL } from "@/services/api";
+import { searchService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 
 const { width } = Dimensions.get('window');
 
@@ -97,24 +98,32 @@ const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { themeColors, isDarkMode, userId, posts } = useUser();
+  const { themeColors, isDarkMode, userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const getFullImageUrl = (url: string | null | undefined, name: string) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
-  // ดึงรายชื่อนักศึกษาจากรายชื่อผู้เขียนโพสต์ (กรณีไม่มี API ดึงรายชื่อ User ทั้งหมด)
-  const uniqueUsers = Array.from(new Set(posts.map(p => p.authorId)))
-    .map(id => posts.find(p => p.authorId === id)?.author)
-    .filter(u => u && u.id !== userId && u.role === "STUDENT");
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-  const filteredUsers = uniqueUsers.filter(u => 
-    u?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u?.faculty?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    if (!searchQuery.trim()) {
+      setSearchResults({ users: [], posts: [], groups: [] });
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      const result = await searchService.search(searchQuery.trim(), "users", userId ?? undefined, 20);
+      setSearchResults(result);
+      setIsSearching(false);
+    }, 400);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, userId]);
+
+  const filteredUsers = searchResults.users;
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -173,7 +182,10 @@ export default function SearchScreen() {
                 <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
                 <Text className="font-black text-xl tracking-tight" style={{ color: themeColors.text }}>Community Members</Text>
               </View>
-              <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Students</Text>
+              {isSearching
+                ? <ActivityIndicator size="small" color={theme.colors.primary} />
+                : <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Results</Text>
+              }
             </View>
 
             {filteredUsers.length === 0 ? (
@@ -205,7 +217,7 @@ export default function SearchScreen() {
                         style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F5F3FF" }}
                       >
                         <Image 
-                          source={{ uri: getFullImageUrl(user.avatarUrl, user.fullName) }} 
+                          source={{ uri: getAvatarUrl(user.avatarUrl, user.fullName) }} 
                           className="w-full h-full rounded-[30px]"
                         />
                       </View>

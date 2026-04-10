@@ -5,17 +5,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
+import { getAvatarUrl } from "@/utils/imageUtils";
 
 export default function MessengerScreen() {
   const router = useRouter();
   const { isDarkMode, conversations, userId, themeColors, deleteConversation } = useUser();
 
-  const getFullImageUrl = (url: string | null | undefined, name: string) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   const handleDeleteConversation = (convoId: string, name: string) => {
     Alert.alert(
@@ -89,7 +84,7 @@ export default function MessengerScreen() {
                 const otherParticipant = convo.participants?.find(p => p.userId !== userId)?.user;
                 const lastMsg = convo.messages && convo.messages.length > 0 ? convo.messages[convo.messages.length - 1] : null;
                 const participantName = otherParticipant?.fullName || "User";
-                const participantAvatar = getFullImageUrl(otherParticipant?.avatarUrl, participantName);
+                const participantAvatar = getAvatarUrl(otherParticipant?.avatarUrl, participantName);
 
                 return (
                   <TouchableOpacity 

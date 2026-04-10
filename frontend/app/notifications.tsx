@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
+import { getAvatarUrl } from "@/utils/imageUtils";
 
 export default function NotificationScreen() {
   const router = useRouter();
@@ -29,11 +29,6 @@ export default function NotificationScreen() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   const handleNotificationPress = async (item: any) => {
     // Mark as read
@@ -139,7 +134,7 @@ export default function NotificationScreen() {
                   >
                     <View className="relative">
                       <Image 
-                        source={{ uri: getFullImageUrl(item.sender?.avatarUrl) }} 
+                        source={{ uri: getAvatarUrl(item.sender?.avatarUrl, item.sender?.fullName) }} 
                         className="w-12 h-12 rounded-full mr-4" 
                       />
                       <View 

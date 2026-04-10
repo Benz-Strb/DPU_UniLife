@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
+import { getAvatarUrl } from "@/utils/imageUtils";
 import socket from "@/services/socket";
 
 export default function ChatDetailScreen() {
@@ -83,7 +83,7 @@ export default function ChatDetailScreen() {
 
   const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
   const userName = recipient?.fullName || nameFromParams || "Chat";
-  const userAvatar = recipient?.avatarUrl ? (recipient.avatarUrl.startsWith('http') ? recipient.avatarUrl : `${BASE_URL}${recipient.avatarUrl}`) : (avatarFromParams || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=7C3AED&color=fff`);
+  const userAvatar = getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>

@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 
 export default function TagScreen() {
   const router = useRouter();
@@ -13,11 +13,6 @@ export default function TagScreen() {
   const tagName = params.tagName || "DPU";
   const { isDarkMode, userId, posts, toggleLike, themeColors, refreshPosts, isRefreshing } = useUser();
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   // กรองโพสต์ที่ติด Tag คณะนี้ (facultyTag)
   const filteredPosts = posts.filter(p => p.facultyTag === tagName);
@@ -75,7 +70,7 @@ export default function TagScreen() {
                 <View className="flex-row items-center p-5">
                    <View className="relative">
                      <Image 
-                      source={{ uri: post.author?.avatarUrl ? getFullImageUrl(post.author.avatarUrl)! : `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}&background=random` }} 
+                      source={{ uri: getAvatarUrl(post.author?.avatarUrl, post.author?.fullName) }} 
                       className="w-10 h-10 rounded-[18px] mr-3" 
                      />
                      <View className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
@@ -101,7 +96,7 @@ export default function TagScreen() {
                   <View className="px-4 pb-4">
                     <View className="rounded-[30px] overflow-hidden bg-gray-100" style={{ aspectRatio: 1 }}>
                       <Image 
-                        source={{ uri: getFullImageUrl(post.media[0].url)! }} 
+                        source={{ uri: getImageUrl(post.media[0].url) }} 
                         className="w-full h-full"
                         resizeMode="cover" 
                       />

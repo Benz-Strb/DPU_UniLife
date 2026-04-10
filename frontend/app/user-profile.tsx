@@ -5,7 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { authService, BASE_URL } from "@/services/api";
+import { authService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { Post } from "@/types/backend";
 
 const { width } = Dimensions.get('window');
@@ -48,11 +49,6 @@ export default function UserProfileScreen() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.fullName || 'U')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   const handleChatPress = async () => {
     const convo = await getDirectChat(targetUserId);
@@ -62,7 +58,7 @@ export default function UserProfileScreen() {
         params: { 
           id: convo.id, 
           userName: userData.fullName, 
-          userAvatar: getFullImageUrl(userData.avatarUrl),
+          userAvatar: getAvatarUrl(userData.avatarUrl, userData.fullName),
           userId: targetUserId
         }
       });
@@ -115,7 +111,7 @@ export default function UserProfileScreen() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(userData?.avatarUrl) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(userData?.avatarUrl, userData?.fullName) }} className="w-full h-full rounded-[28px]" />
               </View>
               
               <View className="flex-row">
@@ -188,7 +184,7 @@ export default function UserProfileScreen() {
             userPosts.map((post) => (
               <TouchableOpacity key={post.id} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                 <View className="w-full h-full rounded-[20px] overflow-hidden bg-gray-100">
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Post&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
+                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                 </View>
               </TouchableOpacity>
             ))
