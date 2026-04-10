@@ -314,11 +314,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       notifications, setNotifications, notificationList, addNotification: (n) => setNotificationList(prev => [n, ...prev]),
       isAdmin, isUniAdmin, login, signUp: async (data) => authService.signUp(data), logout, 
       posts, addPost: async (data) => {
-        let img = data.image;
-        if (img?.startsWith('file')) img = await postService.uploadImage(img);
-        const p = await postService.createPost({...data, image: img, authorId: userId, facultyTag: data.tag});
+        const rawImages: string[] = Array.isArray(data.images) ? data.images : [];
+        const uploadedImages = await Promise.all(
+          rawImages.map((img: string) => img.startsWith('file') ? postService.uploadImage(img) : Promise.resolve(img))
+        );
+        const p = await postService.createPost({ ...data, images: uploadedImages, authorId: userId, facultyTag: data.tag });
         setPosts(prev => [p, ...prev]);
-      }, 
+      },
       deletePost: async (id) => { await postService.deletePost(id); setPosts(prev => prev.filter(p => p.id !== id)); },
       updatePost: async (id, data) => { const p = await postService.updatePost(id, data); setPosts(prev => prev.map(old => old.id === id ? p : old)); },
       toggleLike, addComment, refreshPosts: async () => { setIsRefreshing(true); await fetchPosts(); setIsRefreshing(false); }, 
