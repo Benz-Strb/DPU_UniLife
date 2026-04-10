@@ -557,4 +557,105 @@ authRouter.get('/roles', (_req: Request, res: Response) => {
   });
 });
 
+// GET /auth/users — list all users (admin)
+authRouter.get('/users', async (req: Request, res: Response) => {
+  const page = typeof req.query.page === 'string' ? parseInt(req.query.page, 10) : 1;
+  const limit = typeof req.query.limit === 'string' ? Math.min(parseInt(req.query.limit, 10), 100) : 20;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : null;
+  const status = typeof req.query.status === 'string' && req.query.status in UserStatus
+    ? (req.query.status as UserStatus)
+    : null;
+  const role = typeof req.query.role === 'string' && req.query.role in UserRole
+    ? (req.query.role as UserRole)
+    : null;
+  const faculty = typeof req.query.faculty === 'string' ? req.query.faculty.trim() || null : null;
+
+  const skip = (Math.max(page, 1) - 1) * (isNaN(limit) || limit <= 0 ? 20 : limit);
+  const take = isNaN(limit) || limit <= 0 ? 20 : limit;
+
+  const where: any = {
+    ...(status ? { status } : {}),
+    ...(role ? { role } : {}),
+    ...(faculty ? { faculty: { equals: faculty, mode: 'insensitive' } } : {}),
+    ...(q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { username: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+            { studentId: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+  };
+
+  try {
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: safeUserSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return res.json({ users, total, page: Math.max(page, 1), limit: take });
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    return res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
+// PATCH /auth/users/:userId/status — suspend / activate / deactivate (admin)
+authRouter.patch('/users/:userId/status', async (req: Request, res: Response) => {
+  const userId = typeof req.params.userId === 'string' ? req.params.userId : null;
+  const { status: statusInput, actorId } = req.body;
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  if (typeof actorId !== 'string' || !isUuid(actorId)) {
+    return res.status(400).json({ message: 'A valid actorId is required' });
+  }
+
+  if (typeof statusInput !== 'string' || !(statusInput in UserStatus)) {
+    return res.status(400).json({ message: `status must be one of: ${Object.values(UserStatus).join(', ')}` });
+  }
+
+  const newStatus = statusInput as UserStatus;
+
+  try {
+    const [actor, target] = await Promise.all([
+      prisma.user.findUnique({ where: { id: actorId }, select: { id: true, role: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, status: true } }),
+    ]);
+
+    if (!actor || (actor.role !== UserRole.ADMIN && actor.role !== UserRole.SUPER_ADMIN)) {
+      return res.status(403).json({ message: 'Only admins can update user status' });
+    }
+
+    if (!target) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (target.role === UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Cannot change status of a super admin' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { status: newStatus },
+      select: safeUserSelect,
+    });
+
+    return res.json({ message: 'User status updated', user: updatedUser });
+  } catch (error) {
+    console.error('Failed to update user status:', error);
+    return res.status(500).json({ message: 'Failed to update user status' });
+  }
+});
+
 export { authRouter };

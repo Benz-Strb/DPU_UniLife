@@ -11,6 +11,8 @@ import { groupRouter } from "./routes/group";
 import { reportRouter } from "./routes/report";
 import { followRouter } from "./routes/follow";
 import scheduleRouter from "./routes/schedule";
+import { adminRouter } from "./routes/admin";
+import { searchRouter } from "./routes/search";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -31,6 +33,8 @@ app.use('/groups', groupRouter);
 app.use('/reports', reportRouter);
 app.use('/follows', followRouter);
 app.use('/schedule', scheduleRouter);
+app.use('/admin', adminRouter);
+app.use('/search', searchRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "DPU UniLife backend is running with Socket.io" });
