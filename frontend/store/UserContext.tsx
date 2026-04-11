@@ -48,11 +48,11 @@ interface UserContextType {
   deletePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, data: any) => Promise<void>;
   toggleLike: (postId: string) => void;
-  addComment: (postId: string, commentText: string) => void;
+  addComment: (postId: string, commentText: string, parentId?: string) => void;
   refreshPosts: () => Promise<void>;
   isRefreshing: boolean;
   conversations: Conversation[];
-  sendMessage: (convoId: string, body: string) => Promise<void>;
+  sendMessage: (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => Promise<void>;
   syncProfile: (name: string, faculty: string, img: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) => Promise<void>;
   followingIds: string[];
@@ -249,30 +249,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsUniAdmin(false);
   };
 
-  const toggleLike = async (postId: string) => {
+  const toggleLike = async (postId: string, reaction = "LIKE") => {
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
-        const isLiked = post.reactions?.some(r => r.userId === userId);
-        const newReactions = isLiked
-          ? post.reactions.filter(r => r.userId !== userId)
-          : [...(post.reactions || []), { postId, userId, reaction: "LIKE" as any }];
+        const existing = post.reactions?.find(r => r.userId === userId);
+        let newReactions;
+        if (existing && existing.reaction === reaction) {
+          newReactions = post.reactions.filter(r => r.userId !== userId);
+        } else if (existing) {
+          newReactions = post.reactions.map(r => r.userId === userId ? { ...r, reaction } : r);
+        } else {
+          newReactions = [...(post.reactions || []), { postId, userId, reaction: reaction as any }];
+        }
         return { ...post, reactions: newReactions, _count: { ...post._count, reactions: newReactions.length } } as Post;
       }
       return post;
     }));
-    try { await postService.toggleLike(postId, userId); } catch (e) { fetchPosts(); }
+    try { await postService.toggleLike(postId, userId, reaction); } catch (e) { fetchPosts(); }
   };
 
-  const addComment = async (postId: string, commentText: string) => {
+  const addComment = async (postId: string, commentText: string, parentId?: string) => {
     try {
-      await postService.addComment(postId, userId, commentText);
+      await postService.addComment(postId, userId, commentText, parentId);
       fetchPosts();
     } catch (e) { console.error(e); }
   };
 
-  const sendMessage = async (convoId: string, body: string) => {
+  const sendMessage = async (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => {
     try {
-      await chatService.sendMessage(convoId, userId, body);
+      await chatService.sendMessage(convoId, userId, body, attachmentUrl, attachmentType);
       fetchChats(userId);
     } catch (e) { console.error(e); }
   };

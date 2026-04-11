@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { getAvatarUrl } from "@/utils/imageUtils";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { postService } from "@/services/api";
 import socket from "@/services/socket";
 
 export default function ChatDetailScreen() {
@@ -14,6 +16,7 @@ export default function ChatDetailScreen() {
   const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams } = params;
   const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId } = useUser();
   const [inputText, setInputText] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const [activeConvoId, setActiveConvoId] = useState(convoIdFromParams);
 
@@ -62,17 +65,31 @@ export default function ChatDetailScreen() {
     if (inputText.trim() && activeConvoId) {
       const messageBody = inputText.trim();
       sendMessage(activeConvoId, messageBody);
-      
-      // ส่งผ่าน Socket ไปบอกคนในห้อง
-      socket.emit("send_message", {
-        convoId: activeConvoId,
-        senderId: userId,
-        body: messageBody,
-        createdAt: new Date().toISOString()
-      });
-
+      socket.emit("send_message", { convoId: activeConvoId, senderId: userId, body: messageBody, createdAt: new Date().toISOString() });
       setInputText("");
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    if (result.canceled || !result.assets?.[0]) return;
+    if (!activeConvoId) return;
+    setIsUploadingImage(true);
+    try {
+      const uploadedUrl = await postService.uploadImage(result.assets[0].uri);
+      await sendMessage(activeConvoId, "", uploadedUrl, "IMAGE");
+      socket.emit("send_message", { convoId: activeConvoId, senderId: userId, body: "", attachmentUrl: uploadedUrl, attachmentType: "IMAGE", createdAt: new Date().toISOString() });
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch {
+      Alert.alert("Error", "Could not send image.");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -110,24 +127,35 @@ export default function ChatDetailScreen() {
         >
           {messages.map((msg, idx) => {
             const isMe = msg.senderId === userId;
+            const hasImage = msg.attachmentType === "IMAGE" && msg.attachmentUrl;
+            const imgUrl = hasImage ? getImageUrl(msg.attachmentUrl) : undefined;
             return (
-              <View 
-                key={msg.id || idx} 
+              <View
+                key={msg.id || idx}
                 className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}
               >
                 {!isMe && (
                   <Image source={{ uri: userAvatar }} className="w-7 h-7 rounded-full self-end mb-1 mr-2" />
                 )}
-                <View 
-                  className={`max-w-[75%] px-4 py-3 ${isMe ? "rounded-[24px] rounded-br-[4px]" : "rounded-[24px] rounded-bl-[4px]"}`}
-                  style={{ backgroundColor: isMe ? theme.colors.primary : (isDarkMode ? "#333" : "#F3F4F6") }}
-                >
-                  <Text className="text-sm font-medium" style={{ color: isMe ? "white" : textColor }}>
-                    {msg.body}
-                  </Text>
-                  <Text 
-                    className={`text-[8px] mt-1 ${isMe ? "text-violet-200" : "text-gray-400"}`}
-                    style={{ textAlign: isMe ? "right" : "left" }}
+                <View className={`max-w-[75%] ${isMe ? "items-end" : "items-start"}`}>
+                  {imgUrl ? (
+                    <Image
+                      source={{ uri: imgUrl }}
+                      className={`w-56 h-56 rounded-2xl ${isMe ? "rounded-br-[4px]" : "rounded-bl-[4px]"}`}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View
+                      className={`px-4 py-3 ${isMe ? "rounded-[24px] rounded-br-[4px]" : "rounded-[24px] rounded-bl-[4px]"}`}
+                      style={{ backgroundColor: isMe ? theme.colors.primary : (isDarkMode ? "#333" : "#F3F4F6") }}
+                    >
+                      <Text className="text-sm font-medium" style={{ color: isMe ? "white" : textColor }}>
+                        {msg.body}
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    className={`text-[8px] mt-1 ${isMe ? "text-right text-gray-400" : "text-gray-400"}`}
                   >
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -137,9 +165,16 @@ export default function ChatDetailScreen() {
           })}
         </ScrollView>
 
-        <View className="p-4 flex-row items-center border-t" style={{ borderTopColor: isDarkMode ? "#333" : "#F3F4F6" }}>
+        <View className="p-4 flex-row items-center gap-2 border-t" style={{ borderTopColor: isDarkMode ? "#333" : "#F3F4F6" }}>
+          <TouchableOpacity onPress={handlePickImage} disabled={isUploadingImage} className="w-10 h-10 items-center justify-center rounded-full" style={{ backgroundColor: inputBgColor }}>
+            {isUploadingImage ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Ionicons name="image-outline" size={22} color={textColor} />
+            )}
+          </TouchableOpacity>
           <View className="flex-1 flex-row items-center rounded-full px-5 py-2" style={{ backgroundColor: inputBgColor }}>
-            <TextInput 
+            <TextInput
               placeholder="Message..."
               placeholderTextColor={subTextColor}
               className="flex-1 text-sm font-medium h-10"

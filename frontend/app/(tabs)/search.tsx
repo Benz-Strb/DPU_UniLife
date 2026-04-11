@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
@@ -98,12 +98,18 @@ const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const scrollRef = useRef<ScrollView>(null);
   const { themeColors, isDarkMode, userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+
+  useEffect(() => {
+    return navigation.addListener("tabRefresh" as any, () => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+  }, [navigation]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -149,7 +155,7 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
           {/* Browse Faculties */}
           <View className="mb-8">
             <View className="px-6 mb-4">

@@ -122,5 +122,6 @@ export interface Message {
   sender: User;
   body?: string;
   attachmentUrl?: string;
+  attachmentType?: string;
   createdAt: string;
 }

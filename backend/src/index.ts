@@ -13,6 +13,7 @@ import { followRouter } from "./routes/follow";
 import scheduleRouter from "./routes/schedule";
 import { adminRouter } from "./routes/admin";
 import { searchRouter } from "./routes/search";
+import { tagRouter } from "./routes/tag";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -35,6 +36,7 @@ app.use('/follows', followRouter);
 app.use('/schedule', scheduleRouter);
 app.use('/admin', adminRouter);
 app.use('/search', searchRouter);
+app.use('/tags', tagRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "DPU UniLife backend is running with Socket.io" });

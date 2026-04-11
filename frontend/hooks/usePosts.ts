@@ -21,13 +21,14 @@ export function usePosts() {
 
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<{ [key: string]: string }>({});
+  const [replyTo, setReplyTo] = useState<{ postId: string; commentId: string; authorName: string } | null>(null);
 
   const allPosts = useMemo(() => posts, [posts]);
 
-  const toggleLike = useCallback(async (postId: string) => {
+  const toggleLike = useCallback(async (postId: string, reaction = "LIKE") => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await contextToggleLike(postId);
+      await contextToggleLike(postId, reaction);
     } catch (error) {
       handleApiError(error);
     }
@@ -37,14 +38,15 @@ export function usePosts() {
     const text = commentText[postId]?.trim();
     if (!text) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const parentId = replyTo?.postId === postId ? replyTo.commentId : undefined;
     try {
-      await contextAddComment(postId, text);
+      await contextAddComment(postId, text, parentId);
       setCommentText(prev => ({ ...prev, [postId]: "" }));
-      setActiveCommentPostId(null);
+      setReplyTo(null);
     } catch (error) {
       handleApiError(error);
     }
-  }, [commentText, contextAddComment]);
+  }, [commentText, contextAddComment, replyTo]);
 
   const deletePost = useCallback(async (postId: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -129,6 +131,8 @@ export function usePosts() {
     setActiveCommentPostId,
     commentText,
     setCommentText,
+    replyTo,
+    setReplyTo,
     toggleLike,
     sendComment,
     deletePost,

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions, StatusBar, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService } from "@/services/api";
@@ -15,6 +15,7 @@ const { width } = Dimensions.get('window');
 
 function AdminDashboard() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { themeColors, profileImage, name, userId, user: currentUser, isUniAdmin } = useUser();
   const { posts, deletePost, togglePin, updateCommentsStatus } = usePosts();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -30,6 +31,9 @@ function AdminDashboard() {
     setIsRefreshing(false);
   };
 
+  useEffect(() => {
+    return navigation.addListener("tabRefresh" as any, () => onRefresh());
+  }, [navigation]);
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
@@ -157,6 +161,7 @@ function AdminDashboard() {
 
 function StudentProfile() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { isDarkMode, name, bio, profileImage, userId, themeColors, user: currentUser } = useUser();
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -184,6 +189,10 @@ function StudentProfile() {
     await fetchProfileData();
     setIsRefreshing(false);
   };
+
+  useEffect(() => {
+    return navigation.addListener("tabRefresh" as any, () => onRefresh());
+  }, [navigation]);
 
 
   return (

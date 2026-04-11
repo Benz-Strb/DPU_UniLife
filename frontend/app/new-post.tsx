@@ -47,7 +47,14 @@ export default function NewPostScreen() {
 
   const [selectedTag, setSelectedTag] = useState(initialTag);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE">("PUBLIC");
   const [loading, setLoading] = useState(false);
+
+  const VISIBILITY_OPTIONS: { value: "PUBLIC" | "FOLLOWERS" | "PRIVATE"; label: string; icon: string }[] = [
+    { value: "PUBLIC", label: "Everyone", icon: "globe-outline" },
+    { value: "FOLLOWERS", label: "Followers", icon: "people-outline" },
+    { value: "PRIVATE", label: "Only me", icon: "lock-closed-outline" },
+  ];
 
   const handlePost = async () => {
     if (selectedImages.length === 0 && !content.trim()) {
@@ -63,6 +70,7 @@ export default function NewPostScreen() {
         images: selectedImages,
         tag: selectedTag,
         isOfficial,
+        visibility,
       });
       Alert.alert("Success", isOfficial ? "Official Announcement shared!" : "Post shared!");
       router.back();
@@ -300,6 +308,29 @@ export default function NewPostScreen() {
               ))}
             </View>
           )}
+        </View>
+
+        {/* Visibility picker */}
+        <View className="mb-5 rounded-[24px] border p-5" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
+          <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3" style={{ color: themeColors.subText }}>Who can see this?</Text>
+          <View className="flex-row gap-2">
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => setVisibility(opt.value)}
+                className="flex-1 items-center py-2.5 rounded-2xl border"
+                style={{
+                  backgroundColor: visibility === opt.value ? theme.colors.primary : (isDarkMode ? "#2D2D2D" : "#F9FAFB"),
+                  borderColor: visibility === opt.value ? theme.colors.primary : themeColors.border,
+                }}
+              >
+                <Ionicons name={opt.icon as any} size={16} color={visibility === opt.value ? "white" : themeColors.subText} />
+                <Text className="text-[9px] font-bold mt-1" style={{ color: visibility === opt.value ? "white" : themeColors.subText }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Content input */}

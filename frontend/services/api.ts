@@ -227,18 +227,18 @@ export const postService = {
       throw e;
     }
   },
-  toggleLike: async (postId: string, userId: string) => {
+  toggleLike: async (postId: string, userId: string, reaction = "LIKE") => {
     try {
-      const response = await API.post(`/posts/${postId}/like`, { userId });
+      const response = await API.post(`/posts/${postId}/like`, { userId, reaction });
       return response.data;
     } catch (e) {
       console.error("Like Post Error", e);
       throw e;
     }
   },
-  addComment: async (postId: string, authorId: string, content: string): Promise<Comment> => {
+  addComment: async (postId: string, authorId: string, content: string, parentId?: string): Promise<Comment> => {
     try {
-      const response = await API.post(`/posts/${postId}/comments`, { authorId, content });
+      const response = await API.post(`/posts/${postId}/comments`, { authorId, content, ...(parentId ? { parentId } : {}) });
       return response.data;
     } catch (e) {
       console.error("Add Comment Error", e);
@@ -335,9 +335,11 @@ export const chatService = {
       throw e;
     }
   },
-  sendMessage: async (convoId: string, senderId: string, body: string): Promise<Message> => {
+  sendMessage: async (convoId: string, senderId: string, body: string, attachmentUrl?: string, attachmentType?: string): Promise<Message> => {
     try {
-      const response = await API.post(`/chats/${convoId}/messages`, { senderId, body });
+      const payload: any = { senderId, body };
+      if (attachmentUrl) { payload.attachmentUrl = attachmentUrl; payload.attachmentType = attachmentType ?? "IMAGE"; }
+      const response = await API.post(`/chats/${convoId}/messages`, payload);
       return response.data;
     } catch (e) {
       console.error("Send Message Error", e);
@@ -579,6 +581,27 @@ export const reportService = {
       return response.data;
     } catch (e) {
       console.error("Update Report Status Error", e);
+      throw e;
+    }
+  },
+};
+
+export const tagService = {
+  getTags: async () => {
+    try {
+      const response = await API.get("/tags");
+      return response.data;
+    } catch (e) {
+      console.error("Get Tags Error", e);
+      return [];
+    }
+  },
+  getTagPosts: async (name: string, page = 1, limit = 20) => {
+    try {
+      const response = await API.get(`/tags/${encodeURIComponent(name)}/posts`, { params: { page, limit } });
+      return response.data;
+    } catch (e) {
+      console.error("Get Tag Posts Error", e);
       throw e;
     }
   },

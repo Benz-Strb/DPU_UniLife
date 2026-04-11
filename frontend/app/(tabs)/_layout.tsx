@@ -43,11 +43,20 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="group" options={{ title: "Group" }} />
-      <Tabs.Screen name="search" options={{ title: "Search" }} />
-      <Tabs.Screen name="messenger" options={{ title: "Messenger" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      {(["home", "group", "search", "messenger", "profile"] as const).map((name) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{ title: name.charAt(0).toUpperCase() + name.slice(1) }}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) {
+                navigation.emit({ type: "tabRefresh" } as any);
+              }
+            },
+          })}
+        />
+      ))}
     </Tabs>
   );
 }
