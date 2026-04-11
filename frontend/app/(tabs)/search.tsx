@@ -104,14 +104,18 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
   const [isSearching, setIsSearching] = useState(false);
+  const [history, setHistory] = useState<{ keyword: string; searchedAt: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
 
   useEffect(() => {
     const handler = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
     tabRefreshEmitter.on("search", handler);
     return () => tabRefreshEmitter.off("search", handler);
   }, []);
+
+  useEffect(() => {
+    if (userId) searchService.getHistory(userId).then(setHistory);
+  }, [userId]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -126,10 +130,23 @@ export default function SearchScreen() {
       const result = await searchService.search(searchQuery.trim(), "users", userId ?? undefined, 20);
       setSearchResults(result);
       setIsSearching(false);
+      if (userId) searchService.getHistory(userId).then(setHistory);
     }, 400);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery, userId]);
+
+  const handleDeleteKeyword = async (keyword: string) => {
+    if (!userId) return;
+    await searchService.deleteKeyword(userId, keyword);
+    setHistory(prev => prev.filter(h => h.keyword !== keyword));
+  };
+
+  const handleClearHistory = async () => {
+    if (!userId) return;
+    await searchService.clearHistory(userId);
+    setHistory([]);
+  };
 
   const filteredUsers = searchResults.users;
 
@@ -158,6 +175,34 @@ export default function SearchScreen() {
         </View>
 
         <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Recent Searches */}
+          {!searchQuery.trim() && history.length > 0 && (
+            <View className="px-6 mb-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">Recent Searches</Text>
+                <TouchableOpacity onPress={handleClearHistory}>
+                  <Text className="text-[10px] font-bold text-violet-500">Clear all</Text>
+                </TouchableOpacity>
+              </View>
+              <View className="flex-row flex-wrap gap-2">
+                {history.map((h) => (
+                  <View
+                    key={h.keyword}
+                    className="flex-row items-center rounded-full px-3 py-2 border"
+                    style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+                  >
+                    <TouchableOpacity onPress={() => setSearchQuery(h.keyword)}>
+                      <Text className="text-xs font-bold mr-2" style={{ color: themeColors.text }}>{h.keyword}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteKeyword(h.keyword)}>
+                      <Ionicons name="close" size={12} color={themeColors.subText} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Browse Faculties */}
           <View className="mb-8">
             <View className="px-6 mb-4">

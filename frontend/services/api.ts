@@ -617,6 +617,20 @@ export const searchService = {
       return { q, users: [], posts: [], groups: [] };
     }
   },
+  getHistory: async (userId: string): Promise<{ keyword: string; searchedAt: string }[]> => {
+    try {
+      const response = await API.get(`/search/history/${userId}`);
+      return response.data;
+    } catch (e) {
+      return [];
+    }
+  },
+  clearHistory: async (userId: string) => {
+    try { await API.delete(`/search/history/${userId}`); } catch {}
+  },
+  deleteKeyword: async (userId: string, keyword: string) => {
+    try { await API.delete(`/search/history/${userId}/${encodeURIComponent(keyword)}`); } catch {}
+  },
 };
 
 export const scheduleService = {
