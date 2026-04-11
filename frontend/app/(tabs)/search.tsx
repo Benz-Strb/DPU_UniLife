@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
 import { searchService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
 const { width } = Dimensions.get('window');
 
@@ -98,7 +99,6 @@ const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const scrollRef = useRef<ScrollView>(null);
   const { themeColors, isDarkMode, userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,8 +108,10 @@ export default function SearchScreen() {
 
 
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => scrollRef.current?.scrollTo({ y: 0, animated: true }));
-  }, [navigation]);
+    const handler = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+    tabRefreshEmitter.on("search", handler);
+    return () => tabRefreshEmitter.off("search", handler);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

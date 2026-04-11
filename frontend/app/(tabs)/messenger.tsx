@@ -2,20 +2,22 @@ import React, { useRef, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, StatusBar, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
 export default function MessengerScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const scrollRef = useRef<ScrollView>(null);
   const { isDarkMode, conversations, userId, themeColors, deleteConversation } = useUser();
 
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => scrollRef.current?.scrollTo({ y: 0, animated: true }));
-  }, [navigation]);
+    const handler = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+    tabRefreshEmitter.on("messenger", handler);
+    return () => tabRefreshEmitter.off("messenger", handler);
+  }, []);
 
 
   const handleDeleteConversation = (convoId: string, name: string) => {

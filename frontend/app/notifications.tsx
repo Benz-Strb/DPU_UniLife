@@ -37,18 +37,16 @@ export default function NotificationScreen() {
     }
 
     // Navigate based on type
-    if (item.type === "LIKE" || item.type === "COMMENT") {
-      if (item.refPostId) {
-        // ในที่นี้สมมติว่าเรามีหน้า post-detail หรือไปหน้า home แล้วเลื่อนหา
-        // สำหรับตอนนี้เราจะลองส่งไปที่หน้า home หรือแจ้งเตือนว่าดูโพสต์
-        router.push({ pathname: "/(tabs)/home", params: { postId: item.refPostId } });
-      }
-    } else if (item.type === "FOLLOW") {
-      if (item.senderId) {
-        // ไปหน้าโปรไฟล์ของคนที่มาติดตาม (ถ้ามีหน้า profile-detail)
-        // router.push({ pathname: "/profile-detail", params: { userId: item.senderId } });
-      }
+    if (item.type === "FOLLOW") {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
+    } else if (item.type === "LIKE") {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
+    } else if (item.type === "COMMENT") {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
+    } else if (item.type === "REPLY") {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
     }
+    // default: do nothing
   };
 
   const getNotificationText = (item: any) => {
@@ -57,6 +55,7 @@ export default function NotificationScreen() {
       case 'LIKE': return `${senderName} liked your post`;
       case 'COMMENT': return `${senderName} commented on your post`;
       case 'FOLLOW': return `${senderName} started following you`;
+      case 'REPLY': return `${senderName} replied to your comment`;
       default: return item.body || item.title;
     }
   };
@@ -66,6 +65,7 @@ export default function NotificationScreen() {
       case 'LIKE': return { name: 'heart', color: '#EF4444' };
       case 'COMMENT': return { name: 'chatbubble', color: '#3B82F6' };
       case 'FOLLOW': return { name: 'person-add', color: '#10B981' };
+      case 'REPLY': return { name: 'return-down-forward', color: '#8B5CF6' };
       default: return { name: 'notifications', color: theme.colors.primary };
     }
   };

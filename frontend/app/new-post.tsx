@@ -19,9 +19,10 @@ const MAX_IMAGES = 10;
 
 export default function NewPostScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ tag: string }>();
-  const { isDarkMode, faculty, addPost, userId, isAdmin, isUniAdmin, themeColors } = useUser();
-  const [content, setContent] = useState("");
+  const params = useLocalSearchParams<{ tag: string; editPostId?: string; editContent?: string; editVisibility?: string }>();
+  const isEditMode = !!params.editPostId;
+  const { isDarkMode, faculty, addPost, updatePost, userId, isAdmin, isUniAdmin, themeColors } = useUser();
+  const [content, setContent] = useState(params.editContent ?? "");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
   // Crop state (ทำงานกับรูปที่เลือก crop)
@@ -47,7 +48,7 @@ export default function NewPostScreen() {
 
   const [selectedTag, setSelectedTag] = useState(initialTag);
   const [showTagPicker, setShowTagPicker] = useState(false);
-  const [visibility, setVisibility] = useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE">("PUBLIC");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE">((params.editVisibility as any) ?? "PUBLIC");
   const [loading, setLoading] = useState(false);
 
   const VISIBILITY_OPTIONS: { value: "PUBLIC" | "FOLLOWERS" | "PRIVATE"; label: string; icon: string }[] = [
@@ -57,6 +58,24 @@ export default function NewPostScreen() {
   ];
 
   const handlePost = async () => {
+    if (isEditMode) {
+      if (!content.trim()) {
+        Alert.alert("Missing Content", "Please add some text.");
+        return;
+      }
+      setLoading(true);
+      try {
+        await updatePost(params.editPostId!, { content, visibility });
+        Alert.alert("Success", "Post updated!");
+        router.back();
+      } catch {
+        Alert.alert("Error", "Failed to update post.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (selectedImages.length === 0 && !content.trim()) {
       Alert.alert("Missing Content", "Please add an image or text.");
       return;
@@ -187,7 +206,7 @@ export default function NewPostScreen() {
   }), [clampCropOffset]);
 
   const cropDisplaySize = getDisplayedCropSize();
-  const canPost = selectedImages.length > 0 || content.trim().length > 0;
+  const canPost = isEditMode ? content.trim().length > 0 : (selectedImages.length > 0 || content.trim().length > 0);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -199,11 +218,11 @@ export default function NewPostScreen() {
           <Ionicons name="close" size={28} color={themeColors.text} />
         </TouchableOpacity>
         <Text className="text-lg font-black" style={{ color: themeColors.text }}>
-          {isAdmin || isUniAdmin ? "Official Post" : "New Post"}
+          {isEditMode ? "Edit Post" : (isAdmin || isUniAdmin ? "Official Post" : "New Post")}
         </Text>
         <TouchableOpacity onPress={handlePost} disabled={loading || !canPost}>
           <Text className={`font-black text-base ${loading || !canPost ? "opacity-20" : ""}`} style={{ color: theme.colors.primary }}>
-            {loading ? "Posting..." : "Share"}
+            {isEditMode ? (loading ? "Saving..." : "Save") : (loading ? "Posting..." : "Share")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -211,104 +230,108 @@ export default function NewPostScreen() {
       <ScrollView className="flex-1 px-5 py-5" showsVerticalScrollIndicator={false}>
 
         {/* Image section */}
-        <View className="mb-5">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: themeColors.subText }}>
-              Photos ({selectedImages.length}/{MAX_IMAGES})
-            </Text>
-            {selectedImages.length < MAX_IMAGES && (
-              <TouchableOpacity onPress={pickImages} className="flex-row items-center gap-1 bg-violet-50 px-3 py-1.5 rounded-xl">
-                <Feather name="plus" size={13} color={theme.colors.primary} />
-                <Text className="text-violet-500 font-black text-[11px]">Add</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {selectedImages.length === 0 ? (
-            <TouchableOpacity
-              onPress={pickImages}
-              className="w-full h-56 rounded-[28px] border-2 border-dashed items-center justify-center"
-              style={{ borderColor: themeColors.border, backgroundColor: isDarkMode ? "#1E1E1E" : "#F9FAFB" }}
-            >
-              <Ionicons name="images-outline" size={44} color={theme.colors.primary} />
-              <Text className="mt-3 font-bold text-[11px] uppercase tracking-[2px]" style={{ color: themeColors.subText }}>
-                Tap to add photos
+        {!isEditMode && (
+          <View className="mb-5">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: themeColors.subText }}>
+                Photos ({selectedImages.length}/{MAX_IMAGES})
               </Text>
-              <Text className="mt-1 text-[10px]" style={{ color: themeColors.subText }}>Up to {MAX_IMAGES} images</Text>
-            </TouchableOpacity>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
-              {selectedImages.map((uri, i) => (
-                <View key={i} className="relative mx-1">
-                  <Image
-                    source={{ uri }}
-                    className="rounded-[20px] bg-gray-100"
-                    style={{ width: 140, height: 140 }}
-                    resizeMode="cover"
-                  />
-                  {/* Remove */}
-                  <TouchableOpacity
-                    onPress={() => removeImage(i)}
-                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 items-center justify-center"
-                  >
-                    <Ionicons name="close" size={15} color="white" />
-                  </TouchableOpacity>
-                  {/* Crop */}
-                  <TouchableOpacity
-                    onPress={() => openCropEditor(i)}
-                    className="absolute bottom-1.5 left-1.5 flex-row items-center gap-1 bg-black/55 px-2 py-1 rounded-lg"
-                  >
-                    <Ionicons name="crop" size={11} color="white" />
-                    <Text className="text-white text-[9px] font-black uppercase">Crop</Text>
-                  </TouchableOpacity>
-                  {/* Index badge */}
-                  <View className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-black/55 items-center justify-center">
-                    <Text className="text-white text-[9px] font-black">{i + 1}</Text>
-                  </View>
-                </View>
-              ))}
-              {/* Add more button in row */}
               {selectedImages.length < MAX_IMAGES && (
-                <TouchableOpacity
-                  onPress={pickImages}
-                  className="mx-1 rounded-[20px] border-2 border-dashed items-center justify-center"
-                  style={{ width: 140, height: 140, borderColor: themeColors.border, backgroundColor: isDarkMode ? "#1E1E1E" : "#F9FAFB" }}
-                >
-                  <Ionicons name="add" size={28} color={theme.colors.primary} />
-                  <Text className="text-[10px] font-bold mt-1" style={{ color: themeColors.subText }}>Add more</Text>
+                <TouchableOpacity onPress={pickImages} className="flex-row items-center gap-1 bg-violet-50 px-3 py-1.5 rounded-xl">
+                  <Feather name="plus" size={13} color={theme.colors.primary} />
+                  <Text className="text-violet-500 font-black text-[11px]">Add</Text>
                 </TouchableOpacity>
               )}
-            </ScrollView>
-          )}
-        </View>
+            </View>
+
+            {selectedImages.length === 0 ? (
+              <TouchableOpacity
+                onPress={pickImages}
+                className="w-full h-56 rounded-[28px] border-2 border-dashed items-center justify-center"
+                style={{ borderColor: themeColors.border, backgroundColor: isDarkMode ? "#1E1E1E" : "#F9FAFB" }}
+              >
+                <Ionicons name="images-outline" size={44} color={theme.colors.primary} />
+                <Text className="mt-3 font-bold text-[11px] uppercase tracking-[2px]" style={{ color: themeColors.subText }}>
+                  Tap to add photos
+                </Text>
+                <Text className="mt-1 text-[10px]" style={{ color: themeColors.subText }}>Up to {MAX_IMAGES} images</Text>
+              </TouchableOpacity>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
+                {selectedImages.map((uri, i) => (
+                  <View key={i} className="relative mx-1">
+                    <Image
+                      source={{ uri }}
+                      className="rounded-[20px] bg-gray-100"
+                      style={{ width: 140, height: 140 }}
+                      resizeMode="cover"
+                    />
+                    {/* Remove */}
+                    <TouchableOpacity
+                      onPress={() => removeImage(i)}
+                      className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 items-center justify-center"
+                    >
+                      <Ionicons name="close" size={15} color="white" />
+                    </TouchableOpacity>
+                    {/* Crop */}
+                    <TouchableOpacity
+                      onPress={() => openCropEditor(i)}
+                      className="absolute bottom-1.5 left-1.5 flex-row items-center gap-1 bg-black/55 px-2 py-1 rounded-lg"
+                    >
+                      <Ionicons name="crop" size={11} color="white" />
+                      <Text className="text-white text-[9px] font-black uppercase">Crop</Text>
+                    </TouchableOpacity>
+                    {/* Index badge */}
+                    <View className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-black/55 items-center justify-center">
+                      <Text className="text-white text-[9px] font-black">{i + 1}</Text>
+                    </View>
+                  </View>
+                ))}
+                {/* Add more button in row */}
+                {selectedImages.length < MAX_IMAGES && (
+                  <TouchableOpacity
+                    onPress={pickImages}
+                    className="mx-1 rounded-[20px] border-2 border-dashed items-center justify-center"
+                    style={{ width: 140, height: 140, borderColor: themeColors.border, backgroundColor: isDarkMode ? "#1E1E1E" : "#F9FAFB" }}
+                  >
+                    <Ionicons name="add" size={28} color={theme.colors.primary} />
+                    <Text className="text-[10px] font-bold mt-1" style={{ color: themeColors.subText }}>Add more</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        )}
 
         {/* Tag picker */}
-        <View className="mb-5 rounded-[24px] border p-5" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
-          <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3" style={{ color: themeColors.subText }}>Tag</Text>
-          <TouchableOpacity
-            onPress={() => setShowTagPicker(!showTagPicker)}
-            className="bg-violet-50 px-5 py-3 rounded-2xl border border-violet-100 flex-row justify-between items-center"
-          >
-            <Text className="text-violet-500 font-bold text-xs uppercase">#{selectedTag}</Text>
-            <Ionicons name={showTagPicker ? "chevron-up" : "chevron-down"} size={16} color={theme.colors.primary} />
-          </TouchableOpacity>
-          {showTagPicker && (
-            <View className="mt-2 p-2 rounded-2xl border flex-row flex-wrap" style={{ borderColor: themeColors.border }}>
-              {availableTags.map((tag) => (
-                <TouchableOpacity
-                  key={tag}
-                  onPress={() => { setSelectedTag(tag); setShowTagPicker(false); }}
-                  className={`px-4 py-2 rounded-full m-1 border ${selectedTag === tag ? "bg-violet-500 border-violet-500" : "border-gray-100"}`}
-                  style={selectedTag === tag ? {} : { backgroundColor: isDarkMode ? "#2D2D2D" : "#F9FAFB", borderColor: themeColors.border }}
-                >
-                  <Text className={`text-[10px] font-bold ${selectedTag === tag ? "text-white" : ""}`} style={selectedTag === tag ? {} : { color: themeColors.subText }}>
-                    #{tag}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+        {!isEditMode && (
+          <View className="mb-5 rounded-[24px] border p-5" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
+            <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3" style={{ color: themeColors.subText }}>Tag</Text>
+            <TouchableOpacity
+              onPress={() => setShowTagPicker(!showTagPicker)}
+              className="bg-violet-50 px-5 py-3 rounded-2xl border border-violet-100 flex-row justify-between items-center"
+            >
+              <Text className="text-violet-500 font-bold text-xs uppercase">#{selectedTag}</Text>
+              <Ionicons name={showTagPicker ? "chevron-up" : "chevron-down"} size={16} color={theme.colors.primary} />
+            </TouchableOpacity>
+            {showTagPicker && (
+              <View className="mt-2 p-2 rounded-2xl border flex-row flex-wrap" style={{ borderColor: themeColors.border }}>
+                {availableTags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag}
+                    onPress={() => { setSelectedTag(tag); setShowTagPicker(false); }}
+                    className={`px-4 py-2 rounded-full m-1 border ${selectedTag === tag ? "bg-violet-500 border-violet-500" : "border-gray-100"}`}
+                    style={selectedTag === tag ? {} : { backgroundColor: isDarkMode ? "#2D2D2D" : "#F9FAFB", borderColor: themeColors.border }}
+                  >
+                    <Text className={`text-[10px] font-bold ${selectedTag === tag ? "text-white" : ""}`} style={selectedTag === tag ? {} : { color: themeColors.subText }}>
+                      #{tag}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Visibility picker */}
         <View className="mb-5 rounded-[24px] border p-5" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>

@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput } from "react-native";
 import ImageCarousel from "@/components/ImageCarousel";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { usePosts } from "@/hooks/usePosts";
@@ -11,18 +11,27 @@ import { LinearGradient } from "expo-linear-gradient";
 import { FACULTY_DATA } from "@/constants/data";
 import { authService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import * as Haptics from "expo-haptics";
 
 export default function GroupScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { userId, themeColors, isDarkMode, user, isAdmin, isUniAdmin, getDirectChat } = useUser();
   const { posts, updateCommentsStatus, deletePost, togglePin, activeCommentPostId, setActiveCommentPostId, commentText, setCommentText, replyTo, setReplyTo, sendComment, toggleComments, handleCommentLongPress, toggleLike: hookToggleLike, refreshPosts } = usePosts();
 
+  const scrollRef = useRef<ScrollView>(null);
+  const refreshRef = useRef(refreshPosts);
+  refreshRef.current = refreshPosts;
+
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => refreshPosts());
-  }, [navigation, refreshPosts]);
+    const handler = () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      refreshRef.current();
+    };
+    tabRefreshEmitter.on("group", handler);
+    return () => tabRefreshEmitter.off("group", handler);
+  }, []);
 
   const [selectedGroup, setSelectedGroup] = useState("DPU");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -62,6 +71,17 @@ export default function GroupScreen() {
     if (!canManage) return;
     Alert.alert("จัดการประกาศ", "กรุณาเลือกรายการที่ต้องการ", [
       {
+        text: "แก้ไขโพสต์",
+        onPress: () => router.push({
+          pathname: "/new-post",
+          params: {
+            editPostId: post.id,
+            editContent: post.content ?? "",
+            editVisibility: post.visibility ?? "PUBLIC",
+          },
+        }),
+      },
+      {
         text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
         onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
       },
@@ -100,7 +120,7 @@ export default function GroupScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
+      <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
 
         {/* ===== Hero Banner ===== */}
         <View className="h-[360px] w-full relative overflow-hidden">

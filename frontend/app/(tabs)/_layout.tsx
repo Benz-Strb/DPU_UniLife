@@ -3,11 +3,11 @@ import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
 export default function TabsLayout() {
   const { userId, isDarkMode, themeColors } = useUser();
   const router = useRouter();
-
   useEffect(() => {
     if (userId === "") {
       router.replace("/(auth)/login");
@@ -51,7 +51,7 @@ export default function TabsLayout() {
           listeners={({ navigation }) => ({
             tabPress: () => {
               if (navigation.isFocused()) {
-                navigation.emit({ type: "tabRefresh" } as any);
+                tabRefreshEmitter.emit(name);
               }
             },
           })}

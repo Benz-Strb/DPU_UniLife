@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,17 +13,17 @@ import {
 import ImageCarousel from "@/components/ImageCarousel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { usePosts } from "@/hooks/usePosts";
 import { postService, reportService } from "@/services/api";
 import { getAvatarUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import * as Haptics from "expo-haptics";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const {
     themeColors,
     unreadChatCount,
@@ -53,9 +53,18 @@ export default function HomeScreen() {
     userId,
   } = usePosts();
 
+  const scrollRef = useRef<ScrollView>(null);
+  const refreshRef = useRef(refreshPosts);
+  refreshRef.current = refreshPosts;
+
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => refreshPosts());
-  }, [navigation, refreshPosts]);
+    const handler = () => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      refreshRef.current();
+    };
+    tabRefreshEmitter.on("home", handler);
+    return () => tabRefreshEmitter.off("home", handler);
+  }, []);
 
   const [sharingPostId, setSharingPostId] = useState<string | null>(null);
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
@@ -65,6 +74,17 @@ export default function HomeScreen() {
   const handlePostOptions = (post: any) => {
     if (post.authorId !== userId) return;
     Alert.alert("จัดการโพสต์", "กรุณาเลือกรายการที่ต้องการ", [
+      {
+        text: "แก้ไขโพสต์",
+        onPress: () => router.push({
+          pathname: "/new-post",
+          params: {
+            editPostId: post.id,
+            editContent: post.content ?? "",
+            editVisibility: post.visibility ?? "PUBLIC",
+          },
+        }),
+      },
       {
         text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
         onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
@@ -166,6 +186,7 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />}
         >

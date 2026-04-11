@@ -2,11 +2,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions, StatusBar, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import { Post, UserRole } from "@/types/backend";
 import { usePosts } from "@/hooks/usePosts";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,7 +16,6 @@ const { width } = Dimensions.get('window');
 
 function AdminDashboard() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { themeColors, profileImage, name, userId, user: currentUser, isUniAdmin } = useUser();
   const { posts, deletePost, togglePin, updateCommentsStatus } = usePosts();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -32,8 +32,9 @@ function AdminDashboard() {
   };
 
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => onRefresh());
-  }, [navigation]);
+    tabRefreshEmitter.on("profile", onRefresh);
+    return () => tabRefreshEmitter.off("profile", onRefresh);
+  }, []);
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
@@ -161,7 +162,6 @@ function AdminDashboard() {
 
 function StudentProfile() {
   const router = useRouter();
-  const navigation = useNavigation();
   const { isDarkMode, name, bio, profileImage, userId, themeColors, user: currentUser } = useUser();
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -191,8 +191,9 @@ function StudentProfile() {
   };
 
   useEffect(() => {
-    return navigation.addListener("tabRefresh" as any, () => onRefresh());
-  }, [navigation]);
+    tabRefreshEmitter.on("profile", onRefresh);
+    return () => tabRefreshEmitter.off("profile", onRefresh);
+  }, []);
 
 
   return (
