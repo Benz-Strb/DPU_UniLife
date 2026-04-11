@@ -107,6 +107,15 @@ export const adminService = {
       throw e;
     }
   },
+  updateUserStatus: async (userId: string, status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED', actorId: string) => {
+    try {
+      const response = await API.patch(`/auth/users/${userId}/status`, { status, actorId });
+      return response.data;
+    } catch (e) {
+      console.error("Update User Status Error", e);
+      throw e;
+    }
+  },
 };
 
 export const authService = {
