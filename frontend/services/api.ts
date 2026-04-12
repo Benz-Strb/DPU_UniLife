@@ -272,6 +272,14 @@ export const postService = {
       throw e;
     }
   },
+  unrepostPost: async (postId: string, userId: string) => {
+    try {
+      await API.delete(`/posts/${postId}/share`, { params: { userId } });
+    } catch (e) {
+      console.error("Unrepost Error", e);
+      throw e;
+    }
+  },
   deleteComment: async (postId: string, commentId: string, userId: string) => {
     try {
       await API.delete(`/posts/${postId}/comments/${commentId}`, { data: { userId } });

@@ -9,7 +9,7 @@ import { useUser } from "@/store/UserContext";
 import { usePosts } from "@/hooks/usePosts";
 import { LinearGradient } from "expo-linear-gradient";
 import { FACULTY_DATA } from "@/constants/data";
-import { authService } from "@/services/api";
+import { authService, postService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import * as Haptics from "expo-haptics";
@@ -36,6 +36,22 @@ export default function GroupScreen() {
   const [selectedGroup, setSelectedGroup] = useState("DPU");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
+  const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
+
+  const handleRepost = async (postId: string) => {
+    const isReposted = repostedIds.has(postId);
+    try {
+      if (isReposted) {
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      } else {
+        await postService.sharePost(postId, userId);
+        setRepostedIds(prev => new Set(prev).add(postId));
+      }
+    } catch {
+      Alert.alert("Error", "Could not repost.");
+    }
+  };
 
   React.useEffect(() => {
     if (isUniAdmin && selectedGroup !== "DPU") setSelectedGroup("DPU");
@@ -280,6 +296,9 @@ export default function GroupScreen() {
                     <TouchableOpacity onPress={() => toggleComments(post.id)} className="flex-row items-center">
                       <Feather name="message-circle" size={24} color={activeCommentPostId === post.id ? theme.colors.primary : themeColors.text} />
                       <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleRepost(post.id)}>
+                      <Ionicons name="repeat" size={24} color={repostedIds.has(post.id) ? "#10B981" : themeColors.text} />
                     </TouchableOpacity>
                   </View>
 

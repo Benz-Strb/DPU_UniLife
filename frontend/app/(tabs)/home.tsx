@@ -30,7 +30,6 @@ export default function HomeScreen() {
     unreadNotificationCount,
     followingIds,
     toggleFollow,
-    getDirectChat,
     isAdmin,
     isUniAdmin,
   } = useUser();
@@ -66,7 +65,7 @@ export default function HomeScreen() {
     return () => tabRefreshEmitter.off("home", handler);
   }, []);
 
-  const [sharingPostId, setSharingPostId] = useState<string | null>(null);
+  const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
   const posts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
@@ -121,30 +120,18 @@ export default function HomeScreen() {
     }
   };
 
-  const handleShare = async (postId: string) => {
-    if (sharingPostId === postId) return;
-    setSharingPostId(postId);
+  const handleRepost = async (postId: string) => {
+    const isReposted = repostedIds.has(postId);
     try {
-      await postService.sharePost(postId, userId);
-      Alert.alert("Shared!", "Post shared to your timeline.");
-    } catch {
-      Alert.alert("Error", "Could not share this post.");
-    } finally {
-      setSharingPostId(null);
-    }
-  };
-
-  const handleChatPress = async (targetId: string, targetName: string, targetAvatar: string | null) => {
-    try {
-      const convo = await getDirectChat(targetId);
-      if (convo) {
-        router.push({
-          pathname: "/chat-detail",
-          params: { id: convo.id, userName: targetName, userAvatar: getAvatarUrl(targetAvatar, targetName), userId: targetId },
-        });
+      if (isReposted) {
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      } else {
+        await postService.sharePost(postId, userId);
+        setRepostedIds(prev => new Set(prev).add(postId));
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
+      Alert.alert("Error", "Could not repost.");
     }
   };
 
@@ -223,38 +210,33 @@ export default function HomeScreen() {
                       </View>
                     </TouchableOpacity>
 
-                    {/* Follow / Chat for non-owner */}
-                    {post.authorId !== userId && !isAdmin && !isUniAdmin && (
-                      <View className="flex-row items-center gap-2">
-                        {followingIds.includes(post.authorId) && (
-                          <TouchableOpacity
-                            onPress={() => handleChatPress(post.authorId, post.author?.fullName ?? "", post.author?.avatarUrl ?? null)}
-                            className="w-8 h-8 items-center justify-center rounded-xl bg-indigo-50"
-                          >
-                            <Ionicons name="chatbubble-ellipses" size={16} color={theme.colors.primary} />
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          onPress={() => toggleFollow(post.authorId)}
-                          className={`px-3 py-1.5 rounded-xl ${followingIds.includes(post.authorId) ? "bg-gray-100" : "bg-violet-500"}`}
-                        >
-                          <Text className={`font-black text-[10px] uppercase ${followingIds.includes(post.authorId) ? "text-gray-500" : "text-white"}`}>
-                            {followingIds.includes(post.authorId) ? "Following" : "Follow"}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                    {/* Follow button — show only when NOT following */}
+                    {post.authorId !== userId && !isAdmin && !isUniAdmin && !followingIds.includes(post.authorId) && (
+                      <TouchableOpacity
+                        onPress={() => toggleFollow(post.authorId)}
+                        className="px-3 py-1.5 rounded-xl bg-violet-500 mr-1"
+                      >
+                        <Text className="font-black text-[10px] uppercase text-white">Follow</Text>
+                      </TouchableOpacity>
                     )}
 
-                    {/* Owner options */}
-                    {post.authorId === userId ? (
-                      <TouchableOpacity onPress={() => handlePostOptions(post)} className="w-8 h-8 items-center justify-center ml-1">
-                        <Feather name="more-horizontal" size={20} color={themeColors.subText} />
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity onPress={() => handleReportPost(post.id)} className="w-8 h-8 items-center justify-center ml-1">
-                        <Feather name="flag" size={16} color={themeColors.subText} />
-                      </TouchableOpacity>
-                    )}
+                    {/* 3-dot options */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (post.authorId === userId) {
+                          handlePostOptions(post);
+                        } else {
+                          Alert.alert("Post Options", undefined, [
+                            { text: "View Profile", onPress: () => router.push({ pathname: "/user-profile", params: { userId: post.authorId } }) },
+                            { text: "Report", style: "destructive", onPress: () => handleReportPost(post.id) },
+                            { text: "Cancel", style: "cancel" },
+                          ]);
+                        }
+                      }}
+                      className="w-8 h-8 items-center justify-center ml-1"
+                    >
+                      <Feather name="more-horizontal" size={20} color={themeColors.subText} />
+                    </TouchableOpacity>
                   </View>
 
                   {/* Full-width image carousel with double-tap to like */}
@@ -285,8 +267,12 @@ export default function HomeScreen() {
                       <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => handleShare(post.id)} disabled={sharingPostId === post.id}>
-                      <Feather name="share-2" size={22} color={sharingPostId === post.id ? "#CBD5E1" : themeColors.text} />
+                    <TouchableOpacity onPress={() => handleRepost(post.id)}>
+                      <Ionicons
+                        name="repeat"
+                        size={24}
+                        color={repostedIds.has(post.id) ? "#10B981" : themeColors.text}
+                      />
                     </TouchableOpacity>
                   </View>
 

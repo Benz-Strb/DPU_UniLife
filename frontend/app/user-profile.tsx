@@ -21,6 +21,8 @@ export default function UserProfileScreen() {
   
   const [userData, setUserData] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [reposts, setReposts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "reposts">("posts");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -29,9 +31,8 @@ export default function UserProfileScreen() {
     try {
       const data = await authService.getProfile(targetUserId);
       setUserData(data);
-      if (data.authoredPosts) {
-        setUserPosts(data.authoredPosts);
-      }
+      if (data.authoredPosts) setUserPosts(data.authoredPosts);
+      if (data.postShares) setReposts(data.postShares);
     } catch (error) {
       console.error("Fetch user profile error:", error);
     } finally {
@@ -163,13 +164,15 @@ export default function UserProfileScreen() {
                     {isFollowing ? 'Following' : 'Follow'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleChatPress}
-                  className="w-12 h-12 rounded-2xl items-center justify-center border"
-                  style={{ borderColor: themeColors.border }}
-                >
-                  <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
-                </TouchableOpacity>
+                {isFollowing && (
+                  <TouchableOpacity
+                    onPress={handleChatPress}
+                    className="w-12 h-12 rounded-2xl items-center justify-center border"
+                    style={{ borderColor: themeColors.border }}
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -191,9 +194,9 @@ export default function UserProfileScreen() {
                 )}
               </View>
               
-              <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>
-                {userData?.bio || "Hello! I'm using DPU UniLife."}
-              </Text>
+              {userData?.bio ? (
+                <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>{userData.bio}</Text>
+              ) : null}
             </View>
 
             {/* Stats */}
@@ -214,26 +217,71 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* Collection Section */}
-        <View className="px-8 mt-10 mb-6 flex-row items-center">
-          <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
-          <Text className="font-black text-lg tracking-tight" style={{ color: themeColors.text }}>Collection</Text>
+        {/* Tab icons */}
+        <View className="flex-row border-t mt-6" style={{ borderTopColor: themeColors.border }}>
+          <TouchableOpacity
+            onPress={() => setActiveTab("posts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "posts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="grid-outline" size={22} color={activeTab === "posts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab("reposts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "reposts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="repeat" size={22} color={activeTab === "reposts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
         </View>
 
-        <View className="flex-row flex-wrap px-4 pb-20">
-          {userPosts.length === 0 ? (
-            <View className="w-full py-20 items-center justify-center bg-gray-50/50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <Ionicons name="images-outline" size={40} color="#CBD5E1" />
-              <Text className="text-gray-400 font-black text-[10px] uppercase mt-4">No public posts</Text>
-            </View>
+        <View className="flex-row flex-wrap px-4 pt-2 pb-20">
+          {activeTab === "posts" ? (
+            userPosts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="images-outline" size={40} color={themeColors.subText} />
+                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No public posts</Text>
+              </View>
+            ) : (
+              userPosts.map((post) => (
+                <TouchableOpacity key={post.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                  <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
+                    <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                    {(!post.media || post.media.length === 0) && (
+                      <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
+                        <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
           ) : (
-            userPosts.map((post) => (
-              <TouchableOpacity key={post.id} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                <View className="w-full h-full rounded-[20px] overflow-hidden bg-gray-100">
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
-                </View>
-              </TouchableOpacity>
-            ))
+            reposts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="repeat" size={40} color={themeColors.subText} />
+                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No reposts yet</Text>
+              </View>
+            ) : (
+              reposts.map((share) => {
+                const post = share.post;
+                return (
+                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                    <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
+                      <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                      <View className="absolute top-2 right-2 rounded-full p-1" style={{ backgroundColor: "#10B981" }}>
+                        <Ionicons name="repeat" size={10} color="white" />
+                      </View>
+                      {(!post.media || post.media.length === 0) && (
+                        <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
+                          <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )
           )}
         </View>
       </ScrollView>

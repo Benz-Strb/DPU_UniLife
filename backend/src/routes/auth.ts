@@ -346,6 +346,22 @@ authRouter.get('/profile/:userId', async (req: Request, res: Response) => {
             createdAt: 'desc'
           }
         },
+        postShares: {
+          include: {
+            post: {
+              include: {
+                media: true,
+                author: {
+                  select: { id: true, fullName: true, avatarUrl: true, username: true }
+                },
+                _count: {
+                  select: { reactions: true, comments: true }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
         _count: {
           select: {
             followers: true,

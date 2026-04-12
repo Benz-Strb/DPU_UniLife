@@ -849,6 +849,22 @@ postRouter.post('/:id/share', async (req: Request, res: Response) => {
   }
 });
 
+postRouter.delete('/:id/share', async (req: Request, res: Response) => {
+  const postId = getSingleParam(req.params.id);
+  const userId = getSingleParam(req.query.userId as string);
+
+  if (!postId || !isUuid(postId)) return res.status(400).json({ error: 'Invalid post id' });
+  if (!userId || !isUuid(userId)) return res.status(400).json({ error: 'A valid userId is required' });
+
+  try {
+    await prisma.postShare.deleteMany({ where: { postId, sharedById: userId } });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to unrepost:', error);
+    return res.status(500).json({ error: 'Failed to unrepost' });
+  }
+});
+
 postRouter.delete('/:id/comments/:commentId', async (req: Request, res: Response) => {
   const postId = getSingleParam(req.params.id);
   const commentId = getSingleParam(req.params.commentId);
