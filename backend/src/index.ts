@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import path from "path";
 import { createServer } from "http";
 import { initSocket } from "./lib/socket";
@@ -22,6 +23,7 @@ const port = process.env.PORT || 8080;
 const httpServer = createServer(app);
 initSocket(httpServer);
 
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

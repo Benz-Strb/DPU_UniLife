@@ -1,30 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './index.css'
+import { useState } from "react";
+import Login from "./pages/Login";
+import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
+import Users from "./pages/Users";
+import Posts from "./pages/Posts";
+import Reports from "./pages/Reports";
+import Logs from "./pages/Logs";
 
-function App() {
-  const [count, setCount] = useState(0)
+const STORAGE_KEY = "dpu-admin-user";
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-      <div className="flex gap-4">
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="h-16" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="h-16" alt="React logo" />
-        </a>
-      </div>
-      <h1 className="text-3xl font-bold">Vite + React</h1>
-      <button
-        className="px-4 py-2 bg-slate-800 text-white rounded-lg"
-        onClick={() => setCount(c => c + 1)}
-      >
-        count is {count}
-      </button>
-    </div>
-  )
+function getStoredUser() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { return null; }
 }
 
-export default App
+export default function App() {
+  const [user, setUser] = useState<any>(getStoredUser);
+  const [page, setPage] = useState("dashboard");
+
+  const handleLogin = (u: any) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+    setUser(u);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setUser(null);
+    setPage("dashboard");
+  };
+
+  if (!user) return <Login onLogin={handleLogin} />;
+
+  const renderPage = () => {
+    switch (page) {
+      case "dashboard": return <Dashboard />;
+      case "users": return <Users currentUser={user} />;
+      case "posts": return <Posts currentUser={user} />;
+      case "reports": return <Reports currentUser={user} />;
+      case "logs": return <Logs />;
+      default: return <Dashboard />;
+    }
+  };
+
+  return (
+    <Layout page={page} onNavigate={setPage} user={user} onLogout={handleLogout}>
+      {renderPage()}
+    </Layout>
+  );
+}
