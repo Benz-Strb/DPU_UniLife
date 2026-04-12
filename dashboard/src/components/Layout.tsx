@@ -1,4 +1,4 @@
-import Sidebar from "./Sidebar";
+import TopNav from "./TopNav";
 
 interface LayoutProps {
   page: string;
@@ -12,8 +12,15 @@ interface LayoutProps {
 
 export default function Layout({ page, onNavigate, user, onLogout, isDark, onToggleTheme, children }: LayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950" data-theme={isDark ? "dark" : "light"}>
-      <Sidebar page={page} onNavigate={onNavigate} user={user} onLogout={onLogout} isDark={isDark} onToggleTheme={onToggleTheme} />
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-white" data-theme={isDark ? "dark" : "light"}>
+      <TopNav
+        page={page}
+        user={user}
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+        onLogout={onLogout}
+        onHome={() => onNavigate("home")}
+      />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

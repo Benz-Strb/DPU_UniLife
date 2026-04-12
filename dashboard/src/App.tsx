@@ -7,6 +7,7 @@ import Posts from "./pages/Posts";
 import Reports from "./pages/Reports";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
+import Home from "./pages/Home";
 
 const STORAGE_KEY = "dpu-admin-user";
 const THEME_KEY = "dpu-admin-theme";
@@ -17,7 +18,7 @@ function getStoredUser() {
 
 export default function App() {
   const [user, setUser] = useState<any>(getStoredUser);
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState("home");
   const [isDark, setIsDark] = useState(() => localStorage.getItem(THEME_KEY) !== "light");
 
   const toggleTheme = () => {
@@ -43,13 +44,14 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
+      case "home": return <Home onNavigate={setPage} user={user} />;
       case "dashboard": return <Dashboard />;
       case "users": return <Users currentUser={user} />;
       case "posts": return <Posts currentUser={user} />;
       case "reports": return <Reports currentUser={user} />;
       case "logs": return <Logs />;
       case "settings": return <Settings currentUser={user} />;
-      default: return <Dashboard />;
+      default: return <Home onNavigate={setPage} user={user} />;
     }
   };
 
