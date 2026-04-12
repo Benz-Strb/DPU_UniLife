@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -80,9 +80,9 @@ export default function TagScreen() {
             }
           >
             {posts.length === 0 ? (
-              <View className="items-center justify-center py-32 bg-gray-50/50 rounded-[40px] border border-dashed border-gray-200">
-                <Ionicons name="planet-outline" size={60} color="#CBD5E1" />
-                <Text className="mt-4 font-black text-[10px] uppercase text-gray-400">No posts in #{tagName} Space</Text>
+              <View className="items-center justify-center py-32 rounded-[40px] border border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="planet-outline" size={60} color={themeColors.subText} />
+                <Text className="mt-4 font-black text-[10px] uppercase" style={{ color: themeColors.subText }}>No posts in #{tagName} Space</Text>
               </View>
             ) : (
               posts.map((post) => {
@@ -113,7 +113,14 @@ export default function TagScreen() {
                         <Text className="font-black text-sm tracking-tight" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
                         <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{new Date(post.createdAt).toLocaleDateString()} • Community</Text>
                       </View>
-                      <TouchableOpacity className="w-8 h-8 items-center justify-center rounded-full bg-gray-50">
+                      <TouchableOpacity
+                        onPress={() => Alert.alert("Post Options", undefined, [
+                          { text: "View Profile", onPress: () => router.push({ pathname: "/user-profile", params: { userId: post.author?.id } }) },
+                          { text: "Cancel", style: "cancel" },
+                        ])}
+                        className="w-8 h-8 items-center justify-center rounded-full"
+                        style={{ backgroundColor: themeColors.iconBg }}
+                      >
                         <Ionicons name="ellipsis-horizontal" size={16} color={themeColors.subText} />
                       </TouchableOpacity>
                     </View>
@@ -135,7 +142,7 @@ export default function TagScreen() {
                       </View>
                     ) : post.media && post.media.length === 1 ? (
                       <View className="px-4 pb-4">
-                        <View className="rounded-[30px] overflow-hidden bg-gray-100" style={{ aspectRatio: 1 }}>
+                        <View className="rounded-[30px] overflow-hidden" style={{ aspectRatio: 1, backgroundColor: themeColors.iconBg }}>
                           <Image
                             source={{ uri: getImageUrl(post.media[0].url) }}
                             className="w-full h-full"
@@ -160,14 +167,17 @@ export default function TagScreen() {
                           <Text className="ml-2 font-black text-xs" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity className="flex-row items-center">
+                        <TouchableOpacity
+                          onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)}
+                          className="flex-row items-center"
+                        >
                           <Ionicons name="chatbubble-outline" size={22} color={themeColors.text} />
                           <Text className="ml-2 font-black text-xs" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
                         </TouchableOpacity>
                       </View>
 
-                      <TouchableOpacity>
-                        <Ionicons name="bookmark-outline" size={22} color={themeColors.text} />
+                      <TouchableOpacity onPress={() => router.push({ pathname: "/user-profile", params: { userId: post.author?.id } })}>
+                        <Ionicons name="person-outline" size={22} color={themeColors.text} />
                       </TouchableOpacity>
                     </View>
                   </View>

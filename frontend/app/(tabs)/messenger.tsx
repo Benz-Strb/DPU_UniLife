@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, StatusBar, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ export default function MessengerScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const { isDarkMode, conversations, userId, themeColors, deleteConversation } = useUser();
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const handler = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -53,16 +54,18 @@ export default function MessengerScreen() {
       
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.back()}
-            className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm"
+            className="w-10 h-10 rounded-2xl items-center justify-center"
+            style={{ backgroundColor: cardColor }}
           >
             <Ionicons name="chevron-back" size={24} color={textColor} />
           </TouchableOpacity>
           <Text className="text-xl font-black" style={{ color: textColor }}>Messages</Text>
           <TouchableOpacity
             onPress={() => router.push("/new-group" as any)}
-            className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm"
+            className="w-10 h-10 rounded-2xl items-center justify-center"
+            style={{ backgroundColor: cardColor }}
           >
             <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
           </TouchableOpacity>
@@ -73,25 +76,39 @@ export default function MessengerScreen() {
             className="flex-row items-center px-5 py-3 rounded-2xl border border-white"
             style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.02, elevation: 1 }}
           >
-            <Ionicons name="search" size={20} color="#94A3B8" />
-            <TextInput 
+            <Ionicons name="search" size={20} color={subTextColor} />
+            <TextInput
               placeholder="Search conversations..."
               className="flex-1 ml-3 font-bold text-sm"
               placeholderTextColor="#94A3B8"
               style={{ color: textColor }}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
         </View>
 
         <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
           <View className="px-6 pt-4 pb-20">
-            {conversations.length === 0 ? (
+            {conversations.filter(c => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                const isGroup = c.type === "GROUP";
+                const name = isGroup ? (c.title || "") : (c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
+                return name.toLowerCase().includes(q);
+              }).length === 0 ? (
               <View className="items-center justify-center py-20">
-                <Ionicons name="chatbubbles-outline" size={48} color="#D1D5DB" />
-                <Text className="mt-4 font-bold text-gray-400">No messages yet</Text>
+                <Ionicons name="chatbubbles-outline" size={48} color={subTextColor} />
+                <Text className="mt-4 font-bold" style={{ color: subTextColor }}>No messages yet</Text>
               </View>
             ) : (
-              conversations.map((convo) => {
+              conversations.filter(c => {
+                if (!searchQuery.trim()) return true;
+                const q = searchQuery.toLowerCase();
+                const isGroup = c.type === "GROUP";
+                const name = isGroup ? (c.title || "") : (c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
+                return name.toLowerCase().includes(q);
+              }).map((convo) => {
                 const isGroup = convo.type === "GROUP";
                 const otherParticipant = convo.participants?.find(p => p.userId !== userId)?.user;
                 const lastMsg = convo.messages && convo.messages.length > 0 ? convo.messages[convo.messages.length - 1] : null;

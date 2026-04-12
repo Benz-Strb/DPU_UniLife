@@ -31,22 +31,15 @@ export default function NotificationScreen() {
 
 
   const handleNotificationPress = async (item: any) => {
-    // Mark as read
-    if (!item.isRead) {
-      await markNotificationAsRead(item.id);
-    }
+    if (!item.isRead) await markNotificationAsRead(item.id);
 
-    // Navigate based on type
     if (item.type === "FOLLOW") {
       router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
-    } else if (item.type === "LIKE") {
-      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
-    } else if (item.type === "COMMENT") {
-      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
-    } else if (item.type === "REPLY") {
+    } else if ((item.type === "LIKE" || item.type === "COMMENT" || item.type === "REPLY") && item.refPostId) {
+      router.push({ pathname: "/post-detail", params: { postId: item.refPostId } } as any);
+    } else if (item.senderId) {
       router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
     }
-    // default: do nothing
   };
 
   const getNotificationText = (item: any) => {
@@ -102,10 +95,10 @@ export default function NotificationScreen() {
         >
           {notificationList.length === 0 ? (
             <View className="items-center justify-center py-32">
-              <View className="w-24 h-24 rounded-[35px] bg-gray-50 items-center justify-center mb-6" style={{ backgroundColor: themeColors.iconBg }}>
-                <Ionicons name="notifications-off-outline" size={44} color="#CBD5E1" />
+              <View className="w-24 h-24 rounded-[35px] items-center justify-center mb-6" style={{ backgroundColor: themeColors.iconBg }}>
+                <Ionicons name="notifications-off-outline" size={44} color={themeColors.subText} />
               </View>
-              <Text className="text-xl font-black text-gray-300">No Notifications</Text>
+              <Text className="text-xl font-black" style={{ color: themeColors.subText }}>No Notifications</Text>
             </View>
           ) : (
             <>
@@ -138,7 +131,8 @@ export default function NotificationScreen() {
                         className="w-12 h-12 rounded-full mr-4" 
                       />
                       <View 
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2 border-white"
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2"
+                        style={{ borderColor: themeColors.card }}
                         style={{ backgroundColor: icon.color }}
                       >
                         <Ionicons name={icon.name as any} size={12} color="white" />
@@ -146,10 +140,7 @@ export default function NotificationScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-xs font-medium leading-4" style={{ color: themeColors.text }}>
-                        <Text className="font-black">{item.sender?.fullName || "Someone"} </Text>
-                        {item.type === 'LIKE' ? 'liked your post' : 
-                         item.type === 'COMMENT' ? 'commented on your post' : 
-                         item.type === 'FOLLOW' ? 'started following you' : item.body}
+                        {getNotificationText(item)}
                       </Text>
                       <Text className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">
                         {new Date(item.createdAt).toLocaleString()}

@@ -26,9 +26,9 @@ export default function SettingsScreen() {
   };
 
   const SettingItem = ({ icon, label, value, onToggle, type = "switch", onPress }: any) => (
-    <TouchableOpacity 
-      onPress={onPress}
-      disabled={type === "switch"}
+    <TouchableOpacity
+      onPress={type === "link" ? onPress : undefined}
+      activeOpacity={type === "link" ? 0.7 : 1}
       className="flex-row items-center justify-between py-5 border-b"
       style={{ borderBottomColor: themeColors.border }}
     >
@@ -49,7 +49,7 @@ export default function SettingsScreen() {
           thumbColor={value ? theme.colors.primary : "#F4F3F4"}
         />
       ) : (
-        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+        <Ionicons name="chevron-forward" size={20} color={themeColors.subText} />
       )}
     </TouchableOpacity>
   );
