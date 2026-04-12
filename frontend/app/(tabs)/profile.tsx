@@ -5,7 +5,9 @@ import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { authService, BASE_URL } from "@/services/api";
+import { authService, postService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import { Post, UserRole } from "@/types/backend";
 import { usePosts } from "@/hooks/usePosts";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,11 +31,10 @@ function AdminDashboard() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'A')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
+  useEffect(() => {
+    tabRefreshEmitter.on("profile", onRefresh);
+    return () => tabRefreshEmitter.off("profile", onRefresh);
+  }, []);
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
@@ -93,7 +94,7 @@ function AdminDashboard() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(profileImage) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(profileImage, name) }} className="w-full h-full rounded-[28px]" />
               </View>
               
               <TouchableOpacity onPress={() => router.push("/edit-profile")} className="px-6 py-3 rounded-2xl bg-amber-400">
@@ -129,23 +130,23 @@ function AdminDashboard() {
 
         <View className="flex-row flex-wrap px-4">
           {adminPosts.length === 0 ? (
-            <View className="w-full py-20 items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <Ionicons name="megaphone-outline" size={48} color="#CBD5E1" />
-              <Text className="text-gray-400 font-black text-xs uppercase mt-4 tracking-widest">No announcements yet</Text>
+            <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+              <Ionicons name="megaphone-outline" size={48} color={themeColors.subText} />
+              <Text className="font-black text-xs uppercase mt-4 tracking-widest" style={{ color: themeColors.subText }}>No announcements yet</Text>
             </View>
           ) : (
             adminPosts.map((post) => (
               <TouchableOpacity key={post.id} onPress={() => handlePostOptions(post)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                 <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Admin&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
+                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                   {post.isPinned && (
                     <View className="absolute top-2 right-2 bg-amber-400 p-1 rounded-full border border-white">
                        <Ionicons name="pin" size={8} color="white" />
                     </View>
                   )}
                   {(!post.media || post.media.length === 0) && (
-                    <View className="absolute inset-0 items-center justify-center p-3 bg-violet-50/90">
-                       <Text className="text-[9px] font-black text-violet-500 text-center uppercase leading-3" numberOfLines={4}>{post.content}</Text>
+                    <View className="absolute inset-0 items-center justify-center p-3" style={{ backgroundColor: themeColors.iconBg }}>
+                       <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
                     </View>
                   )}
                 </View>
@@ -163,6 +164,8 @@ function StudentProfile() {
   const router = useRouter();
   const { isDarkMode, name, bio, profileImage, userId, themeColors, user: currentUser } = useUser();
   const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [reposts, setReposts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "reposts">("posts");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
 
@@ -171,9 +174,8 @@ function StudentProfile() {
     try {
       const data = await authService.getProfile(userId);
       setProfileData(data);
-      if (data.authoredPosts) {
-        setUserPosts(data.authoredPosts);
-      }
+      if (data.authoredPosts) setUserPosts(data.authoredPosts);
+      if (data.postShares) setReposts(data.postShares);
     } catch (error) {
       console.error("Fetch profile error:", error);
     }
@@ -189,11 +191,11 @@ function StudentProfile() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
+  useEffect(() => {
+    tabRefreshEmitter.on("profile", onRefresh);
+    return () => tabRefreshEmitter.off("profile", onRefresh);
+  }, []);
+
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -229,7 +231,7 @@ function StudentProfile() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(profileImage) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(profileImage, name) }} className="w-full h-full rounded-[28px]" />
               </View>
               
               <TouchableOpacity onPress={() => router.push("/edit-profile")} className="px-6 py-3 rounded-2xl bg-violet-500">
@@ -250,9 +252,9 @@ function StudentProfile() {
                   </View>
                 )}
               </View>
-              <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>
-                {bio || "Your campus life journey begins here. Tap 'Edit' to share your story with the DPU community."}
-              </Text>
+              {bio ? (
+                <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>{bio}</Text>
+              ) : null}
             </View>
 
             <View className="flex-row mt-8 pt-6 border-t" style={{ borderTopColor: themeColors.border }}>
@@ -272,33 +274,92 @@ function StudentProfile() {
           </View>
         </View>
 
-        <View className="px-8 mt-10 mb-6 flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
-            <Text className="font-black text-lg tracking-tight" style={{ color: themeColors.text }}>Your Collection</Text>
-          </View>
-          <Ionicons name="grid-outline" size={20} color={themeColors.subText} />
+        {/* Tab icons */}
+        <View className="flex-row border-t mt-6" style={{ borderTopColor: themeColors.border }}>
+          <TouchableOpacity
+            onPress={() => setActiveTab("posts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "posts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="grid-outline" size={22} color={activeTab === "posts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab("reposts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "reposts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="repeat" size={22} color={activeTab === "reposts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
         </View>
 
-        <View className="flex-row flex-wrap px-4">
-          {userPosts.length === 0 ? (
-            <View className="w-full py-20 items-center justify-center bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <Ionicons name="add-circle-outline" size={48} color="#CBD5E1" />
-              <Text className="text-gray-400 font-black text-xs uppercase mt-4 tracking-widest">Share your first post</Text>
-            </View>
+        <View className="flex-row flex-wrap px-4 pt-2">
+          {activeTab === "posts" ? (
+            userPosts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="add-circle-outline" size={48} color={themeColors.subText} />
+                <Text className="font-black text-xs uppercase mt-4 tracking-widest" style={{ color: themeColors.subText }}>Share your first post</Text>
+              </View>
+            ) : (
+              userPosts.map((post) => (
+                <TouchableOpacity key={post.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                  <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
+                    <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                    {(!post.media || post.media.length === 0) && (
+                      <View className="absolute inset-0 items-center justify-center p-3" style={{ backgroundColor: themeColors.iconBg }}>
+                        <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
           ) : (
-            userPosts.map((post) => (
-              <TouchableOpacity key={post.id} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Post&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
-                  {(!post.media || post.media.length === 0) && (
-                    <View className="absolute inset-0 items-center justify-center p-3 bg-violet-50/90">
-                       <Text className="text-[9px] font-black text-violet-500 text-center uppercase leading-3" numberOfLines={4}>{post.content}</Text>
+            reposts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="repeat" size={48} color={themeColors.subText} />
+                <Text className="font-black text-xs uppercase mt-4 tracking-widest" style={{ color: themeColors.subText }}>No reposts yet</Text>
+              </View>
+            ) : (
+              reposts.map((share) => {
+                const post = share.post;
+                const handleUnrepost = () => {
+                  Alert.alert("ยกเลิก Repost", "ต้องการยกเลิก repost โพสต์นี้ใช่ไหม?", [
+                    { text: "ยกเลิก", style: "cancel" },
+                    {
+                      text: "ยืนยัน", style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await postService.unrepostPost(post.id, userId);
+                          setReposts(prev => prev.filter(s => s.id !== share.id));
+                        } catch {
+                          Alert.alert("Error", "Could not unrepost.");
+                        }
+                      }
+                    }
+                  ]);
+                };
+                return (
+                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                    <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
+                      <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                      {(!post.media || post.media.length === 0) && (
+                        <View className="absolute inset-0 items-center justify-center p-3" style={{ backgroundColor: themeColors.iconBg }}>
+                          <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                        </View>
+                      )}
+                      {/* Unrepost button */}
+                      <TouchableOpacity
+                        onPress={handleUnrepost}
+                        className="absolute top-2 right-2 rounded-full w-6 h-6 items-center justify-center"
+                        style={{ backgroundColor: "#10B981" }}
+                      >
+                        <Ionicons name="repeat" size={12} color="white" />
+                      </TouchableOpacity>
                     </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
+                  </TouchableOpacity>
+                );
+              })
+            )
           )}
         </View>
         <View className="h-32" />

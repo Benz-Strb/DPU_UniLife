@@ -326,7 +326,15 @@ postRouter.post('/', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid groupId' });
   }
 
-  if (!title && !content && !imageUrl) {
+  // Support both single `image` and multiple `images` array
+  const rawImages = req.body.images;
+  const imageUrls: string[] = Array.isArray(rawImages)
+    ? rawImages.map((u: unknown) => normalizeOptionalString(u)).filter((u): u is string => !!u)
+    : imageUrl
+      ? [imageUrl]
+      : [];
+
+  if (!title && !content && imageUrls.length === 0) {
     return res.status(400).json({ error: 'Post must include title, content, or image' });
   }
 
@@ -379,12 +387,13 @@ postRouter.post('/', async (req: Request, res: Response) => {
         isOfficial,
         visibility,
         commentsEnabled,
-        media: imageUrl
+        media: imageUrls.length
           ? {
-              create: {
-                url: imageUrl,
-                mediaType: 'IMAGE',
-              },
+              create: imageUrls.map((url, idx) => ({
+                url,
+                mediaType: 'IMAGE' as const,
+                sortOrder: idx,
+              })),
             }
           : undefined,
         tags: tagNames.length
@@ -779,6 +788,131 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to add comment:', error);
     return res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+postRouter.post('/:id/share', async (req: Request, res: Response) => {
+  const postId = getSingleParam(req.params.id);
+  const { userId, sharedToText } = req.body;
+
+  if (!postId || !isUuid(postId)) {
+    return res.status(400).json({ error: 'Invalid post id' });
+  }
+
+  if (typeof userId !== 'string' || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+
+  try {
+    const post = await prisma.post.findFirst({
+      where: { id: postId, deletedAt: null },
+      select: { id: true, authorId: true },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, fullName: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const share = await prisma.postShare.create({
+      data: {
+        postId,
+        sharedById: userId,
+        originalAuthorId: post.authorId,
+        sharedToText: typeof sharedToText === 'string' ? sharedToText.trim() || null : null,
+      },
+    });
+
+    if (post.authorId !== userId) {
+      await createNotification({
+        receiverId: post.authorId,
+        senderId: userId,
+        type: 'SHARE',
+        title: 'New Share',
+        body: `${user.fullName} shared your post`,
+        refPostId: postId,
+      }).catch((err) => console.error('Notification Error:', err));
+    }
+
+    return res.status(201).json(share);
+  } catch (error) {
+    console.error('Failed to share post:', error);
+    return res.status(500).json({ error: 'Failed to share post' });
+  }
+});
+
+postRouter.delete('/:id/share', async (req: Request, res: Response) => {
+  const postId = getSingleParam(req.params.id);
+  const userId = getSingleParam(req.query.userId as string);
+
+  if (!postId || !isUuid(postId)) return res.status(400).json({ error: 'Invalid post id' });
+  if (!userId || !isUuid(userId)) return res.status(400).json({ error: 'A valid userId is required' });
+
+  try {
+    await prisma.postShare.deleteMany({ where: { postId, sharedById: userId } });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to unrepost:', error);
+    return res.status(500).json({ error: 'Failed to unrepost' });
+  }
+});
+
+postRouter.delete('/:id/comments/:commentId', async (req: Request, res: Response) => {
+  const postId = getSingleParam(req.params.id);
+  const commentId = getSingleParam(req.params.commentId);
+  const { userId } = req.body;
+
+  if (!postId || !isUuid(postId)) {
+    return res.status(400).json({ error: 'Invalid post id' });
+  }
+
+  if (!commentId || !isUuid(commentId)) {
+    return res.status(400).json({ error: 'Invalid comment id' });
+  }
+
+  if (typeof userId !== 'string' || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+
+  try {
+    const comment = await prisma.comment.findFirst({
+      where: { id: commentId, postId, deletedAt: null },
+      select: { id: true, authorId: true },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+
+    const isOwner = comment.authorId === userId;
+    const isAdmin = requestingUser?.role === 'ADMIN' || requestingUser?.role === 'SUPER_ADMIN';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
+    }
+
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
+
+    return res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+    return res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 

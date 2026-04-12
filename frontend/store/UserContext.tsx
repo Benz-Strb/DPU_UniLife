@@ -48,11 +48,11 @@ interface UserContextType {
   deletePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, data: any) => Promise<void>;
   toggleLike: (postId: string) => void;
-  addComment: (postId: string, commentText: string) => void;
+  addComment: (postId: string, commentText: string, parentId?: string) => void;
   refreshPosts: () => Promise<void>;
   isRefreshing: boolean;
   conversations: Conversation[];
-  sendMessage: (convoId: string, body: string) => Promise<void>;
+  sendMessage: (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => Promise<void>;
   syncProfile: (name: string, faculty: string, img: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) => Promise<void>;
   followingIds: string[];
@@ -211,6 +211,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       fetchPosts();
       fetchChats(userId);
       fetchNotifications();
+      followService.getFollowingIds(userId).then(ids => setFollowingIds(ids || []));
       
       const interval = setInterval(() => fetchChats(userId), 10000); // Polling ห่างขึ้นเพื่อลดภาระ
 
@@ -249,30 +250,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsUniAdmin(false);
   };
 
-  const toggleLike = async (postId: string) => {
+  const toggleLike = async (postId: string, reaction = "LIKE") => {
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
-        const isLiked = post.reactions?.some(r => r.userId === userId);
-        const newReactions = isLiked
-          ? post.reactions.filter(r => r.userId !== userId)
-          : [...(post.reactions || []), { postId, userId, reaction: "LIKE" as any }];
+        const existing = post.reactions?.find(r => r.userId === userId);
+        let newReactions;
+        if (existing && existing.reaction === reaction) {
+          newReactions = post.reactions.filter(r => r.userId !== userId);
+        } else if (existing) {
+          newReactions = post.reactions.map(r => r.userId === userId ? { ...r, reaction } : r);
+        } else {
+          newReactions = [...(post.reactions || []), { postId, userId, reaction: reaction as any }];
+        }
         return { ...post, reactions: newReactions, _count: { ...post._count, reactions: newReactions.length } } as Post;
       }
       return post;
     }));
-    try { await postService.toggleLike(postId, userId); } catch (e) { fetchPosts(); }
+    try { await postService.toggleLike(postId, userId, reaction); } catch (e) { fetchPosts(); }
   };
 
-  const addComment = async (postId: string, commentText: string) => {
+  const addComment = async (postId: string, commentText: string, parentId?: string) => {
     try {
-      await postService.addComment(postId, userId, commentText);
+      await postService.addComment(postId, userId, commentText, parentId);
       fetchPosts();
     } catch (e) { console.error(e); }
   };
 
-  const sendMessage = async (convoId: string, body: string) => {
+  const sendMessage = async (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => {
     try {
-      await chatService.sendMessage(convoId, userId, body);
+      await chatService.sendMessage(convoId, userId, body, attachmentUrl, attachmentType);
       fetchChats(userId);
     } catch (e) { console.error(e); }
   };
@@ -314,11 +320,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       notifications, setNotifications, notificationList, addNotification: (n) => setNotificationList(prev => [n, ...prev]),
       isAdmin, isUniAdmin, login, signUp: async (data) => authService.signUp(data), logout, 
       posts, addPost: async (data) => {
-        let img = data.image;
-        if (img?.startsWith('file')) img = await postService.uploadImage(img);
-        const p = await postService.createPost({...data, image: img, authorId: userId, facultyTag: data.tag});
+        const rawImages: string[] = Array.isArray(data.images) ? data.images : [];
+        const uploadedImages = await Promise.all(
+          rawImages.map((img: string) => img.startsWith('file') ? postService.uploadImage(img) : Promise.resolve(img))
+        );
+        const p = await postService.createPost({ ...data, images: uploadedImages, authorId: userId, facultyTag: data.tag });
         setPosts(prev => [p, ...prev]);
-      }, 
+      },
       deletePost: async (id) => { await postService.deletePost(id); setPosts(prev => prev.filter(p => p.id !== id)); },
       updatePost: async (id, data) => { const p = await postService.updatePost(id, data); setPosts(prev => prev.map(old => old.id === id ? p : old)); },
       toggleLike, addComment, refreshPosts: async () => { setIsRefreshing(true); await fetchPosts(); setIsRefreshing(false); }, 
@@ -343,19 +351,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       {/* GLOBAL HEADS-UP TOAST */}
       {showToast && toastData && (
-        <Animated.View 
+        <Animated.View
           pointerEvents="auto"
-          className="absolute left-4 right-4 bg-white rounded-[24px] p-2 pr-4 flex-row items-center z-[99999]"
-          style={{ 
+          className="absolute left-4 right-4 rounded-[24px] p-2 pr-4 flex-row items-center z-[99999]"
+          style={{
             top: 0,
             transform: [{ translateY: toastAnim }],
+            backgroundColor: themeColors.card,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 10 },
             shadowOpacity: 0.4,
             shadowRadius: 12,
             elevation: 20,
             borderWidth: 2,
-            borderColor: '#F3F4F6', // ขอบสีเทาอ่อนที่ชัดเจนขึ้น
+            borderColor: themeColors.border,
           }}
         >
           <View className="relative">
@@ -365,11 +374,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
             >
               <Image 
                 source={{ uri: toastData.sender?.avatarUrl ? (toastData.sender.avatarUrl.startsWith('http') ? toastData.sender.avatarUrl : `${BASE_URL}${toastData.sender.avatarUrl}`) : "https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff" }}
-                className="w-full h-full bg-gray-100"
+                style={{ width: "100%", height: "100%", backgroundColor: themeColors.iconBg }}
               />
             </View>
             <View 
-              className="absolute -bottom-1 -right-1 rounded-full border-2 border-white w-6 h-6 items-center justify-center shadow-sm"
+              className="absolute -bottom-1 -right-1 rounded-full border-2 w-6 h-6 items-center justify-center shadow-sm"
+              style={{ borderColor: themeColors.card }}
               style={{ backgroundColor: getToastConfig(toastData.type).color }}
             >
               <Ionicons name={getToastConfig(toastData.type).icon as any} size={12} color="white" />
@@ -389,22 +399,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
             }}
           >
             <View className="flex-row items-center mb-0.5">
-              <Text className="font-extrabold text-gray-900 text-[15px]" numberOfLines={1}>
+              <Text className="font-extrabold text-[15px]" style={{ color: themeColors.text }} numberOfLines={1}>
                 {toastData.sender?.fullName || "System Notification"}
               </Text>
-              <View className="w-1 h-1 rounded-full bg-gray-300 mx-1.5" />
-              <Text className="text-gray-400 text-[11px] font-bold">Just now</Text>
+              <View className="w-1 h-1 rounded-full mx-1.5" style={{ backgroundColor: themeColors.subText }} />
+              <Text className="text-[11px] font-bold" style={{ color: themeColors.subText }}>Just now</Text>
             </View>
-            <Text className="text-gray-600 font-medium text-[13px]" numberOfLines={1}>
+            <Text className="font-medium text-[13px]" style={{ color: themeColors.subText }} numberOfLines={1}>
               {toastData.type === "MESSAGE" ? toastData.body : getToastConfig(toastData.type).label}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             onPress={() => setShowToast(false)}
-            className="bg-gray-50 w-9 h-9 items-center justify-center rounded-full border border-gray-100"
+            className="w-9 h-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: themeColors.iconBg }}
           >
-            <Ionicons name="close-outline" size={20} color="#CBD5E1" />
+            <Ionicons name="close-outline" size={20} color={themeColors.subText} />
           </TouchableOpacity>
         </Animated.View>
       )}

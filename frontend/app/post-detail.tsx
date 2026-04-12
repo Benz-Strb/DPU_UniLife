@@ -1,182 +1,149 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, StatusBar, Modal } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
-import * as Haptics from 'expo-haptics';
+import { authService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import ImageCarousel from "@/components/ImageCarousel";
+
+const { width } = Dimensions.get("window");
+
+function PostItem({ post, themeColors, userId, toggleLike, router }: any) {
+  const isLiked = post.reactions?.some((r: any) => r.userId === userId);
+  const likeCount = post._count?.reactions ?? post.reactions?.length ?? 0;
+  const commentCount = post._count?.comments ?? 0;
+  const hasMedia = post.media && post.media.length > 0;
+
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: themeColors.border }}>
+      {/* Author */}
+      <View className="flex-row items-center px-4 py-3">
+        <Image source={{ uri: getAvatarUrl(post.author?.avatarUrl, post.author?.fullName) }} className="w-9 h-9 rounded-full" />
+        <View className="ml-3 flex-1">
+          <Text className="font-black text-sm" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
+          <Text className="text-[10px] text-gray-400">{new Date(post.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</Text>
+        </View>
+      </View>
+
+      {/* Media */}
+      {hasMedia && (
+        post.media.length === 1 ? (
+          <Image source={{ uri: getImageUrl(post.media[0].url) }} style={{ width, height: width }} resizeMode="cover" />
+        ) : (
+          <ImageCarousel images={post.media.map((m: any) => ({ url: getImageUrl(m.url) }))} />
+        )
+      )}
+
+      {/* Content */}
+      {post.content ? (
+        <View className="px-4 py-3">
+          <Text className="text-sm leading-6" style={{ color: themeColors.text }}>{post.content}</Text>
+        </View>
+      ) : <View className="py-2" />}
+
+      {/* Actions */}
+      <View className="flex-row items-center px-4 pb-4 gap-5">
+        <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center gap-1.5">
+          <Ionicons name={isLiked ? "heart" : "heart-outline"} size={22} color={isLiked ? "#EC4899" : themeColors.subText} />
+          <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{likeCount}</Text>
+        </TouchableOpacity>
+        <View className="flex-row items-center gap-1.5">
+          <Ionicons name="chatbubble-outline" size={20} color={themeColors.subText} />
+          <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{commentCount}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function PostDetailScreen() {
   const router = useRouter();
-  const { id, focusComments } = useLocalSearchParams<{ id: string; focusComments?: string }>();
-  const { posts, userId, toggleLike, addComment, themeColors } = useUser();
-  const [commentText, setCommentText] = useState("");
-  const [showFullImage, setShowFullImage] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
-  const shouldFocusComments = focusComments === "1";
-
-  const post = posts.find(p => p.id === id);
-  const commentCount = post?.comments?.length ?? 0;
+  const { postId, userId: profileUserId } = useLocalSearchParams<{ postId: string; userId: string }>();
+  const { themeColors, userId, toggleLike } = useUser();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (!shouldFocusComments || !post) return;
+    if (!profileUserId) return;
+    authService.getProfile(profileUserId)
+      .then(data => {
+        const userPosts: any[] = data.authoredPosts ?? [];
+        // inject author info จาก profile เข้าไปในแต่ละโพสต์
+        const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
+        const sorted = [...userPosts]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map(p => ({ ...p, author: p.author ?? author }));
+        setPosts(sorted);
+      })
+      .finally(() => setLoading(false));
+  }, [profileUserId]);
 
-    const timer = setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    }, 250);
+  // scroll ไปยังโพสต์ที่กด
+  useEffect(() => {
+    if (posts.length === 0 || !postId) return;
+    const index = posts.findIndex(p => p.id === postId);
+    if (index > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index, animated: false });
+      }, 100);
+    }
+  }, [posts, postId]);
 
-    return () => clearTimeout(timer);
-  }, [commentCount, post, shouldFocusComments]);
-
-  if (!post) {
+  if (loading) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: themeColors.background }}>
-        <Text style={{ color: themeColors.text }}>Post not found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-violet-500 px-6 py-2 rounded-full">
-          <Text className="text-white font-bold">Go Back</Text>
-        </TouchableOpacity>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
-  const isLiked = post.reactions?.some(r => r.userId === userId);
-
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return undefined;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
-
-  const handleSendComment = () => {
-    if (!commentText.trim()) return;
-    addComment(post.id, commentText);
-    setCommentText("");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar barStyle={themeColors.text === "#FFFFFF" ? "light-content" : "dark-content"} />
-      <SafeAreaView edges={['top']} className="flex-1">
-        
-        {/* Custom Header */}
-        <View className="flex-row items-center justify-between px-6 py-4 border-b" style={{ borderBottomColor: themeColors.border }}>
-          <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center rounded-full bg-gray-100">
-            <Ionicons name="chevron-back" size={24} color="#1F2937" />
+      <StatusBar barStyle={themeColors.statusBar as any} />
+      <SafeAreaView edges={["top"]} className="flex-1">
+        {/* Header */}
+        <View className="flex-row items-center px-6 py-4 border-b" style={{ borderBottomColor: themeColors.border }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-10 h-10 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: themeColors.card }}
+          >
+            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
           </TouchableOpacity>
-          <Text className="text-lg font-black" style={{ color: themeColors.text }}>Post View</Text>
-          <View className="w-10" />
+          <Text className="ml-4 font-black text-lg" style={{ color: themeColors.text }}>Posts</Text>
         </View>
 
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1"
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        >
-          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} className="flex-1">
-            
-            {/* Author Info */}
-            <View className="flex-row items-center p-6">
-              <Image 
-                source={{ uri: getFullImageUrl(post.author?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.fullName || 'U')}` }} 
-                className="w-12 h-12 rounded-full mr-4" 
-              />
-              <View className="flex-1">
-                <Text className="font-black text-base" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
-                <Text className="text-xs text-gray-400">@{post.author?.username} • {new Date(post.createdAt).toLocaleDateString()}</Text>
-              </View>
-            </View>
-
-            {/* Post Media */}
-            {post.media && post.media.length > 0 && (
-              <View className="px-4">
-                <TouchableOpacity activeOpacity={0.9} onPress={() => setShowFullImage(true)}>
-                  <Image
-                    source={{ uri: getFullImageUrl(post.media[0].url) }}
-                    className="w-full h-96 rounded-[40px] bg-gray-50"
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Content */}
-            <View className="p-8">
-              <Text className="text-base leading-7 font-medium" style={{ color: themeColors.text }}>{post.content}</Text>
-              
-              <View className="flex-row items-center mt-8 pt-6 border-t" style={{ borderTopColor: themeColors.border }}>
-                <TouchableOpacity onPress={() => { toggleLike(post.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} className="flex-row items-center mr-8">
-                  <Ionicons name={isLiked ? "heart" : "heart-outline"} size={28} color={isLiked ? "#EF4444" : themeColors.text} />
-                  <Text className="ml-2 font-black text-lg" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
-                </TouchableOpacity>
-                <View className="flex-row items-center">
-                  <Feather name="message-circle" size={26} color={themeColors.text} />
-                  <Text className="ml-2 font-black text-lg" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Comments List */}
-            <View className="px-8 pb-10">
-              <Text className="font-black text-lg mb-6" style={{ color: themeColors.text }}>Comments</Text>
-              {post.comments && post.comments.length > 0 ? (
-                post.comments.map((comment) => (
-                  <View key={comment.id} className="flex-row mb-6">
-                    <Image 
-                      source={{ uri: getFullImageUrl(comment.author?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author?.fullName || 'U')}` }} 
-                      className="w-10 h-10 rounded-full mr-4" 
-                    />
-                    <View className="flex-1 bg-gray-50 p-4 rounded-2xl">
-                      <Text className="font-bold text-xs mb-1" style={{ color: "#111827" }}>{comment.author?.fullName}</Text>
-                      <Text className="text-sm leading-5 text-gray-600">{comment.content}</Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View className="py-10 items-center border-2 border-dashed border-gray-100 rounded-3xl">
-                  <Ionicons name="chatbubble-outline" size={32} color="#CBD5E1" />
-                  <Text className="text-gray-400 mt-4 font-bold">No comments yet</Text>
-                </View>
-              )}
-            </View>
-          </ScrollView>
-
-          {/* Comment Input */}
-          <View className="p-6 border-t flex-row items-center" style={{ borderTopColor: themeColors.border, backgroundColor: themeColors.card }}>
-            <TextInput 
-              className="flex-1 h-12 px-6 rounded-full bg-gray-100 mr-4 font-bold"
-              placeholder="Add a comment..."
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholderTextColor="#9CA3AF"
-              autoFocus={shouldFocusComments}
-            />
-            <TouchableOpacity 
-              onPress={handleSendComment}
-              className="w-12 h-12 bg-violet-500 rounded-full items-center justify-center shadow-lg"
-            >
-              <Ionicons name="send" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-
-      <Modal visible={showFullImage} transparent animationType="fade" onRequestClose={() => setShowFullImage(false)}>
-        <View className="flex-1 bg-black/95 items-center justify-center">
-          <TouchableOpacity className="absolute inset-0" activeOpacity={1} onPress={() => setShowFullImage(false)} />
-          {post.media && post.media.length > 0 && (
-            <Image
-              source={{ uri: getFullImageUrl(post.media[0].url) }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="contain"
+        <FlatList
+          ref={flatListRef}
+          data={posts}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <PostItem
+              post={item}
+              themeColors={themeColors}
+              userId={userId}
+              toggleLike={toggleLike}
+              router={router}
             />
           )}
-          <TouchableOpacity className="absolute top-12 right-6 bg-black/60 p-3 rounded-full" onPress={() => setShowFullImage(false)}>
-            <Ionicons name="close" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </Modal>
+          onScrollToIndexFailed={info => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+            }, 300);
+          }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View className="items-center justify-center py-20">
+              <Ionicons name="images-outline" size={48} color={themeColors.subText} />
+              <Text className="font-bold mt-4" style={{ color: themeColors.subText }}>No posts</Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
     </View>
   );
 }

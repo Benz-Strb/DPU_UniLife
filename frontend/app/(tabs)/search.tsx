@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
-import { BASE_URL } from "@/services/api";
+import { searchService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
 const { width } = Dimensions.get('window');
 
@@ -97,24 +99,56 @@ const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { themeColors, isDarkMode, userId, posts } = useUser();
+  const scrollRef = useRef<ScrollView>(null);
+  const { themeColors, isDarkMode, userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const [history, setHistory] = useState<{ keyword: string; searchedAt: string }[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const getFullImageUrl = (url: string | null | undefined, name: string) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
+  useEffect(() => {
+    const handler = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+    tabRefreshEmitter.on("search", handler);
+    return () => tabRefreshEmitter.off("search", handler);
+  }, []);
+
+  useEffect(() => {
+    if (userId) searchService.getHistory(userId).then(setHistory);
+  }, [userId]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!searchQuery.trim()) {
+      setSearchResults({ users: [], posts: [], groups: [] });
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      const result = await searchService.search(searchQuery.trim(), "users", userId ?? undefined, 20);
+      setSearchResults(result);
+      setIsSearching(false);
+      if (userId) searchService.getHistory(userId).then(setHistory);
+    }, 400);
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, userId]);
+
+  const handleDeleteKeyword = async (keyword: string) => {
+    if (!userId) return;
+    await searchService.deleteKeyword(userId, keyword);
+    setHistory(prev => prev.filter(h => h.keyword !== keyword));
   };
 
-  // ดึงรายชื่อนักศึกษาจากรายชื่อผู้เขียนโพสต์ (กรณีไม่มี API ดึงรายชื่อ User ทั้งหมด)
-  const uniqueUsers = Array.from(new Set(posts.map(p => p.authorId)))
-    .map(id => posts.find(p => p.authorId === id)?.author)
-    .filter(u => u && u.id !== userId && u.role === "STUDENT");
+  const handleClearHistory = async () => {
+    if (!userId) return;
+    await searchService.clearHistory(userId);
+    setHistory([]);
+  };
 
-  const filteredUsers = uniqueUsers.filter(u => 
-    u?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u?.faculty?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = searchResults.users;
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -140,7 +174,35 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Recent Searches */}
+          {!searchQuery.trim() && history.length > 0 && (
+            <View className="px-6 mb-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] text-gray-400">Recent Searches</Text>
+                <TouchableOpacity onPress={handleClearHistory}>
+                  <Text className="text-[10px] font-bold text-violet-500">Clear all</Text>
+                </TouchableOpacity>
+              </View>
+              <View className="flex-row flex-wrap gap-2">
+                {history.map((h) => (
+                  <View
+                    key={h.keyword}
+                    className="flex-row items-center rounded-full px-3 py-2 border"
+                    style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
+                  >
+                    <TouchableOpacity onPress={() => setSearchQuery(h.keyword)}>
+                      <Text className="text-xs font-bold mr-2" style={{ color: themeColors.text }}>{h.keyword}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteKeyword(h.keyword)}>
+                      <Ionicons name="close" size={12} color={themeColors.subText} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Browse Faculties */}
           <View className="mb-8">
             <View className="px-6 mb-4">
@@ -173,7 +235,10 @@ export default function SearchScreen() {
                 <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
                 <Text className="font-black text-xl tracking-tight" style={{ color: themeColors.text }}>Community Members</Text>
               </View>
-              <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Students</Text>
+              {isSearching
+                ? <ActivityIndicator size="small" color={theme.colors.primary} />
+                : <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Results</Text>
+              }
             </View>
 
             {filteredUsers.length === 0 ? (
@@ -205,7 +270,7 @@ export default function SearchScreen() {
                         style={{ backgroundColor: isDarkMode ? "#2D2D2D" : "#F5F3FF" }}
                       >
                         <Image 
-                          source={{ uri: getFullImageUrl(user.avatarUrl, user.fullName) }} 
+                          source={{ uri: getAvatarUrl(user.avatarUrl, user.fullName) }} 
                           className="w-full h-full rounded-[30px]"
                         />
                       </View>

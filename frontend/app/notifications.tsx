@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { BASE_URL } from "@/services/api";
+import { getAvatarUrl } from "@/utils/imageUtils";
 
 export default function NotificationScreen() {
   const router = useRouter();
@@ -29,30 +29,16 @@ export default function NotificationScreen() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
-  };
 
   const handleNotificationPress = async (item: any) => {
-    // Mark as read
-    if (!item.isRead) {
-      await markNotificationAsRead(item.id);
-    }
+    if (!item.isRead) await markNotificationAsRead(item.id);
 
-    // Navigate based on type
-    if (item.type === "LIKE" || item.type === "COMMENT") {
-      if (item.refPostId) {
-        // ในที่นี้สมมติว่าเรามีหน้า post-detail หรือไปหน้า home แล้วเลื่อนหา
-        // สำหรับตอนนี้เราจะลองส่งไปที่หน้า home หรือแจ้งเตือนว่าดูโพสต์
-        router.push({ pathname: "/(tabs)/home", params: { postId: item.refPostId } });
-      }
-    } else if (item.type === "FOLLOW") {
-      if (item.senderId) {
-        // ไปหน้าโปรไฟล์ของคนที่มาติดตาม (ถ้ามีหน้า profile-detail)
-        // router.push({ pathname: "/profile-detail", params: { userId: item.senderId } });
-      }
+    if (item.type === "FOLLOW") {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
+    } else if ((item.type === "LIKE" || item.type === "COMMENT" || item.type === "REPLY") && item.refPostId) {
+      router.push({ pathname: "/post-detail", params: { postId: item.refPostId } } as any);
+    } else if (item.senderId) {
+      router.push({ pathname: "/user-profile", params: { userId: item.senderId } });
     }
   };
 
@@ -62,6 +48,7 @@ export default function NotificationScreen() {
       case 'LIKE': return `${senderName} liked your post`;
       case 'COMMENT': return `${senderName} commented on your post`;
       case 'FOLLOW': return `${senderName} started following you`;
+      case 'REPLY': return `${senderName} replied to your comment`;
       default: return item.body || item.title;
     }
   };
@@ -71,6 +58,7 @@ export default function NotificationScreen() {
       case 'LIKE': return { name: 'heart', color: '#EF4444' };
       case 'COMMENT': return { name: 'chatbubble', color: '#3B82F6' };
       case 'FOLLOW': return { name: 'person-add', color: '#10B981' };
+      case 'REPLY': return { name: 'return-down-forward', color: '#8B5CF6' };
       default: return { name: 'notifications', color: theme.colors.primary };
     }
   };
@@ -107,10 +95,10 @@ export default function NotificationScreen() {
         >
           {notificationList.length === 0 ? (
             <View className="items-center justify-center py-32">
-              <View className="w-24 h-24 rounded-[35px] bg-gray-50 items-center justify-center mb-6" style={{ backgroundColor: themeColors.iconBg }}>
-                <Ionicons name="notifications-off-outline" size={44} color="#CBD5E1" />
+              <View className="w-24 h-24 rounded-[35px] items-center justify-center mb-6" style={{ backgroundColor: themeColors.iconBg }}>
+                <Ionicons name="notifications-off-outline" size={44} color={themeColors.subText} />
               </View>
-              <Text className="text-xl font-black text-gray-300">No Notifications</Text>
+              <Text className="text-xl font-black" style={{ color: themeColors.subText }}>No Notifications</Text>
             </View>
           ) : (
             <>
@@ -139,11 +127,12 @@ export default function NotificationScreen() {
                   >
                     <View className="relative">
                       <Image 
-                        source={{ uri: getFullImageUrl(item.sender?.avatarUrl) }} 
+                        source={{ uri: getAvatarUrl(item.sender?.avatarUrl, item.sender?.fullName) }} 
                         className="w-12 h-12 rounded-full mr-4" 
                       />
                       <View 
-                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2 border-white"
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center border-2"
+                        style={{ borderColor: themeColors.card }}
                         style={{ backgroundColor: icon.color }}
                       >
                         <Ionicons name={icon.name as any} size={12} color="white" />
@@ -151,10 +140,7 @@ export default function NotificationScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-xs font-medium leading-4" style={{ color: themeColors.text }}>
-                        <Text className="font-black">{item.sender?.fullName || "Someone"} </Text>
-                        {item.type === 'LIKE' ? 'liked your post' : 
-                         item.type === 'COMMENT' ? 'commented on your post' : 
-                         item.type === 'FOLLOW' ? 'started following you' : item.body}
+                        {getNotificationText(item)}
                       </Text>
                       <Text className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">
                         {new Date(item.createdAt).toLocaleString()}

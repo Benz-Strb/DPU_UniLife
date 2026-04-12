@@ -64,6 +64,7 @@ export interface Post {
   facultyTag?: string;
   isOfficial: boolean;
   isPinned: boolean;
+  commentsEnabled: boolean;
   createdAt: string;
   updatedAt: string;
   media: PostMedia[];
@@ -121,5 +122,6 @@ export interface Message {
   sender: User;
   body?: string;
   attachmentUrl?: string;
+  attachmentType?: string;
   createdAt: string;
 }

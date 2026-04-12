@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions, StatusBar, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions, StatusBar, RefreshControl, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { authService, BASE_URL } from "@/services/api";
+import { authService, adminService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { Post } from "@/types/backend";
 
 const { width } = Dimensions.get('window');
@@ -16,10 +17,12 @@ export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ userId: string }>();
   const targetUserId = params.userId;
   
-  const { userId: currentUserId, themeColors, toggleFollow, followingIds, getDirectChat } = useUser();
+  const { userId: currentUserId, themeColors, toggleFollow, followingIds, getDirectChat, isAdmin, isUniAdmin } = useUser();
   
   const [userData, setUserData] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [reposts, setReposts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "reposts">("posts");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -28,9 +31,8 @@ export default function UserProfileScreen() {
     try {
       const data = await authService.getProfile(targetUserId);
       setUserData(data);
-      if (data.authoredPosts) {
-        setUserPosts(data.authoredPosts);
-      }
+      if (data.authoredPosts) setUserPosts(data.authoredPosts);
+      if (data.postShares) setReposts(data.postShares);
     } catch (error) {
       console.error("Fetch user profile error:", error);
     } finally {
@@ -48,10 +50,31 @@ export default function UserProfileScreen() {
     setIsRefreshing(false);
   };
 
-  const getFullImageUrl = (url: string | null | undefined) => {
-    if (!url) return `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.fullName || 'U')}&background=7C3AED&color=fff`;
-    if (url.startsWith('http')) return url;
-    return `${BASE_URL}${url}`;
+
+  const handleSuspendToggle = async () => {
+    if (!userData) return;
+    const isSuspended = userData.status === 'SUSPENDED';
+    const action = isSuspended ? 'Unsuspend' : 'Suspend';
+    Alert.alert(
+      `${action} User`,
+      `Are you sure you want to ${action.toLowerCase()} ${userData.fullName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: action,
+          style: isSuspended ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const newStatus = isSuspended ? 'ACTIVE' : 'SUSPENDED';
+              await adminService.updateUserStatus(targetUserId, newStatus, currentUserId);
+              setUserData((prev: any) => ({ ...prev, status: newStatus }));
+            } catch (e) {
+              Alert.alert('Error', 'Failed to update user status');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleChatPress = async () => {
@@ -62,7 +85,7 @@ export default function UserProfileScreen() {
         params: { 
           id: convo.id, 
           userName: userData.fullName, 
-          userAvatar: getFullImageUrl(userData.avatarUrl),
+          userAvatar: getAvatarUrl(userData.avatarUrl, userData.fullName),
           userId: targetUserId
         }
       });
@@ -115,11 +138,24 @@ export default function UserProfileScreen() {
           <View className="rounded-[40px] p-6 shadow-xl" style={{ backgroundColor: themeColors.card, elevation: 10 }}>
             <View className="flex-row justify-between items-end mb-6">
               <View className="w-28 h-28 rounded-[35px] border-4 p-1" style={{ backgroundColor: themeColors.card, borderColor: themeColors.card }}>
-                <Image source={{ uri: getFullImageUrl(userData?.avatarUrl) }} className="w-full h-full rounded-[28px]" />
+                <Image source={{ uri: getAvatarUrl(userData?.avatarUrl, userData?.fullName) }} className="w-full h-full rounded-[28px]" />
               </View>
               
-              <View className="flex-row">
-                <TouchableOpacity 
+              <View className="flex-row items-center">
+                {(isAdmin || isUniAdmin) && targetUserId !== currentUserId && (
+                  <TouchableOpacity
+                    onPress={handleSuspendToggle}
+                    className="w-12 h-12 rounded-2xl items-center justify-center mr-2"
+                    style={{ backgroundColor: userData?.status === 'SUSPENDED' ? '#D1FAE5' : '#FEE2E2' }}
+                  >
+                    <Ionicons
+                      name={userData?.status === 'SUSPENDED' ? 'checkmark-circle-outline' : 'ban-outline'}
+                      size={22}
+                      color={userData?.status === 'SUSPENDED' ? '#059669' : '#DC2626'}
+                    />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
                   onPress={() => toggleFollow(targetUserId)}
                   className={`px-6 py-3 rounded-2xl mr-2 ${isFollowing ? 'border' : 'bg-violet-500'}`}
                   style={isFollowing ? { borderColor: themeColors.border } : {}}
@@ -128,18 +164,27 @@ export default function UserProfileScreen() {
                     {isFollowing ? 'Following' : 'Follow'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={handleChatPress}
-                  className="w-12 h-12 rounded-2xl items-center justify-center border"
-                  style={{ borderColor: themeColors.border }}
-                >
-                  <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
-                </TouchableOpacity>
+                {isFollowing && (
+                  <TouchableOpacity
+                    onPress={handleChatPress}
+                    className="w-12 h-12 rounded-2xl items-center justify-center border"
+                    style={{ borderColor: themeColors.border }}
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
             <View>
-              <Text className="text-3xl font-black tracking-tighter" style={{ color: themeColors.text }}>{userData?.fullName}</Text>
+              <View className="flex-row items-center flex-wrap">
+                <Text className="text-3xl font-black tracking-tighter mr-2" style={{ color: themeColors.text }}>{userData?.fullName}</Text>
+                {userData?.status === 'SUSPENDED' && (
+                  <View className="px-2 py-0.5 rounded-md bg-red-100">
+                    <Text className="text-[9px] font-black text-red-600 uppercase">Suspended</Text>
+                  </View>
+                )}
+              </View>
               <View className="flex-row items-center mt-1">
                 <Text className="text-sm font-bold text-violet-500 mr-2">@{userData?.username}</Text>
                 {userData?.faculty && (
@@ -149,9 +194,9 @@ export default function UserProfileScreen() {
                 )}
               </View>
               
-              <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>
-                {userData?.bio || "Hello! I'm using DPU UniLife."}
-              </Text>
+              {userData?.bio ? (
+                <Text className="text-sm mt-5 leading-6 font-medium" style={{ color: themeColors.subText }}>{userData.bio}</Text>
+              ) : null}
             </View>
 
             {/* Stats */}
@@ -172,26 +217,71 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* Collection Section */}
-        <View className="px-8 mt-10 mb-6 flex-row items-center">
-          <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
-          <Text className="font-black text-lg tracking-tight" style={{ color: themeColors.text }}>Collection</Text>
+        {/* Tab icons */}
+        <View className="flex-row border-t mt-6" style={{ borderTopColor: themeColors.border }}>
+          <TouchableOpacity
+            onPress={() => setActiveTab("posts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "posts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="grid-outline" size={22} color={activeTab === "posts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab("reposts")}
+            className="flex-1 items-center py-3"
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "reposts" ? themeColors.text : "transparent" }}
+          >
+            <Ionicons name="repeat" size={22} color={activeTab === "reposts" ? themeColors.text : themeColors.subText} />
+          </TouchableOpacity>
         </View>
 
-        <View className="flex-row flex-wrap px-4 pb-20">
-          {userPosts.length === 0 ? (
-            <View className="w-full py-20 items-center justify-center bg-gray-50/50 rounded-[40px] border-2 border-dashed border-gray-200">
-              <Ionicons name="images-outline" size={40} color="#CBD5E1" />
-              <Text className="text-gray-400 font-black text-[10px] uppercase mt-4">No public posts</Text>
-            </View>
+        <View className="flex-row flex-wrap px-4 pt-2 pb-20">
+          {activeTab === "posts" ? (
+            userPosts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="images-outline" size={40} color={themeColors.subText} />
+                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No public posts</Text>
+              </View>
+            ) : (
+              userPosts.map((post) => (
+                <TouchableOpacity key={post.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                  <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
+                    <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                    {(!post.media || post.media.length === 0) && (
+                      <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
+                        <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
           ) : (
-            userPosts.map((post) => (
-              <TouchableOpacity key={post.id} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                <View className="w-full h-full rounded-[20px] overflow-hidden bg-gray-100">
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getFullImageUrl(post.media[0].url) : `https://ui-avatars.com/api/?name=Post&background=F3F4F6&color=A5B4FC` }} className="w-full h-full" />
-                </View>
-              </TouchableOpacity>
-            ))
+            reposts.length === 0 ? (
+              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <Ionicons name="repeat" size={40} color={themeColors.subText} />
+                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No reposts yet</Text>
+              </View>
+            ) : (
+              reposts.map((share) => {
+                const post = share.post;
+                return (
+                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                    <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
+                      <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                      <View className="absolute top-2 right-2 rounded-full p-1" style={{ backgroundColor: "#10B981" }}>
+                        <Ionicons name="repeat" size={10} color="white" />
+                      </View>
+                      {(!post.media || post.media.length === 0) && (
+                        <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
+                          <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )
           )}
         </View>
       </ScrollView>

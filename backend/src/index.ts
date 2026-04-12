@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import path from "path";
 import { createServer } from "http";
 import { initSocket } from "./lib/socket";
@@ -11,6 +12,9 @@ import { groupRouter } from "./routes/group";
 import { reportRouter } from "./routes/report";
 import { followRouter } from "./routes/follow";
 import scheduleRouter from "./routes/schedule";
+import { adminRouter } from "./routes/admin";
+import { searchRouter } from "./routes/search";
+import { tagRouter } from "./routes/tag";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -19,6 +23,7 @@ const port = process.env.PORT || 8080;
 const httpServer = createServer(app);
 initSocket(httpServer);
 
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -31,6 +36,9 @@ app.use('/groups', groupRouter);
 app.use('/reports', reportRouter);
 app.use('/follows', followRouter);
 app.use('/schedule', scheduleRouter);
+app.use('/admin', adminRouter);
+app.use('/search', searchRouter);
+app.use('/tags', tagRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "DPU UniLife backend is running with Socket.io" });
