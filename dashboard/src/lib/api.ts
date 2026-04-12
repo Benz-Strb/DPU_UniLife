@@ -38,3 +38,9 @@ export const reportService = {
   updateStatus: (reportId: string, status: string, reviewerId: string) =>
     API.patch(`/reports/${reportId}/status`, { status, reviewerId }).then(r => r.data),
 };
+
+export const settingService = {
+  getAll: () => API.get("/admin/settings").then(r => r.data),
+  update: (key: string, value: any, description: string, actorId: string) =>
+    API.put(`/admin/settings/${key}`, { value, description, actorId }).then(r => r.data),
+};

@@ -6,8 +6,10 @@ import Users from "./pages/Users";
 import Posts from "./pages/Posts";
 import Reports from "./pages/Reports";
 import Logs from "./pages/Logs";
+import Settings from "./pages/Settings";
 
 const STORAGE_KEY = "dpu-admin-user";
+const THEME_KEY = "dpu-admin-theme";
 
 function getStoredUser() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { return null; }
@@ -16,6 +18,15 @@ function getStoredUser() {
 export default function App() {
   const [user, setUser] = useState<any>(getStoredUser);
   const [page, setPage] = useState("dashboard");
+  const [isDark, setIsDark] = useState(() => localStorage.getItem(THEME_KEY) !== "light");
+
+  const toggleTheme = () => {
+    setIsDark(prev => {
+      const next = !prev;
+      localStorage.setItem(THEME_KEY, next ? "dark" : "light");
+      return next;
+    });
+  };
 
   const handleLogin = (u: any) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
@@ -37,12 +48,13 @@ export default function App() {
       case "posts": return <Posts currentUser={user} />;
       case "reports": return <Reports currentUser={user} />;
       case "logs": return <Logs />;
+      case "settings": return <Settings currentUser={user} />;
       default: return <Dashboard />;
     }
   };
 
   return (
-    <Layout page={page} onNavigate={setPage} user={user} onLogout={handleLogout}>
+    <Layout page={page} onNavigate={setPage} user={user} onLogout={handleLogout} isDark={isDark} onToggleTheme={toggleTheme}>
       {renderPage()}
     </Layout>
   );

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Flag, ScrollText, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2, LogOut, Sun, Moon } from "lucide-react";
 
 const navItems = [
   { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -6,6 +6,7 @@ const navItems = [
   { id: "posts", icon: FileText, label: "Posts" },
   { id: "reports", icon: Flag, label: "Reports" },
   { id: "logs", icon: ScrollText, label: "Logs" },
+  { id: "settings", icon: Settings2, label: "System Settings" },
 ];
 
 interface SidebarProps {
@@ -13,9 +14,11 @@ interface SidebarProps {
   onNavigate: (page: string) => void;
   user: any;
   onLogout: () => void;
+  isDark: boolean;
+  onToggleTheme: () => void;
 }
 
-export default function Sidebar({ page, onNavigate, user, onLogout }: SidebarProps) {
+export default function Sidebar({ page, onNavigate, user, onLogout, isDark, onToggleTheme }: SidebarProps) {
   return (
     <aside className="w-60 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
       {/* Logo */}
@@ -33,20 +36,22 @@ export default function Sidebar({ page, onNavigate, user, onLogout }: SidebarPro
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            onClick={() => onNavigate(id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition text-left ${
-              page === id
-                ? "bg-violet-600/20 text-violet-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Icon size={18} />
-            {label}
-          </button>
-        ))}
+        {navItems
+          .filter(({ id }) => id !== "settings" || user?.role === "SUPER_ADMIN")
+          .map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => onNavigate(id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition text-left ${
+                page === id
+                  ? "bg-violet-600/20 text-violet-400"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <Icon size={18} />
+              {label}
+            </button>
+          ))}
       </nav>
 
       {/* User */}
@@ -56,13 +61,22 @@ export default function Sidebar({ page, onNavigate, user, onLogout }: SidebarPro
             <p className="text-white text-xs font-bold truncate max-w-[130px]">{user?.fullName}</p>
             <p className="text-slate-500 text-[10px] uppercase">{user?.role}</p>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-slate-500 hover:text-red-400 transition"
-            title="Logout"
-          >
-            <LogOut size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleTheme}
+              className="text-slate-500 hover:text-violet-400 transition"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button
+              onClick={onLogout}
+              className="text-slate-500 hover:text-red-400 transition"
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
