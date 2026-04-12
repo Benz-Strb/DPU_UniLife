@@ -371,7 +371,21 @@ export const chatService = {
       console.error("Delete Conversation Error", e);
       throw e;
     }
-  }
+  },
+  createGroupChat: async (userId: string, title: string, participantIds: string[]): Promise<Conversation> => {
+    try {
+      const response = await API.post("/chats", {
+        type: "GROUP",
+        title,
+        createdById: userId,
+        participantIds,
+      });
+      return response.data;
+    } catch (e) {
+      console.error("Create Group Chat Error", e);
+      throw e;
+    }
+  },
 };
 
 export const notificationService = {

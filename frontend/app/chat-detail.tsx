@@ -12,8 +12,9 @@ import socket from "@/services/socket";
 
 export default function ChatDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string }>();
-  const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams } = params;
+  const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string; isGroup?: string }>();
+  const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams, isGroup } = params;
+  const isGroupChat = isGroup === "true";
   const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId } = useUser();
   const [inputText, setInputText] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -99,8 +100,8 @@ export default function ChatDetailScreen() {
   const inputBgColor = isDarkMode ? "#2D2D2D" : "#F3F4F6";
 
   const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
-  const userName = recipient?.fullName || nameFromParams || "Chat";
-  const userAvatar = getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
+  const userName = isGroupChat ? (nameFromParams || currentConversation?.title || "Group Chat") : (recipient?.fullName || nameFromParams || "Chat");
+  const userAvatar = isGroupChat ? null : getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
@@ -108,10 +109,16 @@ export default function ChatDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} className="p-1">
           <Ionicons name="chevron-back" size={28} color={textColor} />
         </TouchableOpacity>
-        <Image source={{ uri: userAvatar }} className="w-9 h-9 rounded-full ml-2" />
+        {isGroupChat ? (
+          <View className="w-9 h-9 rounded-full ml-2 items-center justify-center bg-violet-500">
+            <Ionicons name="people" size={18} color="white" />
+          </View>
+        ) : (
+          <Image source={{ uri: userAvatar! }} className="w-9 h-9 rounded-full ml-2" />
+        )}
         <View className="ml-3 flex-1">
           <Text className="font-bold text-sm" style={{ color: textColor }}>{userName}</Text>
-          <Text className="text-[10px]" style={{ color: theme.colors.primary }}>Active now</Text>
+          <Text className="text-[10px]" style={{ color: theme.colors.primary }}>{isGroupChat ? `${currentConversation?.participants?.length ?? 0} members` : "Active now"}</Text>
         </View>
       </View>
 
@@ -135,9 +142,15 @@ export default function ChatDetailScreen() {
                 className={`mb-4 flex-row ${isMe ? "justify-end" : "justify-start"}`}
               >
                 {!isMe && (
-                  <Image source={{ uri: userAvatar }} className="w-7 h-7 rounded-full self-end mb-1 mr-2" />
+                  <Image
+                    source={{ uri: isGroupChat ? getAvatarUrl(msg.sender?.avatarUrl, msg.sender?.fullName) : userAvatar! }}
+                    className="w-7 h-7 rounded-full self-end mb-1 mr-2"
+                  />
                 )}
                 <View className={`max-w-[75%] ${isMe ? "items-end" : "items-start"}`}>
+                  {isGroupChat && !isMe && (
+                    <Text className="text-[10px] font-bold text-violet-400 mb-1 ml-1">{msg.sender?.fullName ?? ""}</Text>
+                  )}
                   {imgUrl ? (
                     <Image
                       source={{ uri: imgUrl }}

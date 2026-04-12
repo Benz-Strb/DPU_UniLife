@@ -60,7 +60,10 @@ export default function MessengerScreen() {
             <Ionicons name="chevron-back" size={24} color={textColor} />
           </TouchableOpacity>
           <Text className="text-xl font-black" style={{ color: textColor }}>Messages</Text>
-          <TouchableOpacity className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm">
+          <TouchableOpacity
+            onPress={() => router.push("/new-group" as any)}
+            className="w-10 h-10 rounded-2xl items-center justify-center bg-white shadow-sm"
+          >
             <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
@@ -89,35 +92,45 @@ export default function MessengerScreen() {
               </View>
             ) : (
               conversations.map((convo) => {
+                const isGroup = convo.type === "GROUP";
                 const otherParticipant = convo.participants?.find(p => p.userId !== userId)?.user;
                 const lastMsg = convo.messages && convo.messages.length > 0 ? convo.messages[convo.messages.length - 1] : null;
-                const participantName = otherParticipant?.fullName || "User";
-                const participantAvatar = getAvatarUrl(otherParticipant?.avatarUrl, participantName);
+                const displayName = isGroup ? (convo.title || "Group Chat") : (otherParticipant?.fullName || "User");
+                const participantAvatar = getAvatarUrl(otherParticipant?.avatarUrl, displayName);
 
                 return (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     key={convo.id}
                     onPress={() => router.push({
                       pathname: "/chat-detail",
-                      params: { 
+                      params: {
                         id: convo.id,
-                        userName: participantName, 
-                        userAvatar: participantAvatar,
-                        userId: otherParticipant?.id 
+                        userName: displayName,
+                        userAvatar: isGroup ? "" : participantAvatar,
+                        userId: isGroup ? "" : (otherParticipant?.id ?? ""),
+                        isGroup: isGroup ? "true" : "false",
                       }
                     })}
-                    onLongPress={() => handleDeleteConversation(convo.id, participantName)}
+                    onLongPress={() => handleDeleteConversation(convo.id, displayName)}
                     className="flex-row items-center mb-6 p-4 rounded-[30px] border border-white"
                     style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.03, elevation: 2 }}
                   >
-                    <Image source={{ uri: participantAvatar }} className="w-14 h-14 rounded-[20px]" />
+                    {isGroup ? (
+                      <View className="w-14 h-14 rounded-[20px] bg-violet-500 items-center justify-center">
+                        <Ionicons name="people" size={26} color="white" />
+                      </View>
+                    ) : (
+                      <Image source={{ uri: participantAvatar }} className="w-14 h-14 rounded-[20px]" />
+                    )}
                     <View className="flex-1 ml-4">
                       <View className="flex-row justify-between items-center mb-1">
-                        <Text className="font-black text-sm" style={{ color: textColor }}>{participantName}</Text>
+                        <Text className="font-black text-sm" style={{ color: textColor }}>{displayName}</Text>
                         <Text className="text-[10px] font-bold text-gray-400">{lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</Text>
                       </View>
                       <Text className="text-xs font-medium" style={{ color: subTextColor }} numberOfLines={1}>
-                        {lastMsg ? lastMsg.body : "No messages yet"}
+                        {lastMsg
+                          ? (isGroup && lastMsg.sender ? `${lastMsg.sender.fullName}: ${lastMsg.body}` : lastMsg.body)
+                          : "No messages yet"}
                       </Text>
                     </View>
                   </TouchableOpacity>
