@@ -1,0 +1,149 @@
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { theme } from "@/constants/theme";
+import { useUser } from "@/store/UserContext";
+import { authService } from "@/services/api";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import ImageCarousel from "@/components/ImageCarousel";
+
+const { width } = Dimensions.get("window");
+
+function PostItem({ post, themeColors, userId, toggleLike, router }: any) {
+  const isLiked = post.reactions?.some((r: any) => r.userId === userId);
+  const likeCount = post._count?.reactions ?? post.reactions?.length ?? 0;
+  const commentCount = post._count?.comments ?? 0;
+  const hasMedia = post.media && post.media.length > 0;
+
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: themeColors.border }}>
+      {/* Author */}
+      <View className="flex-row items-center px-4 py-3">
+        <Image source={{ uri: getAvatarUrl(post.author?.avatarUrl, post.author?.fullName) }} className="w-9 h-9 rounded-full" />
+        <View className="ml-3 flex-1">
+          <Text className="font-black text-sm" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
+          <Text className="text-[10px] text-gray-400">{new Date(post.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</Text>
+        </View>
+      </View>
+
+      {/* Media */}
+      {hasMedia && (
+        post.media.length === 1 ? (
+          <Image source={{ uri: getImageUrl(post.media[0].url) }} style={{ width, height: width }} resizeMode="cover" />
+        ) : (
+          <ImageCarousel images={post.media.map((m: any) => ({ url: getImageUrl(m.url) }))} />
+        )
+      )}
+
+      {/* Content */}
+      {post.content ? (
+        <View className="px-4 py-3">
+          <Text className="text-sm leading-6" style={{ color: themeColors.text }}>{post.content}</Text>
+        </View>
+      ) : <View className="py-2" />}
+
+      {/* Actions */}
+      <View className="flex-row items-center px-4 pb-4 gap-5">
+        <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center gap-1.5">
+          <Ionicons name={isLiked ? "heart" : "heart-outline"} size={22} color={isLiked ? "#EC4899" : themeColors.subText} />
+          <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{likeCount}</Text>
+        </TouchableOpacity>
+        <View className="flex-row items-center gap-1.5">
+          <Ionicons name="chatbubble-outline" size={20} color={themeColors.subText} />
+          <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{commentCount}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export default function PostDetailScreen() {
+  const router = useRouter();
+  const { postId, userId: profileUserId } = useLocalSearchParams<{ postId: string; userId: string }>();
+  const { themeColors, userId, toggleLike } = useUser();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (!profileUserId) return;
+    authService.getProfile(profileUserId)
+      .then(data => {
+        const userPosts: any[] = data.authoredPosts ?? [];
+        // inject author info จาก profile เข้าไปในแต่ละโพสต์
+        const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
+        const sorted = [...userPosts]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map(p => ({ ...p, author: p.author ?? author }));
+        setPosts(sorted);
+      })
+      .finally(() => setLoading(false));
+  }, [profileUserId]);
+
+  // scroll ไปยังโพสต์ที่กด
+  useEffect(() => {
+    if (posts.length === 0 || !postId) return;
+    const index = posts.findIndex(p => p.id === postId);
+    if (index > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index, animated: false });
+      }, 100);
+    }
+  }, [posts, postId]);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: themeColors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <StatusBar barStyle={themeColors.statusBar as any} />
+      <SafeAreaView edges={["top"]} className="flex-1">
+        {/* Header */}
+        <View className="flex-row items-center px-6 py-4 border-b" style={{ borderBottomColor: themeColors.border }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-10 h-10 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: themeColors.card }}
+          >
+            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
+          </TouchableOpacity>
+          <Text className="ml-4 font-black text-lg" style={{ color: themeColors.text }}>Posts</Text>
+        </View>
+
+        <FlatList
+          ref={flatListRef}
+          data={posts}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <PostItem
+              post={item}
+              themeColors={themeColors}
+              userId={userId}
+              toggleLike={toggleLike}
+              router={router}
+            />
+          )}
+          onScrollToIndexFailed={info => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+            }, 300);
+          }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View className="items-center justify-center py-20">
+              <Ionicons name="images-outline" size={48} color={themeColors.subText} />
+              <Text className="font-bold mt-4" style={{ color: themeColors.subText }}>No posts</Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
+    </View>
+  );
+}
