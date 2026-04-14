@@ -37,7 +37,6 @@ interface UserContextType {
   notifications: boolean;
   setNotifications: (val: boolean) => void;
   notificationList: any[];
-  addNotification: (notif: any) => void;
   isAdmin: boolean;
   isUniAdmin: boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
@@ -47,8 +46,7 @@ interface UserContextType {
   addPost: (postData: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, data: any) => Promise<void>;
-  toggleLike: (postId: string) => void;
-  addComment: (postId: string, commentText: string, parentId?: string) => void;
+  toggleLike: (postId: string, reaction?: string) => void;
   refreshPosts: () => Promise<void>;
   isRefreshing: boolean;
   conversations: Conversation[];
@@ -269,13 +267,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try { await postService.toggleLike(postId, userId, reaction); } catch (e) { fetchPosts(); }
   };
 
-  const addComment = async (postId: string, commentText: string, parentId?: string) => {
-    try {
-      await postService.addComment(postId, userId, commentText, parentId);
-      fetchPosts();
-    } catch (e) { console.error(e); }
-  };
-
   const sendMessage = async (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => {
     try {
       await chatService.sendMessage(convoId, userId, body, attachmentUrl, attachmentType);
@@ -317,8 +308,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     <UserContext.Provider value={{ 
       userId, user, setUser, faculty, setFaculty, name, setName, bio, setBio,
       profileImage, setProfileImage, isDarkMode, toggleTheme: () => setIsDarkMode(!isDarkMode), themeColors,
-      notifications, setNotifications, notificationList, addNotification: (n) => setNotificationList(prev => [n, ...prev]),
-      isAdmin, isUniAdmin, login, signUp: async (data) => authService.signUp(data), logout, 
+      notifications, setNotifications, notificationList,
+      isAdmin, isUniAdmin, login, signUp: async (data) => authService.signUp(data), logout,
       posts, addPost: async (data) => {
         const rawImages: string[] = Array.isArray(data.images) ? data.images : [];
         const uploadedImages = await Promise.all(
@@ -329,7 +320,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       },
       deletePost: async (id) => { await postService.deletePost(id); setPosts(prev => prev.filter(p => p.id !== id)); },
       updatePost: async (id, data) => { const p = await postService.updatePost(id, data); setPosts(prev => prev.map(old => old.id === id ? p : old)); },
-      toggleLike, addComment, refreshPosts: async () => { setIsRefreshing(true); await fetchPosts(); setIsRefreshing(false); }, 
+      toggleLike, refreshPosts: async () => { setIsRefreshing(true); await fetchPosts(); setIsRefreshing(false); }, 
       isRefreshing, conversations, sendMessage, syncProfile: async () => { fetchPosts(); }, updateProfile,
       followingIds, toggleFollow, getDirectChat: async (tid) => { const c = await chatService.getOrCreateDirectChat(userId, tid); fetchChats(userId); return c; },
       unreadChatCount, unreadNotificationCount,

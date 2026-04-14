@@ -235,9 +235,10 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <View className="flex-row flex-wrap px-4 pt-2 pb-20">
-          {activeTab === "posts" ? (
-            userPosts.length === 0 ? (
+        {/* Posts tab — always mounted, hidden when inactive */}
+        <View style={{ display: activeTab === "posts" ? "flex" : "none" }}>
+          <View className="flex-row flex-wrap px-4 pt-2 pb-20">
+            {userPosts.length === 0 ? (
               <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
                 <Ionicons name="images-outline" size={40} color={themeColors.subText} />
                 <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No public posts</Text>
@@ -255,9 +256,14 @@ export default function UserProfileScreen() {
                   </View>
                 </TouchableOpacity>
               ))
-            )
-          ) : (
-            reposts.length === 0 ? (
+            )}
+          </View>
+        </View>
+
+        {/* Reposts tab — always mounted, hidden when inactive */}
+        <View style={{ display: activeTab === "reposts" ? "flex" : "none" }}>
+          <View className="flex-row flex-wrap px-4 pt-2 pb-20">
+            {reposts.length === 0 ? (
               <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
                 <Ionicons name="repeat" size={40} color={themeColors.subText} />
                 <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No reposts yet</Text>
@@ -266,7 +272,7 @@ export default function UserProfileScreen() {
               reposts.map((share) => {
                 const post = share.post;
                 return (
-                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id, single: "true" } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                     <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
                       <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                       <View className="absolute top-2 right-2 rounded-full p-1" style={{ backgroundColor: "#10B981" }}>
@@ -281,8 +287,8 @@ export default function UserProfileScreen() {
                   </TouchableOpacity>
                 );
               })
-            )
-          )}
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
