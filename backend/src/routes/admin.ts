@@ -10,20 +10,20 @@ adminRouter.get('/dashboard', async (_req: Request, res: Response) => {
       totalUsers,
       activeUsers,
       suspendedUsers,
+      bannedUsers,
       totalPosts,
       totalGroups,
       totalAnnouncements,
       openReports,
-      totalMessages,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
       prisma.user.count({ where: { status: 'SUSPENDED' } }),
+      prisma.user.count({ where: { bannedUntil: { gt: new Date() } } }),
       prisma.post.count({ where: { deletedAt: null } }),
       prisma.group.count({ where: { deletedAt: null } }),
       prisma.universityAnnouncement.count({ where: { status: 'PUBLISHED' } }),
       prisma.report.count({ where: { status: { in: ['OPEN', 'IN_REVIEW'] } } }),
-      prisma.message.count({ where: { deletedAt: null } }),
     ]);
 
     // Posts ใน 7 วันล่าสุด (รายวัน)
@@ -52,12 +52,11 @@ adminRouter.get('/dashboard', async (_req: Request, res: Response) => {
     };
 
     return res.json({
-      users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers },
+      users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers, banned: bannedUsers },
       posts: { total: totalPosts },
       groups: { total: totalGroups },
       announcements: { published: totalAnnouncements },
       reports: { open: openReports },
-      messages: { total: totalMessages },
       charts: {
         postsPerDay: groupByDay(recentPosts),
         loginsPerDay: groupByDay(recentLogins),
@@ -219,6 +218,69 @@ adminRouter.put('/settings/:key', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to update system setting:', error);
     return res.status(500).json({ error: 'Failed to update system setting' });
+  }
+});
+
+// POST /admin/users/:userId/ban — แบน user เป็นเวลา X วัน (0 = unban)
+adminRouter.post('/users/:userId/ban', async (req: Request, res: Response) => {
+  const userId = typeof req.params.userId === 'string' ? req.params.userId : null;
+  const { days, actorId } = req.body;
+
+  if (!userId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  if (typeof actorId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actorId)) {
+    return res.status(400).json({ message: 'A valid actorId is required' });
+  }
+
+  const banDays = typeof days === 'number' ? days : parseInt(days, 10);
+  if (isNaN(banDays) || banDays < 0) {
+    return res.status(400).json({ message: 'days must be a non-negative number' });
+  }
+
+  try {
+    const [actor, target] = await Promise.all([
+      prisma.user.findUnique({ where: { id: actorId }, select: { id: true, role: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } }),
+    ]);
+
+    if (!actor || (actor.role !== 'ADMIN' && actor.role !== 'SUPER_ADMIN')) {
+      return res.status(403).json({ message: 'Only admins can ban users' });
+    }
+
+    if (!target) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (target.role === 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Cannot ban a SUPER_ADMIN' });
+    }
+
+    const bannedUntil = banDays === 0 ? null : new Date(Date.now() + banDays * 24 * 60 * 60 * 1000);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { bannedUntil },
+      select: {
+        id: true, fullName: true, username: true, role: true, status: true, bannedUntil: true,
+      },
+    });
+
+    await prisma.adminAuditLog.create({
+      data: {
+        actorId,
+        action: banDays === 0 ? 'UNBAN_USER' : `BAN_USER_${banDays}D`,
+        entityType: 'User',
+        entityId: userId,
+        detail: { days: banDays, bannedUntil },
+      },
+    });
+
+    return res.json({ message: banDays === 0 ? 'User unbanned' : `User banned for ${banDays} days`, user: updatedUser });
+  } catch (error) {
+    console.error('Failed to ban user:', error);
+    return res.status(500).json({ message: 'Failed to ban user' });
   }
 });
 

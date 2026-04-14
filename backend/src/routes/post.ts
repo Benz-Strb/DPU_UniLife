@@ -22,6 +22,7 @@ const upload = multer({ storage });
 const postAuthorSelect = {
   id: true,
   fullName: true,
+  username: true,
   avatarUrl: true,
   role: true,
 } as const;
@@ -356,7 +357,7 @@ postRouter.post('/', async (req: Request, res: Response) => {
     const [author, group] = await Promise.all([
       prisma.user.findUnique({
         where: { id: authorId },
-        select: { id: true },
+        select: { id: true, bannedUntil: true },
       }),
       groupId
         ? prisma.group.findFirst({
@@ -371,6 +372,10 @@ postRouter.post('/', async (req: Request, res: Response) => {
 
     if (!author) {
       return res.status(404).json({ error: 'Author not found' });
+    }
+
+    if (author.bannedUntil && new Date(author.bannedUntil) > new Date()) {
+      return res.status(403).json({ error: 'Your account is temporarily banned', bannedUntil: author.bannedUntil });
     }
 
     if (groupId && !group) {

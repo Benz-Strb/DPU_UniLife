@@ -125,6 +125,7 @@ model User {
   role                 UserRole                  @default(STUDENT)
   faculty              String?
   status               UserStatus                @default(PENDING)
+  bannedUntil          DateTime?
   isVerified           Boolean                   @default(false)
   verifiedAt           DateTime?
   lastLoginAt          DateTime?
