@@ -83,8 +83,8 @@ const FACULTY_LIST = Object.entries(FACULTY_DATA).map(([id, name]) => {
       IconComponent = FontAwesome5;
       iconColor = '#84CC16'; // สีเขียวมะนาว (วิทยาลัยเฮลท์ แอนด์ เวลเนส)
       break;
-    case 'DPUIC': 
-      iconName = 'globe-americas'; 
+    case 'IC':
+      iconName = 'globe-americas';
       IconComponent = FontAwesome5;
       iconColor = '#6366F1'; // สีม่วงฟ้า (วิทยาลัยนานาชาติ)
       break;
