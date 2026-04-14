@@ -18,8 +18,8 @@ export default function Login({ onLogin }: LoginProps) {
     try {
       const data = await authService.login(studentId, password);
       const user = data.user;
-      if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-        setError("Access denied: Admins only");
+      if (user.role !== "SUPER_ADMIN") {
+        setError("Access denied: Super Admin only");
         return;
       }
       onLogin(user);

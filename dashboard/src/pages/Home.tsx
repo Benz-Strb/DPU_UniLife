@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2, ArrowRight } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2, ShieldCheck, ArrowRight } from "lucide-react";
 
 const sections = [
   {
@@ -17,6 +17,15 @@ const sections = [
     description: "จัดการผู้ใช้งาน ระงับบัญชี และดูข้อมูลสมาชิก",
     color: "from-blue-600 to-blue-800",
     iconBg: "bg-blue-500/20",
+    size: "col-span-1 row-span-1",
+  },
+  {
+    id: "admins",
+    icon: ShieldCheck,
+    label: "Admin Management",
+    description: "เพิ่ม/ลบ Admin และจัดการสิทธิ์",
+    color: "from-violet-700 to-indigo-800",
+    iconBg: "bg-violet-500/20",
     size: "col-span-1 row-span-1",
   },
   {
@@ -53,8 +62,7 @@ const sections = [
     description: "ตั้งค่าระบบ maintenance mode และ config",
     color: "from-slate-600 to-slate-800",
     iconBg: "bg-slate-500/20",
-    size: "col-span-2 row-span-1",
-    superAdminOnly: true,
+    size: "col-span-1 row-span-1",
   },
 ];
 
@@ -64,17 +72,16 @@ interface HomeProps {
 }
 
 export default function Home({ onNavigate, user }: HomeProps) {
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
-  const visible = sections.filter((s: any) => !s.superAdminOnly || isSuperAdmin);
+  const visible = sections;
 
   return (
     <div className="p-8 h-full">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-white">Welcome back, {user?.fullName?.split(" ")[0]} 👋</h1>
+        <h1 className="text-2xl font-black text-white">Welcome, {user?.fullName?.split(" ")[0]}</h1>
         <p className="text-slate-400 text-sm mt-1">เลือก section ที่ต้องการจัดการ</p>
       </div>
 
-      <div className="grid grid-cols-4 grid-rows-3 gap-4 h-[calc(100%-5rem)]">
+      <div className="grid grid-cols-4 auto-rows-[160px] gap-4">
         {visible.map((section: any) => {
           const Icon = section.icon;
           return (

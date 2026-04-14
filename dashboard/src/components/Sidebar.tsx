@@ -1,12 +1,13 @@
-import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2 } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2, ShieldCheck } from "lucide-react";
 
 const navItems = [
   { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { id: "users", icon: Users, label: "Users" },
+  { id: "admins", icon: ShieldCheck, label: "Admin Management" },
   { id: "posts", icon: FileText, label: "Posts" },
   { id: "reports", icon: Flag, label: "Reports" },
   { id: "logs", icon: ScrollText, label: "Logs" },
-  { id: "settings", icon: Settings2, label: "Settings", superAdminOnly: true },
+  { id: "settings", icon: Settings2, label: "Settings" },
 ];
 
 interface SidebarProps {
@@ -15,13 +16,11 @@ interface SidebarProps {
   user: any;
 }
 
-export default function Sidebar({ page, onNavigate, user }: SidebarProps) {
-  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+export default function Sidebar({ page, onNavigate }: SidebarProps) {
 
   return (
     <aside className="w-16 h-full bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-1">
       {navItems
-        .filter((item: any) => !item.superAdminOnly || isSuperAdmin)
         .map(({ id, icon: Icon, label }) => {
           const isActive = page === id;
           return (

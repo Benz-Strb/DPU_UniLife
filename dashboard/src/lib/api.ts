@@ -17,10 +17,14 @@ export const authService = {
 export const adminService = {
   getDashboard: () =>
     API.get("/admin/dashboard").then(r => r.data),
-  getUsers: (params?: { page?: number; limit?: number; search?: string }) =>
+  getUsers: (params?: { page?: number; limit?: number; q?: string; role?: string }) =>
     API.get("/auth/users", { params }).then(r => r.data),
   updateUserStatus: (userId: string, status: string, actorId: string) =>
     API.patch(`/auth/users/${userId}/status`, { status, actorId }).then(r => r.data),
+  updateUserRole: (userId: string, role: string, actorId: string) =>
+    API.patch(`/auth/users/${userId}/role`, { role, actorId }).then(r => r.data),
+  banUser: (userId: string, days: number, actorId: string) =>
+    API.post(`/admin/users/${userId}/ban`, { days, actorId }).then(r => r.data),
   getLoginLogs: (params?: { page?: number; limit?: number }) =>
     API.get("/admin/logs/login", { params }).then(r => r.data),
 };

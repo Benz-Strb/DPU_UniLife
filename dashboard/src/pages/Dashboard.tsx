@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, FileText, Flag, MessageSquare, TrendingUp } from "lucide-react";
+import { Users, FileText, Flag, ShieldAlert, TrendingUp } from "lucide-react";
 import { adminService } from "../lib/api";
 
 function StatCard({ label, value, sub, icon: Icon, color }: any) {
@@ -63,10 +63,11 @@ export default function Dashboard() {
           color="bg-red-600"
         />
         <StatCard
-          label="Messages"
-          value={stats?.messages?.total}
-          icon={MessageSquare}
-          color="bg-emerald-600"
+          label="Banned Users"
+          value={stats?.users?.banned ?? 0}
+          sub="active temp bans"
+          icon={ShieldAlert}
+          color="bg-orange-600"
         />
       </div>
 

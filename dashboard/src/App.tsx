@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
+import Admins from "./pages/Admins";
 import Posts from "./pages/Posts";
 import Reports from "./pages/Reports";
 import Logs from "./pages/Logs";
@@ -37,7 +38,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
-    setPage("dashboard");
+    setPage("home");
   };
 
   if (!user) return <Login onLogin={handleLogin} />;
@@ -47,6 +48,7 @@ export default function App() {
       case "home": return <Home onNavigate={setPage} user={user} />;
       case "dashboard": return <Dashboard />;
       case "users": return <Users currentUser={user} />;
+      case "admins": return <Admins currentUser={user} />;
       case "posts": return <Posts currentUser={user} />;
       case "reports": return <Reports currentUser={user} />;
       case "logs": return <Logs />;
