@@ -21,6 +21,7 @@ export default function TabsLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         animation: "fade",
+        sceneContainerStyle: { backgroundColor: themeColors.background },
         tabBarStyle: {
           backgroundColor: themeColors.tabBar,
           borderTopWidth: 1,
