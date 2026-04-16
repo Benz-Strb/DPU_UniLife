@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService, postService } from "@/services/api";
@@ -112,6 +112,7 @@ export default function PostDetailScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       <SafeAreaView edges={["top"]} className="flex-1">
         {/* Header */}

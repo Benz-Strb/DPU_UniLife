@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
@@ -105,6 +105,7 @@ export default function ChatDetailScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <View className="flex-row items-center px-4 py-3 border-b" style={{ borderBottomColor: isDarkMode ? "#333" : "#F3F4F6" }}>
         <TouchableOpacity onPress={() => router.back()} className="p-1">
           <Ionicons name="chevron-back" size={28} color={textColor} />
