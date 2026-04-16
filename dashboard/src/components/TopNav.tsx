@@ -25,13 +25,13 @@ export default function TopNav({ page, user, isDark, onToggleTheme, onLogout, on
 
   return (
     <header className="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-5 shrink-0">
-      {/* Left */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={onHome}>
-          <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow shadow-violet-600/30">
-            <span className="text-white font-black text-[11px]">D</span>
+          <div className="text-center">
+            <h1 className="text-3xl font-black tracking-normal bg-clip-text text-transparent bg-linear-to-r from-violet-400 via-fuchsia-400 to-violet-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.3)]">
+              DPU UniLife
+            </h1>
           </div>
-          <span className="text-white font-black text-sm">DPU UniLife</span>
         </div>
 
         {!isHome && (
