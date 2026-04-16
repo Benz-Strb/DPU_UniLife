@@ -135,6 +135,16 @@ export const authService = {
       throw e;
     }
   },
+  getSuggestedUsers: async (limit = 30): Promise<any[]> => {
+    try {
+      const response = await API.get("/auth/users", { params: { limit, role: "STUDENT" } });
+      const users: any[] = response.data.users ?? response.data ?? [];
+      // สุ่มลำดับ
+      return users.sort(() => Math.random() - 0.5);
+    } catch (e) {
+      return [];
+    }
+  },
   getAdmins: async (query: { faculty?: string; role?: string }) => {
     try {
       const response = await API.get("/auth/admins", { params: query });

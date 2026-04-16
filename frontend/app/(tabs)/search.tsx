@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
-import { searchService } from "@/services/api";
+import { searchService, authService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
@@ -103,6 +103,7 @@ export default function SearchScreen() {
   const { themeColors, isDarkMode, userId } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [history, setHistory] = useState<{ keyword: string; searchedAt: string }[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +117,10 @@ export default function SearchScreen() {
   useEffect(() => {
     if (userId) searchService.getHistory(userId).then(setHistory);
   }, [userId]);
+
+  useEffect(() => {
+    authService.getSuggestedUsers(30).then(setSuggestedUsers);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -148,7 +153,7 @@ export default function SearchScreen() {
     setHistory([]);
   };
 
-  const filteredUsers = searchResults.users;
+  const filteredUsers = searchQuery.trim() ? searchResults.users : suggestedUsers;
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
@@ -233,11 +238,13 @@ export default function SearchScreen() {
             <View className="flex-row items-center justify-between mb-8">
               <View className="flex-row items-center">
                 <View className="w-2 h-6 rounded-full bg-violet-500 mr-3" />
-                <Text className="font-black text-xl tracking-tight" style={{ color: themeColors.text }}>Community Members</Text>
+                <Text className="font-black text-xl tracking-tight" style={{ color: themeColors.text }}>
+                  {searchQuery.trim() ? "ผลการค้นหา" : "แนะนำสำหรับคุณ"}
+                </Text>
               </View>
               {isSearching
                 ? <ActivityIndicator size="small" color={theme.colors.primary} />
-                : <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} Results</Text>
+                : <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filteredUsers.length} คน</Text>
               }
             </View>
 
