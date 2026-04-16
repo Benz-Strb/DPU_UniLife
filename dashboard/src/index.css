@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+/* ========== LIGHT MODE OVERRIDES ========== */
+[data-theme="light"] {
+  /* Flip slate backgrounds: dark → light */
+  --color-slate-950: #f8fafc;
+  --color-slate-900: #f1f5f9;
+  --color-slate-800: #e2e8f0;
+  --color-slate-700: #cbd5e1;
+
+  /* Flip slate text: light → dark */
+  --color-slate-600: #334155;
+  --color-slate-500: #475569;
+  --color-slate-400: #1e293b;
+  --color-slate-300: #0f172a;
+}
+
+/* text-white → near-black */
+[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+
+/* borders */
+[data-theme="light"] .border-slate-800 {
+  border-color: #cbd5e1 !important;
+}
+[data-theme="light"] .border-slate-700 {
+  border-color: #94a3b8 !important;
+}
+
+/* role/status badge backgrounds that use slate-700 */
+[data-theme="light"] .bg-slate-700 {
+  background-color: #e2e8f0 !important;
+}
+
+/* inputs */
+[data-theme="light"] input {
+  color: #0f172a;
+}
+[data-theme="light"] input::placeholder {
+  color: #94a3b8;
+}
+
+/* hover rows */
+[data-theme="light"] .hover\:bg-slate-800\/50:hover {
+  background-color: #e2e8f0 !important;
+}

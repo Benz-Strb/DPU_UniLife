@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image, StatusBar, Modal, Dimensions, PanResponder } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import * as ImagePicker from 'expo-image-picker';
@@ -10,8 +10,9 @@ import { manipulateAsync } from "expo-image-manipulator";
 import { FACULTY_DATA } from "@/constants/data";
 
 const FACULTIES = ["DPU", ...Object.keys(FACULTY_DATA)];
-const { width: screenWidth } = Dimensions.get("window");
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const CROP_FRAME_SIZE = screenWidth - 48;
+const MAX_CROP_HEIGHT = screenHeight * 0.62;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
@@ -19,6 +20,7 @@ const MAX_IMAGES = 10;
 
 export default function NewPostScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tag: string; editPostId?: string; editContent?: string; editVisibility?: string }>();
   const isEditMode = !!params.editPostId;
   const { isDarkMode, faculty, addPost, updatePost, userId, isAdmin, isUniAdmin, themeColors } = useUser();
@@ -46,8 +48,14 @@ export default function NewPostScreen() {
     return availableTags[0] || "DPU";
   }, [params.tag, isUniAdmin, faculty, availableTags]);
 
-  const [selectedTag, setSelectedTag] = useState(initialTag);
+  const [selectedTags, setSelectedTags] = useState<string[]>([initialTag]);
   const [showTagPicker, setShowTagPicker] = useState(false);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? (prev.length > 1 ? prev.filter(t => t !== tag) : prev) : [...prev, tag]
+    );
+  };
   const [visibility, setVisibility] = useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE">((params.editVisibility as any) ?? "PUBLIC");
   const [loading, setLoading] = useState(false);
 
@@ -87,7 +95,8 @@ export default function NewPostScreen() {
         userId,
         content,
         images: selectedImages,
-        tag: selectedTag,
+        tag: selectedTags[0],
+        tags: selectedTags,
         isOfficial,
         visibility,
       });
@@ -125,7 +134,8 @@ export default function NewPostScreen() {
   // Crop helpers
   const getBaseCropScale = useCallback(() => {
     if (!imageSize) return 1;
-    return Math.max(CROP_FRAME_SIZE / imageSize.width, CROP_FRAME_SIZE / imageSize.height);
+    // fit image width to frame — height follows naturally
+    return CROP_FRAME_SIZE / imageSize.width;
   }, [imageSize]);
 
   const getDisplayedCropSize = useCallback((zoom = cropScale) => {
@@ -136,10 +146,11 @@ export default function NewPostScreen() {
 
   const clampCropOffset = useCallback((offset: { x: number; y: number }, zoom = cropScale) => {
     const d = getDisplayedCropSize(zoom);
+    const frameH = imageSize ? Math.min(MAX_CROP_HEIGHT, Math.round(CROP_FRAME_SIZE * (imageSize.height / imageSize.width))) : CROP_FRAME_SIZE;
     const maxX = Math.max(0, (d.width - CROP_FRAME_SIZE) / 2);
-    const maxY = Math.max(0, (d.height - CROP_FRAME_SIZE) / 2);
+    const maxY = Math.max(0, (d.height - frameH) / 2);
     return { x: Math.min(maxX, Math.max(-maxX, offset.x)), y: Math.min(maxY, Math.max(-maxY, offset.y)) };
-  }, [cropScale, getDisplayedCropSize]);
+  }, [cropScale, getDisplayedCropSize, imageSize]);
 
   const openCropEditor = (index: number) => {
     const uri = selectedImages[index];
@@ -160,10 +171,11 @@ export default function NewPostScreen() {
       const baseScale = getBaseCropScale();
       const totalScale = baseScale * cropScale;
       const d = getDisplayedCropSize();
+      const frameH = Math.min(MAX_CROP_HEIGHT, Math.round(CROP_FRAME_SIZE * (imageSize.height / imageSize.width)));
       const cropW = CROP_FRAME_SIZE / totalScale;
-      const cropH = CROP_FRAME_SIZE / totalScale;
+      const cropH = frameH / totalScale;
       const originX = ((d.width - CROP_FRAME_SIZE) / 2 - cropOffset.x) / totalScale;
-      const originY = ((d.height - CROP_FRAME_SIZE) / 2 - cropOffset.y) / totalScale;
+      const originY = ((d.height - frameH) / 2 - cropOffset.y) / totalScale;
       const result = await manipulateAsync(
         selectedImages[cropTargetIndex],
         [{ crop: { originX: Math.max(0, originX), originY: Math.max(0, originY), width: Math.min(imageSize.width, cropW), height: Math.min(imageSize.height, cropH) } }],
@@ -206,10 +218,14 @@ export default function NewPostScreen() {
   }), [clampCropOffset]);
 
   const cropDisplaySize = getDisplayedCropSize();
+  const cropFrameHeight = imageSize
+    ? Math.min(screenWidth - 48, Math.round((screenWidth - 48) * (imageSize.height / imageSize.width)))
+    : screenWidth - 48;
   const canPost = isEditMode ? content.trim().length > 0 : (selectedImages.length > 0 || content.trim().length > 0);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       {/* Header */}
@@ -232,16 +248,10 @@ export default function NewPostScreen() {
         {/* Image section */}
         {!isEditMode && (
           <View className="mb-5">
-            <View className="flex-row items-center justify-between mb-3">
+            <View className="mb-3">
               <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: themeColors.subText }}>
                 Photos ({selectedImages.length}/{MAX_IMAGES})
               </Text>
-              {selectedImages.length < MAX_IMAGES && (
-                <TouchableOpacity onPress={pickImages} className="flex-row items-center gap-1 bg-violet-50 px-3 py-1.5 rounded-xl">
-                  <Feather name="plus" size={13} color={theme.colors.primary} />
-                  <Text className="text-violet-500 font-black text-[11px]">Add</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {selectedImages.length === 0 ? (
@@ -309,25 +319,33 @@ export default function NewPostScreen() {
             <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3" style={{ color: themeColors.subText }}>Tag</Text>
             <TouchableOpacity
               onPress={() => setShowTagPicker(!showTagPicker)}
-              className="bg-violet-50 px-5 py-3 rounded-2xl border border-violet-100 flex-row justify-between items-center"
+              className="flex-row flex-wrap items-center gap-1 min-h-[44px] px-3 py-2 rounded-2xl border"
+              style={{ borderColor: themeColors.border, backgroundColor: isDarkMode ? "#1E1E1E" : "#F9FAFB" }}
             >
-              <Text className="text-violet-500 font-bold text-xs uppercase">#{selectedTag}</Text>
+              {selectedTags.map(t => (
+                <View key={t} className="bg-violet-500 px-3 py-1 rounded-full">
+                  <Text className="text-white font-bold text-[10px] uppercase">#{t}</Text>
+                </View>
+              ))}
               <Ionicons name={showTagPicker ? "chevron-up" : "chevron-down"} size={16} color={theme.colors.primary} />
             </TouchableOpacity>
             {showTagPicker && (
               <View className="mt-2 p-2 rounded-2xl border flex-row flex-wrap" style={{ borderColor: themeColors.border }}>
-                {availableTags.map((tag) => (
-                  <TouchableOpacity
-                    key={tag}
-                    onPress={() => { setSelectedTag(tag); setShowTagPicker(false); }}
-                    className={`px-4 py-2 rounded-full m-1 border ${selectedTag === tag ? "bg-violet-500 border-violet-500" : "border-gray-100"}`}
-                    style={selectedTag === tag ? {} : { backgroundColor: isDarkMode ? "#2D2D2D" : "#F9FAFB", borderColor: themeColors.border }}
-                  >
-                    <Text className={`text-[10px] font-bold ${selectedTag === tag ? "text-white" : ""}`} style={selectedTag === tag ? {} : { color: themeColors.subText }}>
-                      #{tag}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {availableTags.map((tag) => {
+                  const active = selectedTags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      onPress={() => toggleTag(tag)}
+                      className={`px-4 py-2 rounded-full m-1 border`}
+                      style={{ backgroundColor: active ? theme.colors.primary : (isDarkMode ? "#2D2D2D" : "#F9FAFB"), borderColor: active ? theme.colors.primary : themeColors.border }}
+                    >
+                      <Text className="text-[10px] font-bold" style={{ color: active ? "white" : themeColors.subText }}>
+                        #{tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
           </View>
@@ -374,8 +392,8 @@ export default function NewPostScreen() {
       {/* Crop Modal */}
       <Modal visible={showCropModal} transparent animationType="slide" onRequestClose={() => setShowCropModal(false)}>
         <View className="flex-1 bg-black">
-          <SafeAreaView className="flex-1">
-            <View className="flex-row items-center justify-between px-6 py-4">
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center justify-between px-6 py-4" style={{ paddingTop: insets.top + 12 }}>
               <TouchableOpacity onPress={() => setShowCropModal(false)} className="px-4 py-2 rounded-full bg-white/10">
                 <Text className="text-white font-bold">Cancel</Text>
               </TouchableOpacity>
@@ -388,19 +406,21 @@ export default function NewPostScreen() {
             </View>
 
             <View className="flex-1 items-center justify-center px-6">
-              <View className="overflow-hidden rounded-[28px] bg-black" style={{ width: CROP_FRAME_SIZE, height: CROP_FRAME_SIZE }}>
+              <View
+                {...panResponder.panHandlers}
+                className="overflow-hidden rounded-[28px] bg-black"
+                style={{ width: CROP_FRAME_SIZE, height: cropFrameHeight }}
+              >
                 {cropTargetIndex !== null && imageSize ? (
-                  <View className="flex-1 items-center justify-center" {...panResponder.panHandlers}>
-                    <Image
-                      source={{ uri: selectedImages[cropTargetIndex] }}
-                      style={{
-                        width: cropDisplaySize.width,
-                        height: cropDisplaySize.height,
-                        transform: [{ translateX: cropOffset.x }, { translateY: cropOffset.y }],
-                      }}
-                      resizeMode="cover"
-                    />
-                  </View>
+                  <Image
+                    source={{ uri: selectedImages[cropTargetIndex] }}
+                    style={{
+                      width: cropDisplaySize.width,
+                      height: cropDisplaySize.height,
+                      transform: [{ translateX: cropOffset.x }, { translateY: cropOffset.y }],
+                    }}
+                    resizeMode="cover"
+                  />
                 ) : null}
               </View>
               <Text className="text-white/70 text-xs font-bold uppercase tracking-[2px] mt-5">Drag to reposition</Text>
@@ -420,7 +440,7 @@ export default function NewPostScreen() {
               </View>
               <Text className="text-center text-white/60 text-xs">Zoom {cropScale.toFixed(2)}x</Text>
             </View>
-          </SafeAreaView>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>

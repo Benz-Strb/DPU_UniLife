@@ -19,6 +19,7 @@ const safeUserSelect = {
   role: true,
   faculty: true,
   status: true,
+  bannedUntil: true,
   isVerified: true,
   verifiedAt: true,
   lastLoginAt: true,
@@ -233,7 +234,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
 
       return res.status(401).json({
-        message: 'Invalid studentId or password',
+        message: 'User not registered',
       });
     }
 
@@ -249,6 +250,22 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
       return res.status(403).json({
         message: 'This account is not allowed to sign in',
+      });
+    }
+
+    if (user.bannedUntil && new Date(user.bannedUntil) > new Date()) {
+      await logLoginAttempt({
+        userId: user.id,
+        emailInput: studentId,
+        status: LoginStatus.LOCKED,
+        reason: `User is banned until ${user.bannedUntil}`,
+        ipAddress,
+        userAgent,
+      });
+
+      return res.status(403).json({
+        message: 'Your account has been temporarily banned',
+        bannedUntil: user.bannedUntil,
       });
     }
 
@@ -671,6 +688,60 @@ authRouter.patch('/users/:userId/status', async (req: Request, res: Response) =>
   } catch (error) {
     console.error('Failed to update user status:', error);
     return res.status(500).json({ message: 'Failed to update user status' });
+  }
+});
+
+// PATCH /auth/users/:userId/role — promote/demote user role (SUPER_ADMIN only)
+authRouter.patch('/users/:userId/role', async (req: Request, res: Response) => {
+  const userId = typeof req.params.userId === 'string' ? req.params.userId : null;
+  const { role: roleInput, actorId } = req.body;
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ message: 'Invalid user id' });
+  }
+
+  if (typeof actorId !== 'string' || !isUuid(actorId)) {
+    return res.status(400).json({ message: 'A valid actorId is required' });
+  }
+
+  if (typeof roleInput !== 'string' || !(roleInput in UserRole)) {
+    return res.status(400).json({ message: `role must be one of: ${Object.values(UserRole).join(', ')}` });
+  }
+
+  const newRole = roleInput as UserRole;
+
+  try {
+    const [actor, target] = await Promise.all([
+      prisma.user.findUnique({ where: { id: actorId }, select: { id: true, role: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } }),
+    ]);
+
+    if (!actor || actor.role !== UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Only SUPER_ADMIN can change user roles' });
+    }
+
+    if (!target) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (target.role === UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Cannot change role of a SUPER_ADMIN' });
+    }
+
+    if (newRole === UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Cannot promote to SUPER_ADMIN' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: newRole },
+      select: safeUserSelect,
+    });
+
+    return res.json({ message: 'User role updated', user: updatedUser });
+  } catch (error) {
+    console.error('Failed to update user role:', error);
+    return res.status(500).json({ message: 'Failed to update user role' });
   }
 });
 

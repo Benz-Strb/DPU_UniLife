@@ -11,6 +11,10 @@ import {
   TextInput,
 } from "react-native";
 import ImageCarousel from "@/components/ImageCarousel";
+import PostActionBar from "@/components/PostActionBar";
+import InlineComments from "@/components/InlineComments";
+import EmptyState from "@/components/EmptyState";
+import ExpandableText from "@/components/ExpandableText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -56,10 +60,33 @@ export default function HomeScreen() {
   const refreshRef = useRef(refreshPosts);
   refreshRef.current = refreshPosts;
 
+  const [aiFeedPosts, setAiFeedPosts] = useState<any[]>([]);
+  const [aiFeedLoading, setAiFeedLoading] = useState(true);
+  const [aiFeedReady, setAiFeedReady] = useState(false);
+
+  const fetchAIFeed = async () => {
+    if (!userId) return;
+    setAiFeedLoading(true);
+    try {
+      const data = await postService.getAIFeed(userId);
+      setAiFeedPosts(data.filter((p: any) => !p.isOfficial));
+      setAiFeedReady(true);
+    } catch {
+      setAiFeedReady(false);
+    } finally {
+      setAiFeedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAIFeed();
+  }, [userId]);
+
   useEffect(() => {
     const handler = () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       refreshRef.current();
+      fetchAIFeed();
     };
     tabRefreshEmitter.on("home", handler);
     return () => tabRefreshEmitter.off("home", handler);
@@ -68,7 +95,8 @@ export default function HomeScreen() {
   const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
-  const posts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
+  const regularPosts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
+  const posts = aiFeedReady ? aiFeedPosts : regularPosts;
 
   const handlePostOptions = (post: any) => {
     if (post.authorId !== userId) return;
@@ -148,6 +176,11 @@ export default function HomeScreen() {
           <View>
             <Text className="text-3xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>DPU</Text>
             <Text className="text-[8px] font-black uppercase tracking-[3.5px] -mt-1 opacity-40" style={{ color: themeColors.text }}>UNILIFE</Text>
+            {aiFeedLoading ? (
+              <Text className="text-[8px] font-bold text-indigo-400 mt-0.5">✦ AI กำลังจัดเรียง...</Text>
+            ) : aiFeedReady ? (
+              <Text className="text-[8px] font-bold text-indigo-400 mt-0.5">✦ AI จัดเรียงให้แล้ว</Text>
+            ) : null}
           </View>
           <View className="flex-row items-center gap-2">
             <TouchableOpacity onPress={() => router.push("/new-post")} className="w-9 h-9 items-center justify-center rounded-xl bg-indigo-50">
@@ -178,9 +211,8 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />}
         >
           {posts.length === 0 ? (
-            <View className="items-center justify-center py-32 mx-4 mt-6 rounded-[40px] border border-dashed border-gray-100" style={{ backgroundColor: themeColors.card }}>
-              <Ionicons name="planet-outline" size={50} color={theme.colors.primary} />
-              <Text className="text-xl font-black mt-4" style={{ color: themeColors.text }}>Empty Galaxy</Text>
+            <View className="mx-4 mt-6 rounded-[40px] border border-dashed border-gray-100" style={{ backgroundColor: themeColors.card }}>
+              <EmptyState icon="planet-outline" title="Empty Galaxy" themeColors={themeColors} />
             </View>
           ) : (
             posts.map((post) => {
@@ -227,7 +259,6 @@ export default function HomeScreen() {
                           handlePostOptions(post);
                         } else {
                           Alert.alert("Post Options", undefined, [
-                            { text: "View Profile", onPress: () => router.push({ pathname: "/user-profile", params: { userId: post.authorId } }) },
                             { text: "Report", style: "destructive", onPress: () => handleReportPost(post.id) },
                             { text: "Cancel", style: "cancel" },
                           ]);
@@ -252,140 +283,41 @@ export default function HomeScreen() {
                   )}
 
                   {/* Actions row */}
-                  <View className="flex-row items-center px-4 pt-3 pb-2 gap-4">
-                    <TouchableOpacity onPress={() => toggleLike(post.id)} className="flex-row items-center">
-                      <Ionicons
-                        name={isLiked ? "heart" : "heart-outline"}
-                        size={26}
-                        color={isLiked ? "#EF4444" : themeColors.text}
-                      />
-                      <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => toggleComments(post.id)} className="flex-row items-center">
-                      <Feather name="message-circle" size={24} color={activeCommentPostId === post.id ? theme.colors.primary : themeColors.text} />
-                      <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => handleRepost(post.id)}>
-                      <Ionicons
-                        name="repeat"
-                        size={24}
-                        color={repostedIds.has(post.id) ? "#10B981" : themeColors.text}
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  <PostActionBar
+                    isLiked={isLiked}
+                    likeCount={post._count?.reactions || 0}
+                    commentCount={post._count?.comments || 0}
+                    isReposted={repostedIds.has(post.id)}
+                    isCommentActive={activeCommentPostId === post.id}
+                    onLike={() => toggleLike(post.id)}
+                    onToggleComments={() => toggleComments(post.id)}
+                    onRepost={() => handleRepost(post.id)}
+                    themeColors={themeColors}
+                  />
 
                   {/* Caption */}
-                  {post.content && (() => {
-                    const isLong = (post.content?.length ?? 0) > 120 || (post.content?.split("\n").length ?? 0) > 2;
-                    const isExpanded = expandedPosts[post.id];
-                    return (
-                      <View className="px-4 pb-3">
-                        <Text className="text-[13px] leading-[22px]" style={{ color: themeColors.text }} numberOfLines={isExpanded ? undefined : 3}>
-                          <Text className="font-black">{post.author?.fullName} </Text>
-                          {post.content}
-                        </Text>
-                        {isLong && (
-                          <TouchableOpacity onPress={() => setExpandedPosts(prev => ({ ...prev, [post.id]: !prev[post.id] }))}>
-                            <Text className="text-violet-500 font-bold text-[11px] mt-1">
-                              {isExpanded ? "Show less" : "Show more"}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    );
-                  })()}
+                  {post.content && (
+                    <ExpandableText
+                      content={post.content}
+                      authorName={post.author?.fullName}
+                      isExpanded={!!expandedPosts[post.id]}
+                      onToggle={() => setExpandedPosts(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                      themeColors={themeColors}
+                    />
+                  )}
 
                   {/* Inline Comments */}
                   {activeCommentPostId === post.id && (
-                    <View className="px-4 pb-4">
-                      {post.comments && post.comments.length > 0 && (
-                        <View className="mb-3 gap-3">
-                          {post.comments.filter((c: any) => !c.parentId).map((comment: any) => {
-                            const replies = post.comments.filter((r: any) => r.parentId === comment.id);
-                            return (
-                              <View key={comment.id}>
-                                <TouchableOpacity
-                                  className="flex-row items-start"
-                                  onLongPress={() => handleCommentLongPress(post.id, comment)}
-                                  delayLongPress={400}
-                                  activeOpacity={0.85}
-                                >
-                                  <Image
-                                    source={{ uri: getAvatarUrl(comment.author?.avatarUrl, comment.author?.fullName) }}
-                                    className="w-7 h-7 rounded-full mr-2 mt-0.5"
-                                  />
-                                  <View className="flex-1">
-                                    <View className="rounded-2xl px-3 py-2" style={{ backgroundColor: themeColors.iconBg }}>
-                                      <Text className="font-black text-[11px] mb-0.5" style={{ color: themeColors.text }}>{comment.author?.fullName}</Text>
-                                      <Text className="text-[12px] leading-5" style={{ color: themeColors.text }}>{comment.content}</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                      onPress={() => setReplyTo({ postId: post.id, commentId: comment.id, authorName: comment.author?.fullName ?? "User" })}
-                                      className="ml-2 mt-1"
-                                    >
-                                      <Text className="text-[10px] font-bold" style={{ color: themeColors.subText }}>Reply</Text>
-                                    </TouchableOpacity>
-                                  </View>
-                                </TouchableOpacity>
-                                {replies.map((reply: any) => (
-                                  <TouchableOpacity
-                                    key={reply.id}
-                                    className="flex-row items-start ml-9 mt-2"
-                                    onLongPress={() => handleCommentLongPress(post.id, reply)}
-                                    delayLongPress={400}
-                                    activeOpacity={0.85}
-                                  >
-                                    <Image
-                                      source={{ uri: getAvatarUrl(reply.author?.avatarUrl, reply.author?.fullName) }}
-                                      className="w-6 h-6 rounded-full mr-2 mt-0.5"
-                                    />
-                                    <View className="flex-1 rounded-2xl px-3 py-2" style={{ backgroundColor: themeColors.iconBg }}>
-                                      <Text className="font-black text-[10px] mb-0.5" style={{ color: themeColors.text }}>{reply.author?.fullName}</Text>
-                                      <Text className="text-[12px] leading-5" style={{ color: themeColors.text }}>{reply.content}</Text>
-                                    </View>
-                                  </TouchableOpacity>
-                                ))}
-                              </View>
-                            );
-                          })}
-                        </View>
-                      )}
-                      {post.commentsEnabled !== false && (
-                        <View>
-                          {replyTo?.postId === post.id && (
-                            <View className="flex-row items-center mb-2 px-1">
-                              <Text className="text-[11px] font-bold" style={{ color: theme.colors.primary }}>
-                                Replying to @{replyTo.authorName}
-                              </Text>
-                              <TouchableOpacity onPress={() => setReplyTo(null)} className="ml-2">
-                                <Ionicons name="close-circle" size={14} color={themeColors.subText} />
-                              </TouchableOpacity>
-                            </View>
-                          )}
-                          <View className="flex-row items-center gap-2">
-                            <Image source={{ uri: getAvatarUrl(undefined) }} className="w-7 h-7 rounded-full" />
-                            <View className="flex-1 flex-row items-center rounded-full border px-3 py-1.5" style={{ borderColor: themeColors.border, backgroundColor: themeColors.iconBg }}>
-                              <TextInput
-                                value={commentText[post.id] ?? ""}
-                                onChangeText={(t) => setCommentText(prev => ({ ...prev, [post.id]: t }))}
-                                placeholder={replyTo?.postId === post.id ? `Reply to @${replyTo.authorName}...` : "Add a comment..."}
-                                placeholderTextColor={themeColors.subText}
-                                style={{ flex: 1, fontSize: 12, color: themeColors.text }}
-                                returnKeyType="send"
-                                onSubmitEditing={() => sendComment(post.id)}
-                              />
-                              {(commentText[post.id]?.trim().length ?? 0) > 0 && (
-                                <TouchableOpacity onPress={() => sendComment(post.id)}>
-                                  <Text className="text-violet-500 font-black text-[12px] ml-2">Post</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                      )}
-                    </View>
+                    <InlineComments
+                      post={post}
+                      themeColors={themeColors}
+                      replyTo={replyTo}
+                      setReplyTo={setReplyTo}
+                      commentText={commentText}
+                      setCommentText={setCommentText}
+                      sendComment={sendComment}
+                      onCommentLongPress={handleCommentLongPress}
+                    />
                   )}
                 </View>
               );

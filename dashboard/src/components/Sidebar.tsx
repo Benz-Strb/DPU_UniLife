@@ -1,70 +1,50 @@
-import { LayoutDashboard, Users, FileText, Flag, ScrollText, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Flag, ScrollText, Settings2, ShieldCheck } from "lucide-react";
 
 const navItems = [
   { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { id: "users", icon: Users, label: "Users" },
+  { id: "admins", icon: ShieldCheck, label: "Admin Management" },
   { id: "posts", icon: FileText, label: "Posts" },
   { id: "reports", icon: Flag, label: "Reports" },
   { id: "logs", icon: ScrollText, label: "Logs" },
+  { id: "settings", icon: Settings2, label: "Settings" },
 ];
 
 interface SidebarProps {
   page: string;
   onNavigate: (page: string) => void;
   user: any;
-  onLogout: () => void;
 }
 
-export default function Sidebar({ page, onNavigate, user, onLogout }: SidebarProps) {
+export default function Sidebar({ page, onNavigate }: SidebarProps) {
+
   return (
-    <aside className="w-60 h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
-            <span className="text-white font-black text-sm">D</span>
-          </div>
-          <div>
-            <p className="text-white font-black text-sm">DPU UniLife</p>
-            <p className="text-slate-500 text-[10px] uppercase tracking-widest">Admin Panel</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            onClick={() => onNavigate(id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition text-left ${
-              page === id
-                ? "bg-violet-600/20 text-violet-400"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Icon size={18} />
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {/* User */}
-      <div className="px-4 py-4 border-t border-slate-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white text-xs font-bold truncate max-w-[130px]">{user?.fullName}</p>
-            <p className="text-slate-500 text-[10px] uppercase">{user?.role}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="text-slate-500 hover:text-red-400 transition"
-            title="Logout"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </div>
+    <aside className="w-16 h-full bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-1">
+      {navItems
+        .map(({ id, icon: Icon, label }) => {
+          const isActive = page === id;
+          return (
+            <div key={id} className="relative group w-full flex justify-center">
+              <button
+                onClick={() => onNavigate(id)}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150 ${
+                  isActive
+                    ? "bg-violet-600 text-white"
+                    : "text-slate-500 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <Icon size={18} />
+              </button>
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-400 rounded-r-full" />
+              )}
+              {/* Tooltip */}
+              <div className="absolute left-14 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-slate-800 border border-slate-700 text-white text-[11px] font-bold rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl">
+                {label}
+              </div>
+            </div>
+          );
+        })}
     </aside>
   );
 }

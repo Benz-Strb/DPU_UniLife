@@ -1,10 +1,10 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Switch, StatusBar, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { theme } from "@/constants/theme";
+import { useRouter, Stack } from "expo-router";
 import { useUser } from "@/store/UserContext";
+import SettingItem from "@/components/SettingItem";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -25,37 +25,9 @@ export default function SettingsScreen() {
     );
   };
 
-  const SettingItem = ({ icon, label, value, onToggle, type = "switch", onPress }: any) => (
-    <TouchableOpacity
-      onPress={type === "link" ? onPress : undefined}
-      activeOpacity={type === "link" ? 0.7 : 1}
-      className="flex-row items-center justify-between py-5 border-b"
-      style={{ borderBottomColor: themeColors.border }}
-    >
-      <View className="flex-row items-center">
-        <View 
-          className="w-11 h-11 rounded-2xl items-center justify-center mr-4" 
-          style={{ backgroundColor: themeColors.iconBg }}
-        >
-          <Ionicons name={icon} size={22} color={theme.colors.primary} />
-        </View>
-        <Text className="font-bold text-sm" style={{ color: themeColors.text }}>{label}</Text>
-      </View>
-      {type === "switch" ? (
-        <Switch 
-          value={value} 
-          onValueChange={onToggle}
-          trackColor={{ false: "#D1D5DB", true: theme.colors.primaryLight }}
-          thumbColor={value ? theme.colors.primary : "#F4F3F4"}
-        />
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color={themeColors.subText} />
-      )}
-    </TouchableOpacity>
-  );
-
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       
       <SafeAreaView className="flex-1">
@@ -73,97 +45,107 @@ export default function SettingsScreen() {
         <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
           {/* Academic Section */}
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Academic</Text>
-          <View 
-            className="rounded-[35px] px-6 mb-8 border border-white/5" 
+          <View
+            className="rounded-[35px] px-6 mb-8 border border-white/5"
             style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
           >
-            <SettingItem 
-              icon="calendar-outline" 
-              label="Manage Semester Schedule" 
+            <SettingItem
+              icon="calendar-outline"
+              label="Manage Semester Schedule"
               type="link"
               onPress={() => router.push("/add-course")}
+              themeColors={themeColors}
             />
-            <SettingItem 
-              icon="time-outline" 
-              label="View Full Timetable" 
+            <SettingItem
+              icon="time-outline"
+              label="View Full Timetable"
               type="link"
               onPress={() => router.push("/schedule")}
+              themeColors={themeColors}
             />
           </View>
 
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Appearance</Text>
-          <View 
-            className="rounded-[35px] px-6 mb-8 border border-white/5" 
+          <View
+            className="rounded-[35px] px-6 mb-8 border border-white/5"
             style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
           >
-            <SettingItem 
-              icon="moon-outline" 
-              label="Dark Mode" 
-              value={isDarkMode} 
-              onToggle={toggleTheme} 
+            <SettingItem
+              icon="moon-outline"
+              label="Dark Mode"
+              value={isDarkMode}
+              onToggle={toggleTheme}
+              themeColors={themeColors}
             />
-            <SettingItem 
-              icon="text-outline" 
-              label="Font Size" 
+            <SettingItem
+              icon="text-outline"
+              label="Font Size"
               type="link"
               onPress={() => Alert.alert("Coming Soon", "Font size adjustment will be available in the next update.")}
+              themeColors={themeColors}
             />
           </View>
 
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Notifications</Text>
-          <View 
-            className="rounded-[35px] px-6 mb-8 border border-white/5" 
+          <View
+            className="rounded-[35px] px-6 mb-8 border border-white/5"
             style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
           >
-            <SettingItem 
-              icon="notifications-outline" 
-              label="Push Notifications" 
-              value={notifications} 
-              onToggle={setNotifications} 
+            <SettingItem
+              icon="notifications-outline"
+              label="Push Notifications"
+              value={notifications}
+              onToggle={setNotifications}
+              themeColors={themeColors}
             />
-            <SettingItem 
-              icon="mail-outline" 
-              label="Email Updates" 
-              value={false} 
+            <SettingItem
+              icon="mail-outline"
+              label="Email Updates"
+              value={false}
               onToggle={() => Alert.alert("Feature unavailable", "Email updates are currently not available.")}
+              themeColors={themeColors}
             />
           </View>
 
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Account</Text>
-          <View 
-            className="rounded-[35px] px-6 mb-8 border border-white/5" 
+          <View
+            className="rounded-[35px] px-6 mb-8 border border-white/5"
             style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
           >
-            <SettingItem 
-              icon="person-outline" 
-              label="Edit Profile" 
+            <SettingItem
+              icon="person-outline"
+              label="Edit Profile"
               type="link"
               onPress={() => router.push("/edit-profile")}
+              themeColors={themeColors}
             />
-            <SettingItem 
-              icon="lock-closed-outline" 
-              label="Privacy & Security" 
+            <SettingItem
+              icon="lock-closed-outline"
+              label="Privacy & Security"
               type="link"
               onPress={() => Alert.alert("Privacy Settings", "Your profile is visible to all DPU students.")}
+              themeColors={themeColors}
             />
           </View>
 
           <Text className="text-[10px] font-black uppercase tracking-[3px] text-gray-400 mb-4 ml-2">Support</Text>
-          <View 
-            className="rounded-[35px] px-6 mb-10 border border-white/5" 
+          <View
+            className="rounded-[35px] px-6 mb-10 border border-white/5"
             style={{ backgroundColor: themeColors.card, shadowColor: "#000", shadowOpacity: 0.02, elevation: 2 }}
           >
-            <SettingItem 
-              icon="help-circle-outline" 
-              label="Help Center" 
-              type="link" 
+            <SettingItem
+              icon="help-circle-outline"
+              label="Help Center"
+              type="link"
               onPress={() => Alert.alert("Support", "Please contact support@dpu.ac.th")}
+              themeColors={themeColors}
             />
-            <SettingItem 
-              icon="information-circle-outline" 
-              label="About UniLife" 
-              type="link" 
+            <SettingItem
+              icon="information-circle-outline"
+              label="About UniLife"
+              type="link"
               onPress={() => Alert.alert("UniLife v1.0.0", "Built with ❤️ for DPU Students.")}
+              themeColors={themeColors}
             />
             <TouchableOpacity 
               className="py-5 items-center"

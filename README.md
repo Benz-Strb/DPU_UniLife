@@ -23,4 +23,4 @@ Faculty Admins (แอดมินคณะ)
 | CADT | 11110011@dpu.ac.th | Admin@CADT11 | ADMIN |
 | ANT | 11110012@dpu.ac.th | Admin@ANT12 | ADMIN |
 | CHW | 11110013@dpu.ac.th | Admin@CHW13 | ADMIN |
-| DPUIC | 11110014@dpu.ac.th | Admin@DPUIC14 | ADMIN |
+| IC | 11110014@dpu.ac.th | Admin@IC14 | ADMIN |

@@ -1,10 +1,36 @@
 import { useEffect, useState } from "react";
-import { Search, Ban, CheckCircle } from "lucide-react";
+import { Ban, CheckCircle, ShieldCheck, ShieldOff } from "lucide-react";
 import { adminService } from "../lib/api";
+import { roleBadge, userStatusBadge } from "../lib/badges";
+import PageHeader from "../components/PageHeader";
+import FilterTabs from "../components/FilterTabs";
+import SearchInput from "../components/SearchInput";
+import DataTable from "../components/DataTable";
+import UserCell from "../components/UserCell";
+import Badge from "../components/Badge";
+import IconButton from "../components/IconButton";
+import Pagination from "../components/Pagination";
+import BanUserModal from "../components/BanUserModal";
 
 interface UsersProps {
   currentUser: any;
 }
+
+const ROLE_TABS = [
+  { label: "All", value: "" },
+  { label: "Students", value: "STUDENT" },
+  { label: "Admins", value: "ADMIN" },
+];
+
+const COLUMNS = [
+  { label: "Name" },
+  { label: "Student ID" },
+  { label: "Faculty" },
+  { label: "Role" },
+  { label: "Status" },
+  { label: "Ban" },
+  { label: "", className: "px-5 py-3" },
+];
 
 export default function Users({ currentUser }: UsersProps) {
   const [users, setUsers] = useState<any[]>([]);
@@ -12,14 +38,22 @@ export default function Users({ currentUser }: UsersProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [banTarget, setBanTarget] = useState<{ id: string; name: string; username: string } | null>(null);
+  const [banLoading, setBanLoading] = useState(false);
 
   const limit = 10;
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const data = await adminService.getUsers({ page, limit, search: search || undefined });
+      const data = await adminService.getUsers({
+        page, limit,
+        q: search || undefined,
+        role: roleFilter || undefined,
+      });
       setUsers(data.users ?? []);
       setTotal(data.total ?? 0);
     } catch {
@@ -29,14 +63,17 @@ export default function Users({ currentUser }: UsersProps) {
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, [page, search]);
+  useEffect(() => { fetchUsers(); }, [page, search, roleFilter]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     setSearch(searchInput);
+  };
+
+  const handleRoleTab = (role: string) => {
+    setRoleFilter(role);
+    setPage(1);
   };
 
   const handleStatusToggle = async (user: any) => {
@@ -51,135 +88,121 @@ export default function Users({ currentUser }: UsersProps) {
     }
   };
 
+  const handleBanSubmit = async (days: number) => {
+    if (!banTarget) return;
+    setBanLoading(true);
+    try {
+      const result = await adminService.banUser(banTarget.id, days, currentUser.id);
+      setUsers(prev => prev.map(u => u.id === banTarget.id ? { ...u, bannedUntil: result.user.bannedUntil } : u));
+      setBanTarget(null);
+    } catch {
+      alert("Failed to ban user");
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleUnban = async (user: any) => {
+    if (!confirm(`Unban ${user.fullName}?`)) return;
+    try {
+      await adminService.banUser(user.id, 0, currentUser.id);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, bannedUntil: null } : u));
+    } catch {
+      alert("Failed to unban user");
+    }
+  };
+
+  const isBanned = (user: any) => user.bannedUntil && new Date(user.bannedUntil) > new Date();
   const totalPages = Math.ceil(total / limit);
 
-  const roleBadge: Record<string, string> = {
-    STUDENT: "bg-slate-700 text-slate-300",
-    ADMIN: "bg-violet-600/20 text-violet-400",
-    SUPER_ADMIN: "bg-amber-600/20 text-amber-400",
-  };
-
-  const statusBadge: Record<string, string> = {
-    ACTIVE: "bg-emerald-600/20 text-emerald-400",
-    SUSPENDED: "bg-red-600/20 text-red-400",
-    DEACTIVATED: "bg-slate-700 text-slate-400",
-  };
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "2-digit" });
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-black text-white">Users</h1>
-        <p className="text-slate-400 text-sm mt-1">{total} total users</p>
+      <PageHeader title="Users" description={`${total} total users`} />
+
+      <FilterTabs items={ROLE_TABS} active={roleFilter} onChange={handleRoleTab} />
+
+      <div className="mt-4 mb-6">
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={handleSearch}
+          placeholder="Search name, username, student ID..."
+        />
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search name, username, student ID..."
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-violet-500 transition"
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition"
-        >
-          Search
-        </button>
-      </form>
+      <DataTable
+        columns={COLUMNS}
+        data={users}
+        loading={loading}
+        emptyMessage="No users found"
+        keyExtractor={u => u.id}
+        renderRow={user => (
+          <>
+            <td className="px-5 py-3">
+              <UserCell
+                avatarUrl={user.avatarUrl}
+                name={user.fullName}
+                username={user.username}
+              />
+            </td>
+            <td className="px-5 py-3 text-slate-300 text-sm">{user.studentId}</td>
+            <td className="px-5 py-3 text-slate-300 text-sm">{user.faculty || "—"}</td>
+            <td className="px-5 py-3">
+              <Badge label={user.role} className={roleBadge[user.role]} />
+            </td>
+            <td className="px-5 py-3">
+              <Badge label={user.status} className={userStatusBadge[user.status]} />
+            </td>
+            <td className="px-5 py-3">
+              {isBanned(user) ? (
+                <span className="text-[10px] font-black text-orange-400">ถึง {formatDate(user.bannedUntil)}</span>
+              ) : (
+                <span className="text-slate-600 text-xs">—</span>
+              )}
+            </td>
+            <td className="px-5 py-3 text-right">
+              {user.role !== "SUPER_ADMIN" && user.id !== currentUser.id && (
+                <div className="flex items-center justify-end gap-1">
+                  {isBanned(user) ? (
+                    <IconButton
+                      icon={<ShieldOff size={16} />}
+                      onClick={() => handleUnban(user)}
+                      variant="success"
+                      title="Unban"
+                    />
+                  ) : (
+                    <IconButton
+                      icon={<ShieldCheck size={16} />}
+                      onClick={() => setBanTarget({ id: user.id, name: user.fullName, username: user.username })}
+                      variant="warning"
+                      title="Ban"
+                    />
+                  )}
+                  <IconButton
+                    icon={user.status === "SUSPENDED" ? <CheckCircle size={16} /> : <Ban size={16} />}
+                    onClick={() => handleStatusToggle(user)}
+                    variant={user.status === "SUSPENDED" ? "success" : "danger"}
+                    title={user.status === "SUSPENDED" ? "Unsuspend" : "Suspend"}
+                  />
+                </div>
+              )}
+            </td>
+          </>
+        )}
+      />
 
-      {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Name</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Student ID</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Faculty</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Role</th>
-              <th className="text-left px-5 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">Loading...</td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">No users found</td>
-              </tr>
-            ) : (
-              users.map(user => (
-                <tr key={user.id} className="border-b border-slate-800 last:border-0 hover:bg-slate-800/50 transition">
-                  <td className="px-5 py-3">
-                    <p className="text-white text-sm font-bold">{user.fullName}</p>
-                    <p className="text-slate-500 text-xs">@{user.username}</p>
-                  </td>
-                  <td className="px-5 py-3 text-slate-300 text-sm">{user.studentId}</td>
-                  <td className="px-5 py-3 text-slate-300 text-sm">{user.faculty || "—"}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${roleBadge[user.role] ?? "bg-slate-700 text-slate-300"}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${statusBadge[user.status] ?? "bg-slate-700 text-slate-300"}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    {user.role !== "SUPER_ADMIN" && user.id !== currentUser.id && (
-                      <button
-                        onClick={() => handleStatusToggle(user)}
-                        className={`p-2 rounded-lg transition ${
-                          user.status === "SUSPENDED"
-                            ? "text-emerald-400 hover:bg-emerald-600/10"
-                            : "text-red-400 hover:bg-red-600/10"
-                        }`}
-                        title={user.status === "SUSPENDED" ? "Unsuspend" : "Suspend"}
-                      >
-                        {user.status === "SUSPENDED"
-                          ? <CheckCircle size={16} />
-                          : <Ban size={16} />
-                        }
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-slate-500 text-xs">Page {page} of {totalPages}</p>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold disabled:opacity-40 hover:bg-slate-700 transition"
-            >
-              Prev
-            </button>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold disabled:opacity-40 hover:bg-slate-700 transition"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <BanUserModal
+        target={banTarget}
+        description="จะโพสต์ไม่ได้และเห็นโพสต์ไม่ได้ในช่วงเวลาที่ถูกแบน"
+        loading={banLoading}
+        onClose={() => setBanTarget(null)}
+        onSubmit={handleBanSubmit}
+      />
     </div>
   );
 }

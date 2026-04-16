@@ -1,62 +1,93 @@
 import React, { useEffect } from "react";
-import { Tabs, useRouter } from "expo-router";
+import { View, TouchableOpacity } from "react-native";
+import { useRouter, useSegments, withLayoutContext } from "expo-router";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
+const { Navigator } = createMaterialTopTabNavigator();
+const SwipeableTabs = withLayoutContext(Navigator);
+
+const TAB_NAMES = ["home", "group", "search", "messenger", "profile"] as const;
+
+const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
+  home:      { active: "home",          inactive: "home-outline" },
+  group:     { active: "people",        inactive: "people-outline" },
+  search:    { active: "search",        inactive: "search-outline" },
+  messenger: { active: "chatbubble",    inactive: "chatbubble-outline" },
+  profile:   { active: "person",        inactive: "person-outline" },
+};
+
 export default function TabsLayout() {
   const { userId, isDarkMode, themeColors } = useUser();
   const router = useRouter();
+  const segments = useSegments();
+
   useEffect(() => {
     if (userId === "") {
       router.replace("/(auth)/login");
     }
   }, [userId]);
 
+  const currentTab = segments[segments.length - 1] as string;
   const inactiveColor = isDarkMode ? "#555555" : "#D1D5DB";
 
   return (
-    <Tabs
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        animation: "fade",
-        tabBarStyle: {
-          backgroundColor: themeColors.tabBar,
-          borderTopWidth: 1,
-          borderTopColor: themeColors.border,
-          height: 85,
-          paddingBottom: 25,
-          paddingTop: 10,
-        },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: inactiveColor,
-        tabBarShowLabel: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: any;
-          if (route.name === "home") iconName = focused ? "home" : "home-outline";
-          else if (route.name === "group") iconName = focused ? "people" : "people-outline";
-          else if (route.name === "search") iconName = focused ? "search" : "search-outline";
-          else if (route.name === "messenger") iconName = focused ? "chatbubble" : "chatbubble-outline";
-          else if (route.name === "profile") iconName = focused ? "person" : "person-outline";
-          return <Ionicons name={iconName} size={28} color={color} />;
-        },
-      })}
+    <SwipeableTabs
+      tabBarPosition="bottom"
+      initialRouteName="home"
+      screenOptions={{
+        swipeEnabled: true,
+        animationEnabled: true,
+      }}
+      tabBar={({ state, navigation }) => (
+        <View
+          style={{
+            flexDirection: "row",
+            height: 85,
+            paddingBottom: 25,
+            paddingTop: 10,
+            backgroundColor: themeColors.tabBar,
+            borderTopWidth: 1,
+            borderTopColor: themeColors.border,
+          }}
+        >
+          {state.routes.map((route, index) => {
+            const isFocused = state.index === index;
+            const tabName = route.name as string;
+            const icons = TAB_ICONS[tabName];
+            const iconName: any = isFocused ? icons?.active : icons?.inactive;
+            const color = isFocused ? theme.colors.primary : inactiveColor;
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                onPress={() => {
+                  if (isFocused) {
+                    tabRefreshEmitter.emit(tabName);
+                  } else {
+                    navigation.navigate(route.name);
+                  }
+                }}
+                style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={iconName} size={28} color={color} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     >
-      {(["home", "group", "search", "messenger", "profile"] as const).map((name) => (
-        <Tabs.Screen
+      {TAB_NAMES.map((name) => (
+        <SwipeableTabs.Screen
           key={name}
           name={name}
           options={{ title: name.charAt(0).toUpperCase() + name.slice(1) }}
-          listeners={({ navigation }) => ({
-            tabPress: () => {
-              if (navigation.isFocused()) {
-                tabRefreshEmitter.emit(name);
-              }
-            },
-          })}
         />
       ))}
-    </Tabs>
+    </SwipeableTabs>
   );
 }

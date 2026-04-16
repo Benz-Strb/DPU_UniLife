@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import * as ImagePicker from 'expo-image-picker';
@@ -46,7 +46,8 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <View 
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <View
         className="flex-row items-center px-6 py-4 border-b" 
         style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border }}
       >

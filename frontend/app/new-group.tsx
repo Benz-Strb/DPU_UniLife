@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { searchService, chatService } from "@/services/api";
@@ -67,6 +67,7 @@ export default function NewGroupScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       <SafeAreaView className="flex-1" edges={["top"]}>
 

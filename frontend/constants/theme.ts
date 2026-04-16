@@ -1,10 +1,15 @@
 export const theme = {
   colors: {
-    primary: "#7C3AED", 
+    primary: "#7C3AED",
     primaryLight: "#EDE9FE",
-    secondary: "#F59E0B", 
+    secondary: "#F59E0B",
     white: "#FFFFFF",
     black: "#000000",
+    like: "#EF4444",
+    repost: "#10B981",
+    commentNotif: "#3B82F6",
+    replyNotif: "#8B5CF6",
+    followNotif: "#10B981",
   },
   light: {
     background: "#F8F9FE",

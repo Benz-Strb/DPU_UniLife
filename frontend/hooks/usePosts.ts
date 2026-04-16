@@ -9,7 +9,6 @@ export function usePosts() {
   const {
     posts,
     toggleLike: contextToggleLike,
-    addComment: contextAddComment,
     deletePost: contextDeletePost,
     updatePost: contextUpdatePost,
     userId,
@@ -40,13 +39,14 @@ export function usePosts() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const parentId = replyTo?.postId === postId ? replyTo.commentId : undefined;
     try {
-      await contextAddComment(postId, text, parentId);
+      await postService.addComment(postId, userId, text, parentId);
+      await refreshPosts();
       setCommentText(prev => ({ ...prev, [postId]: "" }));
       setReplyTo(null);
     } catch (error) {
       handleApiError(error);
     }
-  }, [commentText, contextAddComment, replyTo]);
+  }, [commentText, replyTo, userId, refreshPosts]);
 
   const deletePost = useCallback(async (postId: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

@@ -292,9 +292,10 @@ function StudentProfile() {
           </TouchableOpacity>
         </View>
 
-        <View className="flex-row flex-wrap px-4 pt-2">
-          {activeTab === "posts" ? (
-            userPosts.length === 0 ? (
+        {/* Posts tab — always mounted, hidden when inactive */}
+        <View style={{ display: activeTab === "posts" ? "flex" : "none" }}>
+          <View className="flex-row flex-wrap px-4 pt-2">
+            {userPosts.length === 0 ? (
               <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
                 <Ionicons name="add-circle-outline" size={48} color={themeColors.subText} />
                 <Text className="font-black text-xs uppercase mt-4 tracking-widest" style={{ color: themeColors.subText }}>Share your first post</Text>
@@ -312,9 +313,14 @@ function StudentProfile() {
                   </View>
                 </TouchableOpacity>
               ))
-            )
-          ) : (
-            reposts.length === 0 ? (
+            )}
+          </View>
+        </View>
+
+        {/* Reposts tab — always mounted, hidden when inactive */}
+        <View style={{ display: activeTab === "reposts" ? "flex" : "none" }}>
+          <View className="flex-row flex-wrap px-4 pt-2">
+            {reposts.length === 0 ? (
               <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
                 <Ionicons name="repeat" size={48} color={themeColors.subText} />
                 <Text className="font-black text-xs uppercase mt-4 tracking-widest" style={{ color: themeColors.subText }}>No reposts yet</Text>
@@ -339,7 +345,7 @@ function StudentProfile() {
                   ]);
                 };
                 return (
-                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
+                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id, single: "true" } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                     <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
                       <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                       {(!post.media || post.media.length === 0) && (
@@ -347,7 +353,6 @@ function StudentProfile() {
                           <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
                         </View>
                       )}
-                      {/* Unrepost button */}
                       <TouchableOpacity
                         onPress={handleUnrepost}
                         className="absolute top-2 right-2 rounded-full w-6 h-6 items-center justify-center"
@@ -359,8 +364,8 @@ function StudentProfile() {
                   </TouchableOpacity>
                 );
               })
-            )
-          )}
+            )}
+          </View>
         </View>
         <View className="h-32" />
       </ScrollView>

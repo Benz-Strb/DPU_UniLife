@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { authService } from "@/services/api";
+import { authService, postService } from "@/services/api";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import ImageCarousel from "@/components/ImageCarousel";
 
@@ -61,26 +61,35 @@ function PostItem({ post, themeColors, userId, toggleLike, router }: any) {
 
 export default function PostDetailScreen() {
   const router = useRouter();
-  const { postId, userId: profileUserId } = useLocalSearchParams<{ postId: string; userId: string }>();
+  const { postId, userId: profileUserId, single } = useLocalSearchParams<{ postId: string; userId: string; single?: string }>();
+  const isSingle = single === "true";
   const { themeColors, userId, toggleLike } = useUser();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (!profileUserId) return;
-    authService.getProfile(profileUserId)
-      .then(data => {
-        const userPosts: any[] = data.authoredPosts ?? [];
-        // inject author info จาก profile เข้าไปในแต่ละโพสต์
-        const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
-        const sorted = [...userPosts]
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .map(p => ({ ...p, author: p.author ?? author }));
-        setPosts(sorted);
-      })
-      .finally(() => setLoading(false));
-  }, [profileUserId]);
+    if (isSingle) {
+      // โหลดเฉพาะโพสต์นี้โพสต์เดียว (มาจาก repost)
+      if (!postId) return;
+      postService.getPost(postId)
+        .then(post => { if (post) setPosts([post]); })
+        .finally(() => setLoading(false));
+    } else {
+      // โหลดทุกโพสต์ของ user แล้ว scroll ไปที่โพสต์ที่กด
+      if (!profileUserId) return;
+      authService.getProfile(profileUserId)
+        .then(data => {
+          const userPosts: any[] = data.authoredPosts ?? [];
+          const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
+          const sorted = [...userPosts]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map(p => ({ ...p, author: p.author ?? author }));
+          setPosts(sorted);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [postId, profileUserId, isSingle]);
 
   // scroll ไปยังโพสต์ที่กด
   useEffect(() => {
@@ -103,6 +112,7 @@ export default function PostDetailScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       <SafeAreaView edges={["top"]} className="flex-1">
         {/* Header */}
