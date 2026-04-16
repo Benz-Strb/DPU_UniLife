@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { scheduleService } from "@/services/api";
 import { scheduleCourseReminders } from "@/services/notificationHelper";
+import TabSelector from "@/components/TabSelector";
 
 const DAYS = [
   { label: "Mon", value: "MONDAY" },
@@ -132,6 +133,7 @@ export default function AddCourseScreen() {
 
   return (
     <View className="flex-1 bg-white">
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       <StatusBar barStyle="dark-content" />
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-6 py-4">
@@ -166,13 +168,12 @@ export default function AddCourseScreen() {
                   )}
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-4">
-                  {DAYS.map(d => (
-                    <TouchableOpacity key={d.value} onPress={() => updateSchedule(idx, 'dayOfWeek', d.value)} className={`mr-2 px-5 py-2 rounded-2xl border ${s.dayOfWeek === d.value ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-100'}`}>
-                      <Text className={`font-bold text-[11px] ${s.dayOfWeek === d.value ? 'text-white' : 'text-gray-400'}`}>{d.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <TabSelector
+                  options={DAYS}
+                  selected={s.dayOfWeek}
+                  onSelect={(v) => updateSchedule(idx, "dayOfWeek", v)}
+                  containerClassName="mb-4"
+                />
 
                 <View className="flex-row space-x-3 mb-4">
                   <View className="flex-1">

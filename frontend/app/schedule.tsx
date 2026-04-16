@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { scheduleService } from "@/services/api";
 import { useUser } from "@/store/UserContext";
+import TabSelector from "@/components/TabSelector";
 
 const DAYS = [
   { label: "Mon", value: "MONDAY" },
@@ -84,6 +85,7 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center justify-between">
         <View className="flex-row items-center">
@@ -108,19 +110,7 @@ export default function ScheduleScreen() {
 
       {/* Day Selector */}
       <View className="px-6 mb-4">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-          {DAYS.map((day) => (
-            <TouchableOpacity 
-              key={day.value}
-              onPress={() => setSelectedDay(day.value)}
-              className={`mr-3 px-5 py-2 rounded-full border ${selectedDay === day.value ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-100'}`}
-            >
-              <Text className={`font-bold ${selectedDay === day.value ? 'text-white' : 'text-gray-400'}`}>
-                {day.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <TabSelector options={DAYS} selected={selectedDay} onSelect={setSelectedDay} />
       </View>
 
       {/* Schedule List */}
