@@ -315,7 +315,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const uploadedImages = await Promise.all(
           rawImages.map((img: string) => img.startsWith('file') ? postService.uploadImage(img) : Promise.resolve(img))
         );
-        const p = await postService.createPost({ ...data, images: uploadedImages, authorId: userId, facultyTag: data.tag });
+        const p = await postService.createPost({ ...data, images: uploadedImages, authorId: userId, facultyTag: data.tag, tags: data.tags ?? [data.tag] });
         setPosts(prev => [p, ...prev]);
       },
       deletePost: async (id) => { await postService.deletePost(id); setPosts(prev => prev.filter(p => p.id !== id)); },
