@@ -1,4 +1,5 @@
 import { Sun, Moon, LogOut, ChevronLeft } from "lucide-react";
+import Avatar from "./Avatar";
 
 const pageLabels: Record<string, string> = {
   dashboard: "Dashboard",
@@ -59,17 +60,12 @@ export default function TopNav({ page, user, isDark, onToggleTheme, onLogout, on
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-violet-600/20 border border-violet-600/30 overflow-hidden flex items-center justify-center">
-            {user?.avatarUrl ? (
-              <img
-                src={user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:8080${user.avatarUrl}`}
-                className="w-full h-full object-cover"
-                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            ) : (
-              <span className="text-violet-400 font-black text-[11px]">{user?.fullName?.charAt(0) ?? "A"}</span>
-            )}
-          </div>
+          <Avatar
+            avatarUrl={user?.avatarUrl}
+            name={user?.fullName ?? "A"}
+            size="xs"
+            className="border border-violet-600/30"
+          />
           <div className="hidden sm:block">
             <p className="text-white text-[11px] font-black leading-tight">{user?.fullName}</p>
             <p className="text-slate-500 text-[9px] uppercase tracking-wider">{user?.role?.replace("_", " ")}</p>
