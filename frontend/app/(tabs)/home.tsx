@@ -60,10 +60,33 @@ export default function HomeScreen() {
   const refreshRef = useRef(refreshPosts);
   refreshRef.current = refreshPosts;
 
+  const [aiFeedPosts, setAiFeedPosts] = useState<any[]>([]);
+  const [aiFeedLoading, setAiFeedLoading] = useState(true);
+  const [aiFeedReady, setAiFeedReady] = useState(false);
+
+  const fetchAIFeed = async () => {
+    if (!userId) return;
+    setAiFeedLoading(true);
+    try {
+      const data = await postService.getAIFeed(userId);
+      setAiFeedPosts(data.filter((p: any) => !p.isOfficial));
+      setAiFeedReady(true);
+    } catch {
+      setAiFeedReady(false);
+    } finally {
+      setAiFeedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAIFeed();
+  }, [userId]);
+
   useEffect(() => {
     const handler = () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       refreshRef.current();
+      fetchAIFeed();
     };
     tabRefreshEmitter.on("home", handler);
     return () => tabRefreshEmitter.off("home", handler);
@@ -72,7 +95,8 @@ export default function HomeScreen() {
   const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
-  const posts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
+  const regularPosts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
+  const posts = aiFeedReady ? aiFeedPosts : regularPosts;
 
   const handlePostOptions = (post: any) => {
     if (post.authorId !== userId) return;
@@ -152,6 +176,11 @@ export default function HomeScreen() {
           <View>
             <Text className="text-3xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>DPU</Text>
             <Text className="text-[8px] font-black uppercase tracking-[3.5px] -mt-1 opacity-40" style={{ color: themeColors.text }}>UNILIFE</Text>
+            {aiFeedLoading ? (
+              <Text className="text-[8px] font-bold text-indigo-400 mt-0.5">✦ AI กำลังจัดเรียง...</Text>
+            ) : aiFeedReady ? (
+              <Text className="text-[8px] font-bold text-indigo-400 mt-0.5">✦ AI จัดเรียงให้แล้ว</Text>
+            ) : null}
           </View>
           <View className="flex-row items-center gap-2">
             <TouchableOpacity onPress={() => router.push("/new-post")} className="w-9 h-9 items-center justify-center rounded-xl bg-indigo-50">

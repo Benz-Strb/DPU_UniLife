@@ -4,6 +4,8 @@ import path from 'path';
 import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
+import { rankPostsWithGemini } from '../lib/gemini';
+import { getCachedFeed, setCachedFeed } from '../lib/feedCache';
 
 const postRouter = Router();
 
@@ -268,6 +270,86 @@ postRouter.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to fetch posts:', error);
     return res.status(500).json({ error: 'Failed to fetch posts' });
+  }
+});
+
+postRouter.get('/ai-feed', async (req: Request, res: Response) => {
+  const userId = normalizeOptionalString(req.query.userId);
+
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ error: 'Invalid userId' });
+  }
+
+  // Return cached result if still fresh
+  const cached = getCachedFeed(userId);
+  if (cached) {
+    return res.json(cached);
+  }
+
+  try {
+    // Fetch user profile for personalization
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        faculty: true,
+        following: { select: { followingId: true } },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Fetch 40 recent public posts as candidates
+    const candidates = await prisma.post.findMany({
+      where: {
+        deletedAt: null,
+        isArchived: false,
+        visibility: 'PUBLIC',
+      },
+      include: postInclude,
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      take: 40,
+    });
+
+    if (candidates.length === 0) {
+      return res.json([]);
+    }
+
+    // Build compact summaries for Gemini
+    const postSummaries = candidates.map(p => ({
+      id: p.id,
+      author: (p.author as any)?.fullName ?? 'Unknown',
+      faculty: p.facultyTag ?? 'Unknown',
+      content: (p.content ?? '').slice(0, 120),
+      likes: (p._count as any)?.reactions ?? 0,
+      comments: (p._count as any)?.comments ?? 0,
+      age_hours: Math.round((Date.now() - new Date(p.createdAt).getTime()) / 3600000),
+    }));
+
+    const authorIds = Object.fromEntries(
+      candidates.map(p => [p.id, (p.author as any)?.id ?? ''])
+    );
+
+    // Ask Gemini to rank
+    const rankedIds = await rankPostsWithGemini({
+      userFaculty: user.faculty ?? 'Unknown',
+      followingIds: user.following.map(f => f.followingId),
+      authorIds,
+      posts: postSummaries,
+    });
+
+    // Reorder candidates by Gemini's ranking, return top 20
+    const idOrder = new Map(rankedIds.map((id, i) => [id, i]));
+    const ranked = [...candidates]
+      .sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999))
+      .slice(0, 20);
+
+    setCachedFeed(userId, ranked);
+    return res.json(ranked);
+  } catch (error) {
+    console.error('[AI Feed] Error:', error);
+    return res.status(500).json({ error: 'Failed to generate AI feed' });
   }
 });
 

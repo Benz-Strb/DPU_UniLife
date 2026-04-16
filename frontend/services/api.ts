@@ -170,6 +170,15 @@ export const postService = {
       return [];
     }
   },
+  getAIFeed: async (userId: string): Promise<Post[]> => {
+    try {
+      const response = await API.get("/posts/ai-feed", { params: { userId } });
+      return response.data;
+    } catch (e) {
+      console.error("Get AI Feed Error", e);
+      return [];
+    }
+  },
   createPost: async (postData: any): Promise<Post> => {
     try {
       const response = await API.post("/posts", {
