@@ -234,7 +234,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
 
       return res.status(401).json({
-        message: 'Invalid studentId or password',
+        message: 'User not registered',
       });
     }
 
