@@ -27,27 +27,47 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const isDpuEmail = (email: string) => /@dpu\.ac\.th$/i.test(email.trim());
   const validateEmail = (email: string) => /^([0-9]{8}|admin)@dpu\.ac\.th$/.test(email.toLowerCase());
+
+  const getThaiMessage = (message: string): string => {
+    if (message.includes('User not registered')) return 'ไม่พบบัญชีนี้ในระบบ กรุณาสมัครใช้งานก่อน';
+    if (message.includes('Invalid studentId or password') || message.includes('Invalid credentials')) return 'รหัสผ่านไม่ถูกต้อง';
+    if (message.includes('not allowed to sign in') || message.includes('SUSPENDED')) return 'บัญชีนี้ถูกระงับการใช้งาน';
+    if (message.includes('temporarily banned') || message.includes('banned')) {
+      return 'บัญชีนี้ถูกแบนชั่วคราว กรุณาลองใหม่ภายหลัง';
+    }
+    if (message.includes('เกิดข้อผิดพลาด') || message.includes('connection') || message.includes('network')) {
+      return 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่';
+    }
+    return message;
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert("แจ้งเตือน", "กรุณากรอกอีเมลและรหัสผ่าน");
+      return;
+    }
+
+    if (!isDpuEmail(email)) {
+      Alert.alert("อีเมลไม่ถูกต้อง", "กรุณาใช้อีเมลของมหาวิทยาลัย (@dpu.ac.th)");
       return;
     }
 
     if (!validateEmail(email)) {
-      Alert.alert("Invalid Email", "Please use your student email (@dpu.ac.th)");
+      Alert.alert("อีเมลไม่ถูกต้อง", "รูปแบบอีเมลไม่ถูกต้อง ตัวอย่าง: 12345678@dpu.ac.th");
       return;
     }
-    
+
     setLoading(true);
     try {
       const result = await login(email, password);
       if (!result.success) {
-        Alert.alert("Login Failed", result.message || "Invalid email or password");
+        const msg = result.message || "Invalid credentials";
+        Alert.alert("เข้าสู่ระบบไม่สำเร็จ", getThaiMessage(msg));
       }
     } catch (error: any) {
-      Alert.alert("Error", "เกิดข้อผิดพลาดในการเชื่อมต่อ");
+      Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่");
     } finally {
       setLoading(false);
     }
