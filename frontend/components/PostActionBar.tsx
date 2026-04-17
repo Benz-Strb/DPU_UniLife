@@ -20,32 +20,38 @@ export default function PostActionBar({
   onLike, onToggleComments, onRepost, themeColors,
 }: PostActionBarProps) {
   return (
-    <View className="flex-row items-center px-4 pt-5 pb-3 gap-4">
+    <View className="flex-row items-center px-3 pt-4 pb-3 gap-5">
+
       <TouchableOpacity onPress={onLike} className="flex-row items-center">
         <Ionicons
           name={isLiked ? "heart" : "heart-outline"}
-          size={26}
+          size={30}
           color={isLiked ? theme.colors.like : themeColors.text}
         />
-        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{likeCount}</Text>
+        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>
+          {likeCount}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={onToggleComments} className="flex-row items-center">
         <Feather
           name="message-circle"
-          size={24}
+          size={30}
           color={isCommentActive ? theme.colors.primary : themeColors.text}
         />
-        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{commentCount}</Text>
+        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>
+          {commentCount}
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onRepost}>
+      <TouchableOpacity onPress={onRepost} className="flex-row items-center">
         <Ionicons
           name="repeat"
-          size={24}
+          size={30}
           color={isReposted ? theme.colors.repost : themeColors.text}
         />
       </TouchableOpacity>
+
     </View>
   );
 }

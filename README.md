@@ -20,23 +20,23 @@ Super Admin
 
 | Student ID | Password | 
 |------------|----------|
-| 00000000 | Admin@1234 |
+| admin@dpu.ac.th | Admin@1234 |
 
 Faculty Admin
 
 | คณะ | Student ID | Password |
 |-----|------------|----------|
-| LAW | 11110001 | Admin@LAW01 |
-| CA | 11110002 | Admin@CA02 |
-| FA | 11110003 | Admin@FA03 |
-| ARTS | 11110004 | Admin@ARTS04 |
-| PA | 11110005 | Admin@PA05 |
-| HT | 11110006 | Admin@HT06 |
-| MT | 11110007 | Admin@MT07 |
-| CIBA | 11110008 | Admin@CIBA08 |
-| CITE | 11110009 | Admin@CITE09 |
-| CIM | 11110010 | Admin@CIM10 |
-| CADT | 11110011 | Admin@CADT11 |
-| ANT | 11110012 | Admin@ANT12 |
-| CHW | 11110013 | Admin@CHW13 |
-| IC | 11110014 | Admin@IC14 |
+| LAW | 11110001@dpu.ac.th | Admin@LAW01 |
+| CA | 11110002@dpu.ac.th | Admin@CA02 |
+| FA | 11110003@dpu.ac.th | Admin@FA03 |
+| ARTS | 11110004@dpu.ac.th | Admin@ARTS04 |
+| PA | 11110005@dpu.ac.th | Admin@PA05 |
+| HT | 11110006@dpu.ac.th | Admin@HT06 |
+| MT | 11110007@dpu.ac.th | Admin@MT07 |
+| CIBA | 11110008@dpu.ac.th | Admin@CIBA08 |
+| CITE | 11110009@dpu.ac.th | Admin@CITE09 |
+| CIM | 11110010@dpu.ac.th | Admin@CIM10 |
+| CADT | 11110011@dpu.ac.th | Admin@CADT11 |
+| ANT | 11110012@dpu.ac.th | Admin@ANT12 |
+| CHW | 11110013@dpu.ac.th | Admin@CHW13 |
+| IC | 11110014@dpu.ac.th | Admin@IC14 |
