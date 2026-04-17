@@ -14,7 +14,7 @@ Admin Dashboard — เว็บจัดการหลังบ้านสำ
 /dashboard   → เว็บแอดมิน
 /uploads     → ไฟล์รูปภาพที่อัปโหลด
 
-Stack หลัก: Node.js + Express + Prisma + PostgreSQL (backend) / React Native + Expo + NativeWind (frontend) / React + Vite (dashboard)
+Stack หลัก: Node.js + Express + Prisma + supabase (backend) / React Native + Expo + NativeWind (frontend) / React + Vite (dashboard)
 
 Super Admin
 
