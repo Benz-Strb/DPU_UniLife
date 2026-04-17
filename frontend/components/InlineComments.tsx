@@ -85,7 +85,7 @@ export default function InlineComments({
           {replyTo?.postId === post.id && (
             <View className="flex-row items-center mb-2 px-1">
               <Text className="text-[11px] font-bold" style={{ color: theme.colors.primary }}>
-                Replying to @{replyTo.authorName}
+                Replying to @{replyTo?.authorName}
               </Text>
               <TouchableOpacity onPress={() => setReplyTo(null)} className="ml-2">
                 <Ionicons name="close-circle" size={14} color={themeColors.subText} />
@@ -101,7 +101,7 @@ export default function InlineComments({
               <TextInput
                 value={commentText[post.id] ?? ""}
                 onChangeText={(t) => setCommentText(prev => ({ ...prev, [post.id]: t }))}
-                placeholder={replyTo?.postId === post.id ? `Reply to @${replyTo.authorName}...` : "Add a comment..."}
+                placeholder={replyTo?.postId === post.id ? `Reply to @${replyTo?.authorName}...` : "Add a comment..."}
                 placeholderTextColor={themeColors.subText}
                 style={{ flex: 1, fontSize: 12, color: themeColors.text }}
                 returnKeyType="send"

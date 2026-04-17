@@ -225,7 +225,7 @@ export default function NewPostScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       {/* Header */}

@@ -120,7 +120,7 @@ export default function PostDetailScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       <SafeAreaView edges={["top"]} className="flex-1">
         {/* Header */}

@@ -67,7 +67,7 @@ export default function NewGroupScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       <SafeAreaView className="flex-1" edges={["top"]}>
 

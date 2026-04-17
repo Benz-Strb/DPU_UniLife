@@ -85,7 +85,7 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center justify-between">
         <View className="flex-row items-center">
@@ -153,7 +153,7 @@ export default function ScheduleScreen() {
                 <View className="flex-row justify-between items-end">
                   <View className="bg-white/20 px-4 py-1.5 rounded-2xl">
                     <Text className="text-white text-[10px] font-bold">
-                      📍 Room: {item.room || 'TBA'}
+                      Room: {item.room || 'TBA'}
                     </Text>
                   </View>
                   <Text className="text-white/60 text-[10px] italic">
