@@ -224,7 +224,10 @@ export default function HomeScreen() {
 
                     {/* 3-dot options */}
                     {post.authorId === userId ? (
-                      <PostOptionsButton post={post} />
+                      <PostOptionsButton
+                        post={post}
+                        onDeleted={(postId) => setAiFeedPosts(prev => prev.filter(p => p.id !== postId))}
+                      />
                     ) : (
                       <TouchableOpacity
                         onPress={() => Alert.alert("Post Options", undefined, [

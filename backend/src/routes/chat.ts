@@ -562,6 +562,75 @@ chatRouter.post('/:convoId/messages', async (req: Request, res: Response) => {
   }
 });
 
+// Update conversation settings (title, avatarUrl)
+chatRouter.patch('/:convoId/settings', async (req: Request, res: Response) => {
+  const conversationId = getSingleParam(req.params.convoId);
+  const { userId, title, avatarUrl } = req.body;
+
+  if (!conversationId || !isUuid(conversationId)) {
+    return res.status(400).json({ error: 'Invalid conversation id' });
+  }
+  if (typeof userId !== 'string' || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+
+  try {
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!participant) {
+      return res.status(403).json({ error: 'Not a participant of this conversation' });
+    }
+
+    const data: { title?: string; avatarUrl?: string } = {};
+    if (typeof title === 'string' && title.trim()) data.title = title.trim();
+    if (typeof avatarUrl === 'string') data.avatarUrl = avatarUrl;
+
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data,
+      include: conversationInclude,
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Failed to update conversation settings:', error);
+    return res.status(500).json({ error: 'Failed to update conversation settings' });
+  }
+});
+
+// Toggle mute for current user
+chatRouter.patch('/:convoId/mute', async (req: Request, res: Response) => {
+  const conversationId = getSingleParam(req.params.convoId);
+  const { userId } = req.body;
+
+  if (!conversationId || !isUuid(conversationId)) {
+    return res.status(400).json({ error: 'Invalid conversation id' });
+  }
+  if (typeof userId !== 'string' || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+
+  try {
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!participant) {
+      return res.status(403).json({ error: 'Not a participant of this conversation' });
+    }
+
+    const updated = await prisma.conversationParticipant.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { isMuted: !participant.isMuted },
+    });
+
+    return res.json({ isMuted: updated.isMuted });
+  } catch (error) {
+    console.error('Failed to toggle mute:', error);
+    return res.status(500).json({ error: 'Failed to toggle mute' });
+  }
+});
+
 chatRouter.patch('/:convoId/read', async (req: Request, res: Response) => {
   const conversationId = getSingleParam(req.params.convoId);
   const { userId, messageId } = req.body;
@@ -574,67 +643,35 @@ chatRouter.patch('/:convoId/read', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'A valid userId is required' });
   }
 
-  if (typeof messageId !== 'string' || !isUuid(messageId)) {
-    return res.status(400).json({ error: 'A valid messageId is required' });
-  }
-
   try {
-    const [participant, message] = await Promise.all([
-      prisma.conversationParticipant.findUnique({
-        where: {
-          conversationId_userId: {
-            conversationId,
-            userId,
-          },
-        },
-      }),
-      prisma.message.findFirst({
-        where: {
-          id: messageId,
-          conversationId,
-          deletedAt: null,
-        },
-        select: { id: true },
-      }),
-    ]);
+    const participant = await prisma.conversationParticipant.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
 
     if (!participant) {
       return res.status(404).json({ error: 'Conversation participant not found' });
     }
 
-    if (!message) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
+    // Always update lastReadAt so the unread badge clears
+    await prisma.conversationParticipant.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { lastReadAt: new Date() },
+    });
 
-    await prisma.$transaction([
-      prisma.conversationParticipant.update({
-        where: {
-          conversationId_userId: {
-            conversationId,
-            userId,
-          },
-        },
-        data: {
-          lastReadAt: new Date(),
-        },
-      }),
-      prisma.messageRead.upsert({
-        where: {
-          messageId_userId: {
-            messageId,
-            userId,
-          },
-        },
-        update: {
-          readAt: new Date(),
-        },
-        create: {
-          messageId,
-          userId,
-          readAt: new Date(),
-        },
-      }),
-    ]);
+    // Optionally mark a specific message as read too
+    if (typeof messageId === 'string' && isUuid(messageId)) {
+      const message = await prisma.message.findFirst({
+        where: { id: messageId, conversationId, deletedAt: null },
+        select: { id: true },
+      });
+      if (message) {
+        await prisma.messageRead.upsert({
+          where: { messageId_userId: { messageId, userId } },
+          update: { readAt: new Date() },
+          create: { messageId, userId, readAt: new Date() },
+        });
+      }
+    }
 
     return res.json({ message: 'Conversation marked as read' });
   } catch (error) {
@@ -713,6 +750,92 @@ chatRouter.post("/direct", async (req, res) => {
   } catch (error) {
     console.error("Create direct chat error:", error);
     res.status(500).json({ error: "Failed to create direct chat" });
+  }
+});
+
+// Add member to group conversation
+chatRouter.post('/:convoId/members', async (req: Request, res: Response) => {
+  const conversationId = getSingleParam(req.params.convoId);
+  const { userId, targetUserId } = req.body;
+
+  if (!conversationId || !isUuid(conversationId)) {
+    return res.status(400).json({ error: 'Invalid conversation id' });
+  }
+  if (typeof userId !== 'string' || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+  if (typeof targetUserId !== 'string' || !isUuid(targetUserId)) {
+    return res.status(400).json({ error: 'A valid targetUserId is required' });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: { select: { userId: true } } },
+    });
+
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+    if (conversation.type !== 'GROUP') return res.status(400).json({ error: 'Only group conversations can have members added' });
+
+    const isParticipant = conversation.participants.some(p => p.userId === userId);
+    if (!isParticipant) return res.status(403).json({ error: 'Not a participant of this conversation' });
+
+    const alreadyMember = conversation.participants.some(p => p.userId === targetUserId);
+    if (alreadyMember) return res.status(400).json({ error: 'User is already a member' });
+
+    await prisma.conversationParticipant.create({
+      data: { conversationId, userId: targetUserId },
+    });
+
+    const updated = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: conversationInclude,
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Failed to add member:', error);
+    return res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+// Remove member from group conversation
+chatRouter.delete('/:convoId/members/:targetUserId', async (req: Request, res: Response) => {
+  const conversationId = getSingleParam(req.params.convoId);
+  const targetUserId = getSingleParam(req.params.targetUserId);
+  const userId = normalizeRequiredString(req.query.userId);
+
+  if (!conversationId || !isUuid(conversationId)) {
+    return res.status(400).json({ error: 'Invalid conversation id' });
+  }
+  if (!targetUserId || !isUuid(targetUserId)) {
+    return res.status(400).json({ error: 'Invalid targetUserId' });
+  }
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ error: 'A valid userId is required' });
+  }
+
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: { select: { userId: true } } },
+    });
+
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+    if (conversation.type !== 'GROUP') return res.status(400).json({ error: 'Only group conversations support member removal' });
+
+    const isParticipant = conversation.participants.some(p => p.userId === userId);
+    if (!isParticipant) return res.status(403).json({ error: 'Not a participant of this conversation' });
+
+    // ลบตัวเองออกได้ หรือจะลบคนอื่นก็ได้ (ทุก member ทำได้)
+    await prisma.conversationParticipant.delete({
+      where: { conversationId_userId: { conversationId, userId: targetUserId } },
+    });
+
+    return res.json({ message: 'Member removed' });
+  } catch (error) {
+    console.error('Failed to remove member:', error);
+    return res.status(500).json({ error: 'Failed to remove member' });
   }
 });
 

@@ -103,6 +103,7 @@ export interface Conversation {
   id: string;
   type: "DIRECT" | "GROUP";
   title?: string;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   participants: ConversationParticipant[];
@@ -113,6 +114,8 @@ export interface ConversationParticipant {
   conversationId: string;
   userId: string;
   user: User;
+  lastReadAt?: string | null;
+  isMuted?: boolean;
 }
 
 export interface Message {

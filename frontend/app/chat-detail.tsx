@@ -9,7 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
-import { postService } from "@/services/api";
+import { postService, chatService } from "@/services/api";
 import socket from "@/services/socket";
 
 export default function ChatDetailScreen() {
@@ -17,7 +17,7 @@ export default function ChatDetailScreen() {
   const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string; isGroup?: string }>();
   const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams, isGroup } = params;
   const isGroupChat = isGroup === "true";
-  const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId } = useUser();
+  const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId, refreshChats } = useUser();
   const [inputText, setInputText] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -114,20 +114,25 @@ export default function ChatDetailScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [activeConvoId, setActiveConvoId] = useState(convoIdFromParams);
 
+  // mark-as-read helper — อัปเดต lastReadAt แล้ว refresh badge
+  const markRead = async (convoId: string) => {
+    await chatService.markAsRead(convoId, userId);
+    await refreshChats();
+  };
+
   // เชื่อมต่อ Socket เมื่อเปิดหน้าแชท
   useEffect(() => {
     socket.connect();
-    
+
     if (activeConvoId) {
       socket.emit("join_room", activeConvoId);
-      setActiveChatId(activeConvoId); // แจ้ง Context ว่าเราอยู่ในห้องนี้
+      setActiveChatId(activeConvoId);
+      markRead(activeConvoId); // ล้าง badge ทันทีที่เปิดแชท
     }
 
-    // ฟังข้อความใหม่จาก Socket
-    socket.on("receive_message", (data) => {
-      // เมื่อได้รับข้อความใหม่ ให้สั่ง Refresh รายการแชทใน Context
-      // (Context ของเรามีการ Fetch ทุก 3 วินาทีอยู่แล้ว แต่ Socket จะช่วยให้เร็วขึ้น)
-      // ในที่นี้ Socket จะเป็นตัวกระตุ้นให้เกิดการอัปเดต UI ทันที
+    // เมื่อได้รับข้อความใหม่ขณะอยู่ในหน้านี้ → mark as read ทันที
+    socket.on("receive_message", (_data: any) => {
+      if (activeConvoId) markRead(activeConvoId);
     });
 
     return () => {
@@ -135,7 +140,7 @@ export default function ChatDetailScreen() {
       if (activeConvoId) {
         socket.emit("leave_room", activeConvoId);
       }
-      setActiveChatId(null); // ออกจากห้องแชทแล้ว
+      setActiveChatId(null);
     };
   }, [activeConvoId]);
 
@@ -193,27 +198,45 @@ export default function ChatDetailScreen() {
   const inputBgColor = isDarkMode ? "#2D2D2D" : "#F3F4F6";
 
   const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
-  const userName = isGroupChat ? (nameFromParams || currentConversation?.title || "Group Chat") : (recipient?.fullName || nameFromParams || "Chat");
+  const userName = isGroupChat ? (currentConversation?.title || nameFromParams || "Group Chat") : (recipient?.fullName || nameFromParams || "Chat");
   const userAvatar = isGroupChat ? null : getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <View className="flex-row items-center px-4 py-3 border-b" style={{ borderBottomColor: isDarkMode ? "#333" : "#F3F4F6" }}>
         <TouchableOpacity onPress={() => router.back()} className="p-1">
           <Ionicons name="chevron-back" size={28} color={textColor} />
         </TouchableOpacity>
-        {isGroupChat ? (
-          <View className="w-9 h-9 rounded-full ml-2 items-center justify-center bg-violet-500">
-            <Ionicons name="people" size={18} color="white" />
+
+        {/* กดชื่อ/รูปเพื่อเปิด chat-settings */}
+        <TouchableOpacity
+          className="flex-row items-center flex-1 ml-2"
+          onPress={() => {
+            if (!activeConvoId) return;
+            router.push(`/chat-settings?convoId=${activeConvoId}&isGroup=${isGroupChat ? "true" : "false"}` as any);
+          }}
+          activeOpacity={0.7}
+        >
+          {isGroupChat ? (
+            currentConversation?.avatarUrl ? (
+              <Image source={{ uri: getImageUrl(currentConversation.avatarUrl) }} className="w-9 h-9 rounded-full" />
+            ) : (
+              <View className="w-9 h-9 rounded-full items-center justify-center bg-violet-500">
+                <Ionicons name="people" size={18} color="white" />
+              </View>
+            )
+          ) : (
+            <Image source={{ uri: userAvatar! }} className="w-9 h-9 rounded-full" />
+          )}
+          <View className="ml-3 flex-1">
+            <Text className="font-bold text-sm" style={{ color: textColor }}>{userName}</Text>
+            <Text className="text-[10px]" style={{ color: theme.colors.primary }}>
+              {isGroupChat ? `${currentConversation?.participants?.length ?? 0} members` : "Active now"}
+            </Text>
           </View>
-        ) : (
-          <Image source={{ uri: userAvatar! }} className="w-9 h-9 rounded-full ml-2" />
-        )}
-        <View className="ml-3 flex-1">
-          <Text className="font-bold text-sm" style={{ color: textColor }}>{userName}</Text>
-          <Text className="text-[10px]" style={{ color: theme.colors.primary }}>{isGroupChat ? `${currentConversation?.participants?.length ?? 0} members` : "Active now"}</Text>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={isDarkMode ? "#555" : "#CCC"} style={{ marginRight: 4 }} />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView 

@@ -133,7 +133,7 @@ export default function AddCourseScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle="dark-content" />
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center px-6 py-4">

@@ -139,7 +139,7 @@ function AdminDashboard() {
             adminPosts.map((post) => (
               <TouchableOpacity key={post.id} onPress={() => handlePostOptions(post)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
                 <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
+                  <Image source={{ uri: (post.media && post.media.length > 0) ? getAvatarUrl(post.media[0].url) : undefined }} className="w-full h-full" />
                   {post.isPinned && (
                     <View className="absolute top-2 right-2 bg-amber-400 p-1 rounded-full border border-white">
                        <Ionicons name="pin" size={8} color="white" />

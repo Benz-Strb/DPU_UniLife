@@ -46,7 +46,7 @@ export default function EditProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: 100 }} />
+      <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <View
         className="flex-row items-center px-6 py-4 border-b" 
         style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border }}

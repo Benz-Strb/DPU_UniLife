@@ -1,4 +1,4 @@
-import io from "socket.io-client/build/cjs/index.js";
+import { io } from "socket.io-client";
 import { BASE_URL } from "./api";
 
 // เชื่อมต่อกับ Backend Socket

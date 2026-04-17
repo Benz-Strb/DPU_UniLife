@@ -63,6 +63,8 @@ interface UserContextType {
   markAllNotificationsAsRead: () => Promise<void>;
   setActiveChatId: (id: string | null) => void;
   deleteConversation: (convoId: string) => Promise<void>;
+  refreshChats: () => Promise<void>;
+  updateConversation: (convoId: string, data: { title?: string; avatarUrl?: string }) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -155,13 +157,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
       let count = 0;
       convos.forEach(c => {
         const myParticipant = c.participants.find(p => p.userId === currentUserId);
-        if (myParticipant && c.messages && c.messages.length > 0) {
-          const lastMsg = c.messages[c.messages.length - 1];
-          if (lastMsg.senderId !== currentUserId) {
-             if (!myParticipant.lastReadAt || new Date(myParticipant.lastReadAt) < new Date(lastMsg.createdAt)) {
-               count++;
-             }
-          }
+        if (myParticipant && c.messages) {
+          const lastReadAt = myParticipant.lastReadAt ? new Date(myParticipant.lastReadAt) : null;
+          c.messages.forEach((msg: any) => {
+            if (msg.senderId !== currentUserId) {
+              if (!lastReadAt || new Date(msg.createdAt) > lastReadAt) {
+                count++;
+              }
+            }
+          });
         }
       });
       setUnreadChatCount(count);
@@ -328,6 +332,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       markNotificationAsRead: async (id) => { await notificationService.markAsRead(id); fetchNotifications(); },
       markAllNotificationsAsRead: async () => { await notificationService.markAllAsRead(userId); fetchNotifications(); },
       setActiveChatId,
+      refreshChats: async () => { if (userId) await fetchChats(userId); },
+      updateConversation: (convoId, data) => {
+        setConversations(prev => prev.map(c => c.id === convoId ? { ...c, ...data } : c));
+      },
       deleteConversation: async (convoId) => {
         try {
           await chatService.deleteConversation(convoId, userId);
@@ -370,8 +378,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             </View>
             <View 
               className="absolute -bottom-1 -right-1 rounded-full border-2 w-6 h-6 items-center justify-center shadow-sm"
-              style={{ borderColor: themeColors.card }}
-              style={{ backgroundColor: getToastConfig(toastData.type).color }}
+              style={{ borderColor: themeColors.card, backgroundColor: getToastConfig(toastData.type).color }}
             >
               <Ionicons name={getToastConfig(toastData.type).icon as any} size={12} color="white" />
             </View>
