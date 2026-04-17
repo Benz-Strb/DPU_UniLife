@@ -314,6 +314,28 @@ export const chatService = {
       throw e;
     }
   },
+  markAsRead: async (convoId: string, userId: string): Promise<void> => {
+    try {
+      await API.patch(`/chats/${convoId}/read`, { userId });
+    } catch (e) {
+      console.error("Mark As Read Error", e);
+    }
+  },
+  updateSettings: async (convoId: string, userId: string, data: { title?: string; avatarUrl?: string }) => {
+    const response = await API.patch(`/chats/${convoId}/settings`, { userId, ...data });
+    return response.data;
+  },
+  toggleMute: async (convoId: string, userId: string): Promise<boolean> => {
+    const response = await API.patch(`/chats/${convoId}/mute`, { userId });
+    return response.data.isMuted;
+  },
+  addMember: async (convoId: string, userId: string, targetUserId: string) => {
+    const response = await API.post(`/chats/${convoId}/members`, { userId, targetUserId });
+    return response.data;
+  },
+  removeMember: async (convoId: string, userId: string, targetUserId: string) => {
+    await API.delete(`/chats/${convoId}/members/${targetUserId}`, { params: { userId } });
+  },
   deleteConversation: async (convoId: string, userId: string) => {
     try {
       await API.delete(`/chats/${convoId}`, { params: { userId } });
