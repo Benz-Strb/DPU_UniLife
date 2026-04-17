@@ -146,19 +146,6 @@ export default function UserProfileScreen() {
               </View>
               
               <View className="flex-row items-center">
-                {(isAdmin || isUniAdmin) && targetUserId !== currentUserId && (
-                  <TouchableOpacity
-                    onPress={handleSuspendToggle}
-                    className="w-12 h-12 rounded-2xl items-center justify-center mr-2"
-                    style={{ backgroundColor: userData?.status === 'SUSPENDED' ? '#D1FAE5' : '#FEE2E2' }}
-                  >
-                    <Ionicons
-                      name={userData?.status === 'SUSPENDED' ? 'checkmark-circle-outline' : 'ban-outline'}
-                      size={22}
-                      color={userData?.status === 'SUSPENDED' ? '#059669' : '#DC2626'}
-                    />
-                  </TouchableOpacity>
-                )}
                 <TouchableOpacity
                   onPress={() => toggleFollow(targetUserId)}
                   className={`px-6 py-3 rounded-2xl mr-2 ${isFollowing ? 'border' : 'bg-violet-500'}`}
