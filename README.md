@@ -1,26 +1,42 @@
-ไฟล์นี้เก็บข้อมูลสำหรับเข้าใช้งานในฐานะผู้ดูแลระบบ (Admin) สำหรับการทดสอบระบบ
+DPU UniLife
+แพลตฟอร์มโซเชียลสำหรับนักศึกษา มหาวิทยาลัยธุรกิจบัณฑิตย์ (DPU) รวมทุกอย่างไว้ในที่เดียว ทั้งฟีดโพสต์ แชท ตารางเรียน และประกาศจากมหาวิทยาลัย
+ฟีเจอร์หลัก
+AI Feed — ฟีดโพสต์ที่ระบบจัดเรียงให้เองตามพฤติกรรมการใช้งาน เน้นโพสต์จากคนที่ติดตามและโพสต์ที่กำลังได้รับความสนใจ
+แชทเรียลไทม์ — คุยแบบตัวต่อตัวหรือสร้างกลุ่มแชทได้เลย ใช้ Socket.io ทำให้ข้อความส่งถึงทันที
+ตารางเรียน — เพิ่มวิชาเรียนของตัวเองได้เอง ดูได้ตลอดว่าวันนี้มีคาบอะไรบ้าง
+ประกาศมหาวิทยาลัย — พื้นที่สำหรับข่าวสารทางการจากคณะและมหาวิทยาลัย แยกออกมาชัดเจนไม่ปนกับโพสต์ทั่วไป
+Admin Dashboard — เว็บจัดการหลังบ้านสำหรับแอดมิน ดูรายงาน จัดการผู้ใช้ และตรวจสอบสถิติต่างๆ
 
-University Admin (แอดมินมหาวิทยาลัย)
+โครงสร้างโปรเจกต์
 
-| Email | Student ID | Password | Role |
-|-------|------------|----------|------|
-| admin@dpu.ac.th | 00000000 | Admin@1234 | SUPER_ADMIN |
+/backend     → API, ฐานข้อมูล, Socket server
+/frontend    → แอปมือถือ (iOS/Android)
+/dashboard   → เว็บแอดมิน
+/uploads     → ไฟล์รูปภาพที่อัปโหลด
 
-Faculty Admins (แอดมินคณะ)
+Stack หลัก: Node.js + Express + Prisma + PostgreSQL (backend) / React Native + Expo + NativeWind (frontend) / React + Vite (dashboard)
 
-| Faculty | Email (Student ID) | Password | Role |
-|---------|-------------------|----------|------|
-| LAW | 11110001@dpu.ac.th | Admin@LAW01 | ADMIN |
-| CA | 11110002@dpu.ac.th | Admin@CA02 | ADMIN |
-| FA | 11110003@dpu.ac.th | Admin@FA03 | ADMIN |
-| ARTS | 11110004@dpu.ac.th | Admin@ARTS04 | ADMIN |
-| PA | 11110005@dpu.ac.th | Admin@PA05 | ADMIN |
-| HT | 11110006@dpu.ac.th | Admin@HT06 | ADMIN |
-| MT | 11110007@dpu.ac.th | Admin@MT07 | ADMIN |
-| CIBA | 11110008@dpu.ac.th | Admin@CIBA08 | ADMIN |
-| CITE | 11110009@dpu.ac.th | Admin@CITE09 | ADMIN |
-| CIM | 11110010@dpu.ac.th | Admin@CIM10 | ADMIN |
-| CADT | 11110011@dpu.ac.th | Admin@CADT11 | ADMIN |
-| ANT | 11110012@dpu.ac.th | Admin@ANT12 | ADMIN |
-| CHW | 11110013@dpu.ac.th | Admin@CHW13 | ADMIN |
-| IC | 11110014@dpu.ac.th | Admin@IC14 | ADMIN |
+Super Admin
+
+| Student ID | Password | 
+|------------|----------|
+| 00000000 | Admin@1234 |
+
+Faculty Admin
+
+| คณะ | Student ID | Password |
+|-----|------------|----------|
+| LAW | 11110001 | Admin@LAW01 |
+| CA | 11110002 | Admin@CA02 |
+| FA | 11110003 | Admin@FA03 |
+| ARTS | 11110004 | Admin@ARTS04 |
+| PA | 11110005 | Admin@PA05 |
+| HT | 11110006 | Admin@HT06 |
+| MT | 11110007 | Admin@MT07 |
+| CIBA | 11110008 | Admin@CIBA08 |
+| CITE | 11110009 | Admin@CITE09 |
+| CIM | 11110010 | Admin@CIM10 |
+| CADT | 11110011 | Admin@CADT11 |
+| ANT | 11110012 | Admin@ANT12 |
+| CHW | 11110013 | Admin@CHW13 |
+| IC | 11110014 | Admin@IC14 |
