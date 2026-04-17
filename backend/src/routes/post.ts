@@ -4,7 +4,6 @@ import path from 'path';
 import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
-import { rankPostsWithGemini } from '../lib/gemini';
 import { getCachedFeed, setCachedFeed } from '../lib/feedCache';
 
 const postRouter = Router();
@@ -300,7 +299,9 @@ postRouter.get('/ai-feed', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Fetch 40 recent public posts as candidates
+    const followingSet = new Set(user.following.map(f => f.followingId));
+
+    // Fetch recent public posts — more candidates to fill all 3 tiers
     const candidates = await prisma.post.findMany({
       where: {
         deletedAt: null,
@@ -309,44 +310,88 @@ postRouter.get('/ai-feed', async (req: Request, res: Response) => {
       },
       include: postInclude,
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-      take: 40,
+      take: 60,
     });
 
     if (candidates.length === 0) {
       return res.json([]);
     }
 
-    // Build compact summaries for Gemini
-    const postSummaries = candidates.map(p => ({
-      id: p.id,
-      author: (p.author as any)?.fullName ?? 'Unknown',
-      faculty: p.facultyTag ?? 'Unknown',
-      content: (p.content ?? '').slice(0, 120),
-      likes: (p._count as any)?.reactions ?? 0,
-      comments: (p._count as any)?.comments ?? 0,
-      age_hours: Math.round((Date.now() - new Date(p.createdAt).getTime()) / 3600000),
-    }));
+    // Split into 3 tiers
+    // Tier 1 — Famous: high engagement (reactions ≥ 5 or comments ≥ 3)
+    // Tier 2 — Friends: posted by someone the user follows (any engagement)
+    // Tier 3 — Others: everything else
 
-    const authorIds = Object.fromEntries(
-      candidates.map(p => [p.id, (p.author as any)?.id ?? ''])
-    );
+    const FAMOUS_REACTIONS = 5;
+    const FAMOUS_COMMENTS = 3;
 
-    // Ask Gemini to rank
-    const rankedIds = await rankPostsWithGemini({
-      userFaculty: user.faculty ?? 'Unknown',
-      followingIds: user.following.map(f => f.followingId),
-      authorIds,
-      posts: postSummaries,
+    const famousBucket: typeof candidates = [];
+    const friendsBucket: typeof candidates = [];
+    const othersBucket: typeof candidates = [];
+
+    for (const p of candidates) {
+      const authorId = (p.author as any)?.id ?? '';
+      const reactions = (p._count as any)?.reactions ?? 0;
+      const comments = (p._count as any)?.comments ?? 0;
+      const isFamous = reactions >= FAMOUS_REACTIONS || comments >= FAMOUS_COMMENTS;
+      const isFriend = followingSet.has(authorId);
+
+      if (isFamous) {
+        famousBucket.push(p);
+      } else if (isFriend) {
+        friendsBucket.push(p);
+      } else {
+        othersBucket.push(p);
+      }
+    }
+
+    // Sort each bucket
+    // Famous → highest engagement first
+    famousBucket.sort((a, b) => {
+      const scoreA = ((a._count as any)?.reactions ?? 0) + ((a._count as any)?.comments ?? 0) * 2;
+      const scoreB = ((b._count as any)?.reactions ?? 0) + ((b._count as any)?.comments ?? 0) * 2;
+      return scoreB - scoreA;
     });
+    // Friends → newest first (new posts always surface)
+    friendsBucket.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Others → newest first
+    othersBucket.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    // Reorder candidates by Gemini's ranking, return top 20
-    const idOrder = new Map(rankedIds.map((id, i) => [id, i]));
-    const ranked = [...candidates]
-      .sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999))
-      .slice(0, 20);
+    // Interleave tiers in pattern: [Famous, Friends, Friends, Others] × repeat
+    // This gives roughly: 25% famous, 50% friends, 25% others
+    const FEED_SIZE = 20;
+    const result: typeof candidates = [];
+    const fi = { famous: 0, friends: 0, others: 0 };
+    const pattern: Array<'famous' | 'friends' | 'others'> = ['famous', 'friends', 'friends', 'others'];
 
-    setCachedFeed(userId, ranked);
-    return res.json(ranked);
+    for (let slot = 0; result.length < FEED_SIZE; slot++) {
+      const tier = pattern[slot % pattern.length];
+
+      let picked: (typeof candidates)[0] | undefined;
+      if (tier === 'famous' && fi.famous < famousBucket.length) {
+        picked = famousBucket[fi.famous++];
+      } else if (tier === 'friends' && fi.friends < friendsBucket.length) {
+        picked = friendsBucket[fi.friends++];
+      } else if (tier === 'others' && fi.others < othersBucket.length) {
+        picked = othersBucket[fi.others++];
+      } else {
+        // Current tier exhausted — pull from whichever bucket still has posts
+        if (fi.friends < friendsBucket.length) {
+          picked = friendsBucket[fi.friends++];
+        } else if (fi.famous < famousBucket.length) {
+          picked = famousBucket[fi.famous++];
+        } else if (fi.others < othersBucket.length) {
+          picked = othersBucket[fi.others++];
+        } else {
+          break; // all buckets exhausted
+        }
+      }
+
+      if (picked) result.push(picked);
+    }
+
+    setCachedFeed(userId, result);
+    return res.json(result);
   } catch (error) {
     console.error('[AI Feed] Error:', error);
     return res.status(500).json({ error: 'Failed to generate AI feed' });
