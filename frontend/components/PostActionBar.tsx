@@ -20,7 +20,7 @@ export default function PostActionBar({
   onLike, onToggleComments, onRepost, themeColors,
 }: PostActionBarProps) {
   return (
-    <View className="flex-row items-center px-4 pt-3 pb-2 gap-4">
+    <View className="flex-row items-center px-4 pt-5 pb-3 gap-4">
       <TouchableOpacity onPress={onLike} className="flex-row items-center">
         <Ionicons
           name={isLiked ? "heart" : "heart-outline"}
