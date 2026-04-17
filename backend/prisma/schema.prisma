@@ -332,6 +332,7 @@ model Conversation {
   id              String                  @id @default(uuid()) @db.Uuid
   type            ConversationType        @default(DIRECT)
   title           String?
+  avatarUrl       String?
   createdById     String                  @db.Uuid
   groupId         String?                 @db.Uuid
   createdAt       DateTime                @default(now())
