@@ -154,7 +154,8 @@ export default function SearchScreen() {
     setHistory([]);
   };
 
-  const filteredUsers = searchQuery.trim() ? searchResults.users : suggestedUsers;
+  const filteredUsers = (searchQuery.trim() ? searchResults.users : suggestedUsers)
+    .filter(u => u.id !== userId);
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>

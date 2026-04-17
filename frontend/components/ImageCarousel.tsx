@@ -8,12 +8,14 @@ interface Props {
   images: { url: string }[];
   aspectRatio?: number;
   onDoubleTap?: () => void;
+  onSingleTap?: () => void;
   onLongPress?: () => void;
 }
 
-export default function ImageCarousel({ images, aspectRatio = 1, onDoubleTap, onLongPress }: Props) {
+export default function ImageCarousel({ images, aspectRatio = 1, onDoubleTap, onSingleTap, onLongPress }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const lastTapRef = useRef<number>(0);
+  const timerRef = useRef<any>(null);
   const heartAnim = useRef(new Animated.Value(0)).current;
 
   if (!images || images.length === 0) return null;
@@ -23,6 +25,7 @@ export default function ImageCarousel({ images, aspectRatio = 1, onDoubleTap, on
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
+      if (timerRef.current) clearTimeout(timerRef.current);
       lastTapRef.current = 0;
       onDoubleTap?.();
       heartAnim.setValue(0);
@@ -33,6 +36,9 @@ export default function ImageCarousel({ images, aspectRatio = 1, onDoubleTap, on
       ]).start();
     } else {
       lastTapRef.current = now;
+      timerRef.current = setTimeout(() => {
+        onSingleTap?.();
+      }, 300);
     }
   };
 

@@ -10,12 +10,8 @@ import {
   Alert,
   TextInput,
 } from "react-native";
-import ImageCarousel from "@/components/ImageCarousel";
-import PostActionBar from "@/components/PostActionBar";
-import PostOptionsButton from "@/components/PostOptionsButton";
-import InlineComments from "@/components/InlineComments";
+import PostCard from "@/components/PostCard";
 import EmptyState from "@/components/EmptyState";
-import ExpandableText from "@/components/ExpandableText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -61,16 +57,14 @@ export default function HomeScreen() {
   const refreshRef = useRef(refreshPosts);
   refreshRef.current = refreshPosts;
 
-  const [aiFeedPosts, setAiFeedPosts] = useState<any[]>([]);
-  const [aiFeedLoading, setAiFeedLoading] = useState(true);
+  const [aiFeedLoading, setAiFeedLoading] = useState(false);
   const [aiFeedReady, setAiFeedReady] = useState(false);
 
   const fetchAIFeed = async () => {
     if (!userId) return;
     setAiFeedLoading(true);
     try {
-      const data = await postService.getAIFeed(userId);
-      setAiFeedPosts(data.filter((p: any) => !p.isOfficial));
+      await refreshPosts(true);
       setAiFeedReady(true);
     } catch {
       setAiFeedReady(false);
@@ -86,7 +80,6 @@ export default function HomeScreen() {
   useEffect(() => {
     const handler = () => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
-      refreshRef.current();
       fetchAIFeed();
     };
     tabRefreshEmitter.on("home", handler);
@@ -96,8 +89,26 @@ export default function HomeScreen() {
   const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
-  const regularPosts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
-  const posts = aiFeedReady ? aiFeedPosts : regularPosts;
+  const handleRepost = async (postId: string) => {
+    const isReposted = repostedIds.has(postId);
+    try {
+      if (isReposted) {
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
+      } else {
+        await postService.sharePost(postId, userId);
+        setRepostedIds((prev) => new Set(prev).add(postId));
+      }
+    } catch {
+      Alert.alert("Error", "Could not repost.");
+    }
+  };
+
+  const posts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
 
   const handleReportPost = (postId: string) => {
     Alert.alert("Report Post", "Why are you reporting this post?", [
@@ -118,19 +129,8 @@ export default function HomeScreen() {
     }
   };
 
-  const handleRepost = async (postId: string) => {
-    const isReposted = repostedIds.has(postId);
-    try {
-      if (isReposted) {
-        await postService.unrepostPost(postId, userId);
-        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
-      } else {
-        await postService.sharePost(postId, userId);
-        setRepostedIds(prev => new Set(prev).add(postId));
-      }
-    } catch {
-      Alert.alert("Error", "Could not repost.");
-    }
+  const goToPostDetail = (postId: string) => {
+    router.push({ pathname: "/post-detail", params: { postId, single: "true" } });
   };
 
   return (
@@ -178,121 +178,37 @@ export default function HomeScreen() {
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshPosts} tintColor={theme.colors.primary} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAIFeed} tintColor={theme.colors.primary} />}
         >
           {posts.length === 0 ? (
             <View className="mx-4 mt-6 rounded-[40px] border border-dashed border-gray-100" style={{ backgroundColor: themeColors.card }}>
               <EmptyState icon="planet-outline" title="Empty Galaxy" themeColors={themeColors} />
             </View>
           ) : (
-            posts.map((post) => {
-              const isLiked = post.reactions?.some((r: any) => r.userId === userId);
-
-              return (
-                <View
-                  key={post.id}
-                  className="mb-3 border-b"
-                  style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-                >
-                  {/* Author row */}
-                  <View className="flex-row items-center justify-between px-4 pt-4 pb-3">
-                    <TouchableOpacity
-                      onPress={() => router.push({ pathname: "/user-profile", params: { userId: post.authorId } })}
-                      className="flex-row items-center flex-1"
-                    >
-                      <Image
-                        source={{ uri: getAvatarUrl(post.author?.avatarUrl, post.author?.fullName) }}
-                        className="w-10 h-10 rounded-full mr-3 border border-gray-100"
-                      />
-                      <View className="flex-1">
-                        <Text className="font-black text-[13px]" style={{ color: themeColors.text }}>{post.author?.fullName || "User"}</Text>
-                        {post.author?.faculty ? (
-                          <Text className="text-[10px] font-bold text-violet-500">{post.author.faculty}</Text>
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-
-                    {/* Follow button — show only when NOT following */}
-                    {post.authorId !== userId && !isAdmin && !isUniAdmin && !followingIds.includes(post.authorId) && (
-                      <TouchableOpacity
-                        onPress={() => toggleFollow(post.authorId)}
-                        className="px-3 py-1.5 rounded-xl bg-violet-500 mr-1"
-                      >
-                        <Text className="font-black text-[10px] uppercase text-white">Follow</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {/* 3-dot options */}
-                    {post.authorId === userId ? (
-                      <PostOptionsButton
-                        post={post}
-                        onDeleted={(postId) => setAiFeedPosts(prev => prev.filter(p => p.id !== postId))}
-                      />
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => Alert.alert("Post Options", undefined, [
-                          { text: "Report", style: "destructive", onPress: () => handleReportPost(post.id) },
-                          { text: "Cancel", style: "cancel" },
-                        ])}
-                        className="w-8 h-8 items-center justify-center ml-1"
-                      >
-                        <Feather name="more-horizontal" size={20} color={themeColors.subText} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Full-width image carousel with double-tap to like */}
-                  {post.media && post.media.length > 0 && (
-                    <ImageCarousel
-                      images={post.media.map((m: any) => ({ url: getAvatarUrl(m.url) }))}
-                      aspectRatio={1}
-                      onDoubleTap={() => {
-                        toggleLike(post.id);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      }}
-                    />
-                  )}
-
-                  {/* Actions row */}
-                  <PostActionBar
-                    isLiked={isLiked}
-                    likeCount={post._count?.reactions || 0}
-                    commentCount={post._count?.comments || 0}
-                    isReposted={repostedIds.has(post.id)}
-                    isCommentActive={activeCommentPostId === post.id}
-                    onLike={() => toggleLike(post.id)}
-                    onToggleComments={() => toggleComments(post.id)}
-                    onRepost={() => handleRepost(post.id)}
-                    themeColors={themeColors}
-                  />
-
-                  {/* Caption */}
-                  {post.content && (
-                    <ExpandableText
-                      content={post.content}
-                      authorName={post.author?.fullName}
-                      isExpanded={!!expandedPosts[post.id]}
-                      onToggle={() => setExpandedPosts(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                      themeColors={themeColors}
-                    />
-                  )}
-
-                  {/* Inline Comments */}
-                  {activeCommentPostId === post.id && (
-                    <InlineComments
-                      post={post}
-                      themeColors={themeColors}
-                      replyTo={replyTo}
-                      setReplyTo={setReplyTo}
-                      commentText={commentText}
-                      setCommentText={setCommentText}
-                      sendComment={sendComment}
-                      onCommentLongPress={handleCommentLongPress}
-                    />
-                  )}
-                </View>
-              );
-            })
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                userId={userId}
+                themeColors={themeColors}
+                toggleLike={toggleLike}
+                deletePost={deletePost}
+                followingIds={followingIds}
+                toggleFollow={toggleFollow}
+                isAdmin={isAdmin}
+                isUniAdmin={isUniAdmin}
+                replyTo={replyTo}
+                setReplyTo={setReplyTo}
+                commentText={commentText}
+                setCommentText={setCommentText}
+                sendComment={sendComment}
+                toggleComments={toggleComments}
+                activeCommentPostId={activeCommentPostId}
+                handleCommentLongPress={handleCommentLongPress}
+                repostedIds={repostedIds}
+                handleRepost={handleRepost}
+              />
+            ))
           )}
           <View className="h-24" />
         </ScrollView>

@@ -47,7 +47,7 @@ interface UserContextType {
   deletePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, data: any) => Promise<void>;
   toggleLike: (postId: string, reaction?: string) => void;
-  refreshPosts: () => Promise<void>;
+  refreshPosts: (useAI?: boolean) => Promise<void>;
   isRefreshing: boolean;
   conversations: Conversation[];
   sendMessage: (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => Promise<void>;
@@ -129,9 +129,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }, 4000);
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (useAI = false) => {
     try {
-      const data = await postService.getPosts();
+      let data;
+      if (useAI && userId) {
+        data = await postService.getAIFeed(userId);
+      } else {
+        data = await postService.getPosts();
+      }
       setPosts(Array.isArray(data) ? data : []);
     } catch (e) { setPosts([]); }
   };
@@ -204,8 +209,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         triggerToast(notif);
       };
 
+      const onPostUpdate = (updatedPost: Post) => {
+        console.log("[SOCKET] Post Update Received:", updatedPost.id);
+        setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+      };
+
       socket.on("connect", onConnect);
       socket.on("new_notification", onNewNotification);
+      socket.on("post_update", onPostUpdate);
       socket.on("reconnect", () => socket.emit("register_user", userId));
 
       if (socket.connected) onConnect(); else socket.connect();
@@ -221,6 +232,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         clearInterval(interval);
         socket.off("connect", onConnect);
         socket.off("new_notification", onNewNotification);
+        socket.off("post_update", onPostUpdate);
       };
     }
   }, [userId]);
@@ -264,7 +276,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         } else {
           newReactions = [...(post.reactions || []), { postId, userId, reaction: reaction as any }];
         }
-        return { ...post, reactions: newReactions, _count: { ...post._count, reactions: newReactions.length } } as Post;
+        return { 
+          ...post, 
+          reactions: newReactions, 
+          _count: { 
+            ...(post._count || { comments: 0 }), 
+            reactions: newReactions.length 
+          } 
+        } as Post;
       }
       return post;
     }));
@@ -324,7 +343,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       },
       deletePost: async (id) => { await postService.deletePost(id); setPosts(prev => prev.filter(p => p.id !== id)); },
       updatePost: async (id, data) => { const p = await postService.updatePost(id, data); setPosts(prev => prev.map(old => old.id === id ? p : old)); },
-      toggleLike, refreshPosts: async () => { setIsRefreshing(true); await fetchPosts(); setIsRefreshing(false); }, 
+      toggleLike, 
+      refreshPosts: async (useAI = false) => { 
+        setIsRefreshing(true); 
+        await fetchPosts(useAI); 
+        setIsRefreshing(false); 
+      }, 
       isRefreshing, conversations, sendMessage, syncProfile: async () => { fetchPosts(); }, updateProfile,
       followingIds, toggleFollow, getDirectChat: async (tid) => { const c = await chatService.getOrCreateDirectChat(userId, tid); fetchChats(userId); return c; },
       unreadChatCount, unreadNotificationCount,
@@ -350,72 +374,69 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       {/* GLOBAL HEADS-UP TOAST */}
       {showToast && toastData && (
-        <Animated.View
-          pointerEvents="auto"
-          className="absolute left-4 right-4 rounded-[24px] p-2 pr-4 flex-row items-center z-[99999]"
-          style={{
-            top: 0,
-            transform: [{ translateY: toastAnim }],
-            backgroundColor: themeColors.card,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.4,
-            shadowRadius: 12,
-            elevation: 20,
-            borderWidth: 2,
-            borderColor: themeColors.border,
-          }}
+        <View 
+          pointerEvents="box-none"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', zIndex: 99999 }}
         >
-          <View className="relative">
-            <View 
-              className="w-14 h-14 rounded-full overflow-hidden border-2"
-              style={{ borderColor: getToastConfig(toastData.type).color + '20' }}
-            >
-              <Image 
-                source={{ uri: toastData.sender?.avatarUrl ? (toastData.sender.avatarUrl.startsWith('http') ? toastData.sender.avatarUrl : `${BASE_URL}${toastData.sender.avatarUrl}`) : "https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff" }}
-                style={{ width: "100%", height: "100%", backgroundColor: themeColors.iconBg }}
-              />
-            </View>
-            <View 
-              className="absolute -bottom-1 -right-1 rounded-full border-2 w-6 h-6 items-center justify-center shadow-sm"
-              style={{ borderColor: themeColors.card, backgroundColor: getToastConfig(toastData.type).color }}
-            >
-              <Ionicons name={getToastConfig(toastData.type).icon as any} size={12} color="white" />
-            </View>
-          </View>
-
-          <TouchableOpacity 
-            className="flex-1 ml-4 h-full justify-center"
-            activeOpacity={0.8}
-            onPress={() => { 
-              setShowToast(false); 
-              if (toastData.type === "MESSAGE") {
-                router.push("/messenger");
-              } else {
-                router.push("/notifications");
-              }
+          <Animated.View
+            pointerEvents="auto"
+            className="rounded-[24px] p-2 pr-4 flex-row items-center"
+            style={{
+              width: width * 0.92,
+              transform: [{ translateY: toastAnim }],
+              backgroundColor: themeColors.card,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.4,
+              shadowRadius: 12,
+              elevation: 20,
+              borderWidth: 2,
+              borderColor: themeColors.border,
             }}
           >
-            <View className="flex-row items-center mb-0.5">
-              <Text className="font-extrabold text-[15px]" style={{ color: themeColors.text }} numberOfLines={1}>
-                {toastData.sender?.fullName || "System Notification"}
-              </Text>
-              <View className="w-1 h-1 rounded-full mx-1.5" style={{ backgroundColor: themeColors.subText }} />
-              <Text className="text-[11px] font-bold" style={{ color: themeColors.subText }}>Just now</Text>
+            <View className="relative">
+              <View 
+                className="w-14 h-14 rounded-full overflow-hidden border-2"
+                style={{ borderColor: getToastConfig(toastData.type).color + '20' }}
+              >
+                <Image 
+                  source={{ uri: toastData.sender?.avatarUrl ? (toastData.sender.avatarUrl.startsWith('http') ? toastData.sender.avatarUrl : `${BASE_URL}${toastData.sender.avatarUrl}`) : "https://ui-avatars.com/api/?name=User&background=7C3AED&color=fff" }}
+                  style={{ width: "100%", height: "100%", backgroundColor: themeColors.iconBg }}
+                />
+              </View>
+              <View 
+                className="absolute -bottom-1 -right-1 rounded-full border-2 w-6 h-6 items-center justify-center shadow-sm"
+                style={{ borderColor: themeColors.card, backgroundColor: getToastConfig(toastData.type).color }}
+              >
+                <Ionicons name={getToastConfig(toastData.type).icon as any} size={12} color="white" />
+              </View>
             </View>
-            <Text className="font-medium text-[13px]" style={{ color: themeColors.subText }} numberOfLines={1}>
-              {toastData.type === "MESSAGE" ? toastData.body : getToastConfig(toastData.type).label}
-            </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity 
-            onPress={() => setShowToast(false)}
-            className="w-9 h-9 items-center justify-center rounded-full"
-            style={{ backgroundColor: themeColors.iconBg }}
-          >
-            <Ionicons name="close-outline" size={20} color={themeColors.subText} />
-          </TouchableOpacity>
-        </Animated.View>
+            <TouchableOpacity 
+              className="flex-1 ml-4 h-full justify-center"
+              activeOpacity={0.8}
+              onPress={() => { 
+                setShowToast(false); 
+                if (toastData.type === "MESSAGE") {
+                  router.push("/messenger");
+                } else {
+                  router.push("/notifications");
+                }
+              }}
+            >
+              <View className="flex-row items-center mb-0.5">
+                <Text className="font-extrabold text-[15px]" style={{ color: themeColors.text }} numberOfLines={1}>
+                  {toastData.sender?.fullName || "System Notification"}
+                </Text>
+                <View className="w-1 h-1 rounded-full mx-1.5" style={{ backgroundColor: themeColors.subText }} />
+                <Text className="text-[11px] font-bold" style={{ color: themeColors.subText }}>Just now</Text>
+              </View>
+              <Text className="font-medium text-[13px]" style={{ color: themeColors.subText }} numberOfLines={1}>
+                {toastData.type === "MESSAGE" ? toastData.body : getToastConfig(toastData.type).label}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       )}
     </UserContext.Provider>
   );

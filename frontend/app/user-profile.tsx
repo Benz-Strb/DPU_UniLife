@@ -189,8 +189,16 @@ export default function UserProfileScreen() {
                   </View>
                 )}
               </View>
-              <View className="flex-row items-center mt-1">
-                <Text className="text-sm font-bold text-violet-500 mr-2">@{userData?.username}</Text>
+              
+              <View className="flex-row items-center mt-1 flex-wrap gap-2">
+                <Text className="text-sm font-bold text-violet-500">@{userData?.username}</Text>
+                
+                {userData?.role && userData.role !== 'STUDENT' && (
+                  <View className="px-2 py-0.5 rounded-md bg-amber-100 border border-amber-200">
+                    <Text className="text-[8px] font-black text-amber-700 uppercase">{userData.role.replace('_', ' ')}</Text>
+                  </View>
+                )}
+
                 {userData?.faculty && (
                   <View className="px-2.5 py-1 rounded-lg bg-blue-100">
                     <Text className="text-[9px] font-black text-blue-600 uppercase">{userData.faculty}</Text>

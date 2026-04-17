@@ -8,51 +8,80 @@ import { usePosts } from "@/hooks/usePosts";
 interface Props {
   post: any;
   onDeleted?: (postId: string) => void;
+  /** Extra options to show in the alert menu */
+  extraOptions?: { text: string; onPress: () => void; style?: "default" | "cancel" | "destructive" }[];
 }
 
-export default function PostOptionsButton({ post, onDeleted }: Props) {
+export default function PostOptionsButton({ post, onDeleted, extraOptions = [] }: Props) {
   const router = useRouter();
-  const { userId } = useUser();
-  const { deletePost, updateCommentsStatus } = usePosts();
+  const { userId, isAdmin, isUniAdmin, user } = useUser();
+  const { deletePost, updateCommentsStatus, togglePin } = usePosts();
 
-  if (post.authorId !== userId) return null;
+  const isAuthor = post.authorId === userId;
+  const isFacultyAdmin = isAdmin && post.facultyTag === user?.faculty;
+  const canManage = isAuthor || isUniAdmin || isFacultyAdmin;
+
+  if (!canManage) return null;
 
   const handlePress = () => {
-    Alert.alert("จัดการโพสต์", "กรุณาเลือกรายการที่ต้องการ", [
-      {
-        text: "แก้ไขโพสต์",
-        onPress: () =>
-          router.push({
-            pathname: "/new-post",
-            params: {
-              editPostId: post.id,
-              editContent: post.content ?? "",
-              editVisibility: post.visibility ?? "PUBLIC",
-            },
-          } as any),
-      },
-      {
-        text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
-        onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
-      },
-      {
-        text: "ลบโพสต์",
-        style: "destructive",
-        onPress: () =>
-          Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ถาวรใช่หรือไม่?", [
-            { text: "ยกเลิก", style: "cancel" },
-            {
-              text: "ลบ",
-              style: "destructive",
-              onPress: async () => {
+    const options: any[] = [];
+
+    // Edit option (Author or Admins)
+    options.push({
+      text: "แก้ไขโพสต์",
+      onPress: () =>
+        router.push({
+          pathname: "/new-post",
+          params: {
+            editPostId: post.id,
+            editContent: post.content ?? "",
+            editVisibility: post.visibility ?? "PUBLIC",
+          },
+        } as any),
+    });
+
+    // Pin option (Admins only)
+    if (isUniAdmin || isFacultyAdmin) {
+      options.push({
+        text: post.isPinned ? "เลิกปักหมุด" : "ปักหมุดประกาศ",
+        onPress: () => togglePin(post.id, !!post.isPinned),
+      });
+    }
+
+    // Comment toggle
+    options.push({
+      text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
+      onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
+    });
+
+    // Extra options passed from props
+    extraOptions.forEach(opt => options.push(opt));
+
+    // Delete option
+    options.push({
+      text: "ลบโพสต์",
+      style: "destructive",
+      onPress: () =>
+        Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ถาวรใช่หรือไม่?", [
+          { text: "ยกเลิก", style: "cancel" },
+          {
+            text: "ลบ",
+            style: "destructive",
+            onPress: async () => {
+              try {
                 await deletePost(post.id);
                 onDeleted?.(post.id);
-              },
+              } catch (err) {
+                Alert.alert("Error", "ไม่สามารถลบโพสต์ได้");
+              }
             },
-          ]),
-      },
-      { text: "ยกเลิก", style: "cancel" },
-    ]);
+          },
+        ]),
+    });
+
+    options.push({ text: "ยกเลิก", style: "cancel" });
+
+    Alert.alert("จัดการโพสต์", "กรุณาเลือกรายการที่ต้องการ", options);
   };
 
   return (

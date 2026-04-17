@@ -5,17 +5,31 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
+import { usePosts } from "@/hooks/usePosts";
 import { authService, postService } from "@/services/api";
 import PostOptionsButton from "@/components/PostOptionsButton";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import ImageCarousel from "@/components/ImageCarousel";
+import InlineComments from "@/components/InlineComments";
 
 const { width } = Dimensions.get("window");
 
-function PostItem({ post, themeColors, userId, toggleLike, router, onDeleted }: any) {
+function PostItem({ 
+  post, 
+  themeColors, 
+  userId, 
+  toggleLike, 
+  onDeleted,
+  replyTo,
+  setReplyTo,
+  commentText,
+  setCommentText,
+  sendComment,
+  handleCommentLongPress
+}: any) {
   const isLiked = post.reactions?.some((r: any) => r.userId === userId);
   const likeCount = post._count?.reactions ?? post.reactions?.length ?? 0;
-  const commentCount = post._count?.comments ?? 0;
+  const commentCount = post._count?.comments ?? post.comments?.length ?? 0;
   const hasMedia = post.media && post.media.length > 0;
 
   return (
@@ -57,6 +71,18 @@ function PostItem({ post, themeColors, userId, toggleLike, router, onDeleted }: 
           <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{commentCount}</Text>
         </View>
       </View>
+
+      {/* Inline Comments */}
+      <InlineComments
+        post={post}
+        themeColors={themeColors}
+        replyTo={replyTo}
+        setReplyTo={setReplyTo}
+        commentText={commentText}
+        setCommentText={setCommentText}
+        sendComment={sendComment}
+        onCommentLongPress={handleCommentLongPress}
+      />
     </View>
   );
 }
@@ -65,10 +91,47 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { postId, userId: profileUserId, single } = useLocalSearchParams<{ postId: string; userId: string; single?: string }>();
   const isSingle = single === "true";
-  const { themeColors, userId, toggleLike } = useUser();
+  const { themeColors, userId, toggleLike: globalToggleLike } = useUser();
+  const {
+    replyTo,
+    setReplyTo,
+    commentText,
+    setCommentText,
+    sendComment,
+    handleCommentLongPress,
+  } = usePosts();
+  
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+
+  const handleToggleLike = async (postId: string) => {
+    // 1. Immediate UI feedback for local state
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const reactions = p.reactions || [];
+        const isLiked = reactions.some((r: any) => r.userId === userId);
+        let newReactions;
+        if (isLiked) {
+          newReactions = reactions.filter((r: any) => r.userId !== userId);
+        } else {
+          newReactions = [...reactions, { userId, reaction: "LIKE" }];
+        }
+        return {
+          ...p,
+          reactions: newReactions,
+          _count: { 
+            ...p._count, 
+            reactions: newReactions.length 
+          }
+        };
+      }
+      return p;
+    }));
+
+    // 2. Perform global sync
+    await globalToggleLike(postId);
+  };
 
   const handleDeleted = (postId: string) => {
     const remaining = posts.filter(p => p.id !== postId);
@@ -77,15 +140,16 @@ export default function PostDetailScreen() {
   };
 
   useEffect(() => {
-    if (isSingle) {
-      // โหลดเฉพาะโพสต์นี้โพสต์เดียว (มาจาก repost)
+    if (isSingle || (postId && !profileUserId)) {
       if (!postId) return;
       postService.getPost(postId)
         .then(post => { if (post) setPosts([post]); })
         .finally(() => setLoading(false));
     } else {
-      // โหลดทุกโพสต์ของ user แล้ว scroll ไปที่โพสต์ที่กด
-      if (!profileUserId) return;
+      if (!profileUserId) {
+        setLoading(false);
+        return;
+      }
       authService.getProfile(profileUserId)
         .then(data => {
           const userPosts: any[] = data.authoredPosts ?? [];
@@ -99,7 +163,6 @@ export default function PostDetailScreen() {
     }
   }, [postId, profileUserId, isSingle]);
 
-  // scroll ไปยังโพสต์ที่กด
   useEffect(() => {
     if (posts.length === 0 || !postId) return;
     const index = posts.findIndex(p => p.id === postId);
@@ -144,9 +207,14 @@ export default function PostDetailScreen() {
               post={item}
               themeColors={themeColors}
               userId={userId}
-              toggleLike={toggleLike}
-              router={router}
+              toggleLike={handleToggleLike}
               onDeleted={handleDeleted}
+              replyTo={replyTo}
+              setReplyTo={setReplyTo}
+              commentText={commentText}
+              setCommentText={setCommentText}
+              sendComment={sendComment}
+              handleCommentLongPress={handleCommentLongPress}
             />
           )}
           onScrollToIndexFailed={info => {

@@ -57,6 +57,15 @@ export default function GroupScreen() {
     }
   };
 
+  const handleProfilePress = (authorId: string, authorRole: string) => {
+    if (authorId === userId) {
+      router.push("/profile");
+    } else if (authorRole === "STUDENT") {
+      router.push({ pathname: "/user-profile", params: { userId: authorId } });
+    }
+    // If it's an admin and not the current user, do nothing
+  };
+
   React.useEffect(() => {
     if (isUniAdmin && selectedGroup !== "DPU") setSelectedGroup("DPU");
   }, [isUniAdmin]);
@@ -106,7 +115,7 @@ export default function GroupScreen() {
         onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
       },
       {
-        text: post.isPinned ? "เลิกปิ๊น" : "ปิ๊นประกาศ",
+        text: post.isPinned ? "เลิกปักหมุด" : "ปักหมุดประกาศ",
         onPress: () => togglePin(post.id, post.isPinned),
       },
       {
@@ -233,6 +242,7 @@ export default function GroupScreen() {
               const isLiked = post.reactions?.some((r: any) => r.userId === userId);
               const isExpanded = expandedPosts[post.id];
               const canManage = post.authorId === userId || isUniAdmin || (isAdmin && post.facultyTag === userFaculty);
+              const isAuthorAdmin = post.author?.role !== "STUDENT";
 
               return (
                 <View
@@ -243,7 +253,9 @@ export default function GroupScreen() {
                   {/* Author row */}
                   <View className="flex-row items-center justify-between px-4 pt-4 pb-3">
                     <TouchableOpacity
-                      onPress={() => router.push({ pathname: "/user-profile", params: { userId: post.authorId } })}
+                      onPress={() => handleProfilePress(post.authorId, post.author?.role || "STUDENT")}
+                      disabled={isAuthorAdmin && post.authorId !== userId}
+                      activeOpacity={isAuthorAdmin && post.authorId !== userId ? 1 : 0.7}
                       className="flex-row items-center flex-1"
                     >
                       <Image

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
@@ -10,7 +10,6 @@ import { getAvatarUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import { Post, UserRole } from "@/types/backend";
 import { usePosts } from "@/hooks/usePosts";
-import { LinearGradient } from "expo-linear-gradient";
 import PostThumbnailCard from "@/components/PostThumbnailCard";
 import ProfileGridTabBar from "@/components/ProfileGridTabBar";
 import EmptyState from "@/components/EmptyState";
@@ -18,12 +17,15 @@ import EmptyState from "@/components/EmptyState";
 function AdminDashboard() {
   const router = useRouter();
   const { themeColors, profileImage, name, userId, user: currentUser, isUniAdmin } = useUser();
-  const { posts, deletePost, togglePin, updateCommentsStatus } = usePosts();
+  const { posts, deletePost, updateCommentsStatus, togglePin } = usePosts();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const adminPosts = useMemo(() => {
     const filtered = posts.filter(p => p.authorId === userId);
-    return [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return [...filtered].sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }, [posts, userId]);
 
   const onRefresh = async () => {
@@ -42,6 +44,21 @@ function AdminDashboard() {
       "จัดการประกาศ",
       "กรุณาเลือกรายการที่ต้องการ",
       [
+        {
+          text: "แก้ไขประกาศ",
+          onPress: () => router.push({
+            pathname: "/new-post",
+            params: {
+              editPostId: post.id,
+              editContent: post.content ?? "",
+              editVisibility: post.visibility ?? "PUBLIC",
+            },
+          } as any)
+        },
+        {
+          text: post.isPinned ? "เลิกปักหมุด" : "ปักหมุดประกาศ",
+          onPress: () => togglePin(post.id, !!post.isPinned)
+        },
         {
           text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
           onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled)
@@ -137,21 +154,15 @@ function AdminDashboard() {
             </View>
           ) : (
             adminPosts.map((post) => (
-              <TouchableOpacity key={post.id} onPress={() => handlePostOptions(post)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                <View className="w-full h-full rounded-[24px] overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.card, elevation: 2 }}>
-                  <Image source={{ uri: (post.media && post.media.length > 0) ? getAvatarUrl(post.media[0].url) : undefined }} className="w-full h-full" />
-                  {post.isPinned && (
-                    <View className="absolute top-2 right-2 bg-amber-400 p-1 rounded-full border border-white">
-                       <Ionicons name="pin" size={8} color="white" />
-                    </View>
-                  )}
-                  {(!post.media || post.media.length === 0) && (
-                    <View className="absolute inset-0 items-center justify-center p-3" style={{ backgroundColor: themeColors.iconBg }}>
-                       <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <PostThumbnailCard
+                key={post.id}
+                post={post}
+                onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId, single: "true" } } as any)}
+                onLongPress={() => handlePostOptions(post)}
+                themeColors={themeColors}
+                badgeIcon={post.isPinned ? "pin" : undefined}
+                badgeColor={theme.colors.primary}
+              />
             ))
           )}
         </View>
@@ -163,19 +174,26 @@ function AdminDashboard() {
 
 function StudentProfile() {
   const router = useRouter();
-  const { isDarkMode, name, bio, profileImage, userId, themeColors, user: currentUser } = useUser();
-  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const { name, bio, profileImage, userId, themeColors, user: currentUser, posts: globalPosts } = useUser();
+  const { deletePost } = usePosts();
+  
   const [reposts, setReposts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"posts" | "reposts">("posts");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
+
+  // Derive userPosts from globalPosts for real-time updates
+  const userPosts = useMemo(() => {
+    return globalPosts
+      .filter(p => p.authorId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [globalPosts, userId]);
 
   const fetchProfileData = async () => {
     if (!userId) return;
     try {
       const data = await authService.getProfile(userId);
       setProfileData(data);
-      if (data.authoredPosts) setUserPosts(data.authoredPosts);
       if (data.postShares) setReposts(data.postShares);
     } catch (error) {
       console.error("Fetch profile error:", error);
@@ -196,6 +214,36 @@ function StudentProfile() {
     tabRefreshEmitter.on("profile", onRefresh);
     return () => tabRefreshEmitter.off("profile", onRefresh);
   }, []);
+
+  const handlePostOptions = (post: any) => {
+    Alert.alert(
+      "จัดการโพสต์",
+      "กรุณาเลือกรายการที่ต้องการ",
+      [
+        {
+          text: "ลบโพสต์",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ถาวรใช่หรือไม่?", [
+              { text: "ยกเลิก", style: "cancel" },
+              { 
+                text: "ลบ", 
+                style: "destructive", 
+                onPress: async () => {
+                  try {
+                    await deletePost(post.id);
+                  } catch {
+                    Alert.alert("Error", "Could not delete post.");
+                  }
+                }
+              }
+            ]);
+          }
+        },
+        { text: "ยกเลิก", style: "cancel" }
+      ]
+    );
+  };
 
 
   return (
@@ -289,7 +337,8 @@ function StudentProfile() {
                 <PostThumbnailCard
                   key={post.id}
                   post={post}
-                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId } } as any)}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId, single: "true" } } as any)}
+                  onLongPress={() => handlePostOptions(post)}
                   themeColors={themeColors}
                 />
               ))

@@ -5,6 +5,7 @@ import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
 import { getCachedFeed, setCachedFeed } from '../lib/feedCache';
+import { getIO } from '../lib/socket';
 
 const postRouter = Router();
 
@@ -182,6 +183,20 @@ const parseTagNames = (value: unknown): string[] | null => {
 
 const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
   return error instanceof Prisma.PrismaClientKnownRequestError;
+};
+
+const emitPostUpdate = async (postId: string) => {
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: postInclude,
+    });
+    if (post) {
+      getIO().emit('post_update', post);
+    }
+  } catch (err) {
+    console.error('Failed to emit post update:', err);
+  }
 };
 
 postRouter.post('/upload', upload.single('image'), (req: Request & { file?: Express.Multer.File }, res: Response) => {
@@ -768,6 +783,7 @@ postRouter.post('/:id/like', async (req: Request, res: Response) => {
             postId_userId: { postId, userId },
           },
         });
+        await emitPostUpdate(postId);
 
         return res.json({ message: 'Reaction removed', reaction: null });
       }
@@ -780,6 +796,7 @@ postRouter.post('/:id/like', async (req: Request, res: Response) => {
           reaction,
         },
       });
+      await emitPostUpdate(postId);
 
       return res.json({ message: 'Reaction updated', reaction: updatedReaction });
     }
@@ -787,6 +804,7 @@ postRouter.post('/:id/like', async (req: Request, res: Response) => {
     const createdReaction = await prisma.postReaction.create({
       data: { postId, userId, reaction },
     });
+    await emitPostUpdate(postId);
 
     // แจ้งเตือนเจ้าของโพสต์ (ถ้าไม่ใช่คนไลค์เอง)
     const postOwner = await prisma.post.findUnique({
@@ -898,6 +916,8 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
       },
     });
 
+    emitPostUpdate(postId);
+
     // แจ้งเตือนเจ้าของโพสต์
     const postOwner = await prisma.post.findUnique({
       where: { id: postId },
@@ -963,6 +983,8 @@ postRouter.post('/:id/share', async (req: Request, res: Response) => {
       },
     });
 
+    emitPostUpdate(postId);
+
     if (post.authorId !== userId) {
       await createNotification({
         receiverId: post.authorId,
@@ -990,6 +1012,7 @@ postRouter.delete('/:id/share', async (req: Request, res: Response) => {
 
   try {
     await prisma.postShare.deleteMany({ where: { postId, sharedById: userId } });
+    emitPostUpdate(postId);
     return res.json({ success: true });
   } catch (error) {
     console.error('Failed to unrepost:', error);
@@ -1040,6 +1063,8 @@ postRouter.delete('/:id/comments/:commentId', async (req: Request, res: Response
       where: { id: commentId },
       data: { deletedAt: new Date() },
     });
+
+    emitPostUpdate(postId);
 
     return res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
