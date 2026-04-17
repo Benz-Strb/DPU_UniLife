@@ -6,12 +6,13 @@ import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService, postService } from "@/services/api";
+import PostOptionsButton from "@/components/PostOptionsButton";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import ImageCarousel from "@/components/ImageCarousel";
 
 const { width } = Dimensions.get("window");
 
-function PostItem({ post, themeColors, userId, toggleLike, router }: any) {
+function PostItem({ post, themeColors, userId, toggleLike, router, onDeleted }: any) {
   const isLiked = post.reactions?.some((r: any) => r.userId === userId);
   const likeCount = post._count?.reactions ?? post.reactions?.length ?? 0;
   const commentCount = post._count?.comments ?? 0;
@@ -26,6 +27,7 @@ function PostItem({ post, themeColors, userId, toggleLike, router }: any) {
           <Text className="font-black text-sm" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
           <Text className="text-[10px] text-gray-400">{new Date(post.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</Text>
         </View>
+        <PostOptionsButton post={post} onDeleted={onDeleted} />
       </View>
 
       {/* Media */}
@@ -67,6 +69,12 @@ export default function PostDetailScreen() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+
+  const handleDeleted = (postId: string) => {
+    const remaining = posts.filter(p => p.id !== postId);
+    if (remaining.length === 0) router.back();
+    else setPosts(remaining);
+  };
 
   useEffect(() => {
     if (isSingle) {
@@ -138,6 +146,7 @@ export default function PostDetailScreen() {
               userId={userId}
               toggleLike={toggleLike}
               router={router}
+              onDeleted={handleDeleted}
             />
           )}
           onScrollToIndexFailed={info => {

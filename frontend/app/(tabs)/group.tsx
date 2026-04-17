@@ -290,19 +290,17 @@ export default function GroupScreen() {
                   )}
 
                   {/* Actions row */}
-                  <View className="flex-row items-center px-4 pt-3 pb-2 gap-5">
-                    <TouchableOpacity onPress={() => hookToggleLike(post.id)} className="flex-row items-center">
-                      <Ionicons name={isLiked ? "heart" : "heart-outline"} size={26} color={isLiked ? "#EF4444" : themeColors.text} />
-                      <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => toggleComments(post.id)} className="flex-row items-center">
-                      <Feather name="message-circle" size={24} color={activeCommentPostId === post.id ? theme.colors.primary : themeColors.text} />
-                      <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleRepost(post.id)}>
-                      <Ionicons name="repeat" size={24} color={repostedIds.has(post.id) ? "#10B981" : themeColors.text} />
-                    </TouchableOpacity>
-                  </View>
+                  <PostActionBar
+                    isLiked={isLiked}
+                    likeCount={post._count?.reactions || 0}
+                    commentCount={post._count?.comments || 0}
+                    isReposted={repostedIds.has(post.id)}
+                    isCommentActive={activeCommentPostId === post.id}
+                    onLike={() => hookToggleLike(post.id)}
+                    onToggleComments={() => toggleComments(post.id)}
+                    onRepost={() => handleRepost(post.id)}
+                    themeColors={themeColors}
+                  />
 
                   {/* Caption */}
                   {post.content ? (

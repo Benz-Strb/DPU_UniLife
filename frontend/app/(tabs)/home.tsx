@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import ImageCarousel from "@/components/ImageCarousel";
 import PostActionBar from "@/components/PostActionBar";
+import PostOptionsButton from "@/components/PostOptionsButton";
 import InlineComments from "@/components/InlineComments";
 import EmptyState from "@/components/EmptyState";
 import ExpandableText from "@/components/ExpandableText";
@@ -97,37 +98,6 @@ export default function HomeScreen() {
 
   const regularPosts = useMemo(() => allPosts.filter((p) => !p.isOfficial), [allPosts]);
   const posts = aiFeedReady ? aiFeedPosts : regularPosts;
-
-  const handlePostOptions = (post: any) => {
-    if (post.authorId !== userId) return;
-    Alert.alert("จัดการโพสต์", "กรุณาเลือกรายการที่ต้องการ", [
-      {
-        text: "แก้ไขโพสต์",
-        onPress: () => router.push({
-          pathname: "/new-post",
-          params: {
-            editPostId: post.id,
-            editContent: post.content ?? "",
-            editVisibility: post.visibility ?? "PUBLIC",
-          },
-        }),
-      },
-      {
-        text: post.commentsEnabled ? "ปิดการคอมเมนต์" : "เปิดการคอมเมนต์",
-        onPress: () => updateCommentsStatus(post.id, !post.commentsEnabled),
-      },
-      {
-        text: "ลบโพสต์",
-        style: "destructive",
-        onPress: () =>
-          Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ถาวรใช่หรือไม่?", [
-            { text: "ยกเลิก", style: "cancel" },
-            { text: "ลบ", style: "destructive", onPress: () => deletePost(post.id) },
-          ]),
-      },
-      { text: "ยกเลิก", style: "cancel" },
-    ]);
-  };
 
   const handleReportPost = (postId: string) => {
     Alert.alert("Report Post", "Why are you reporting this post?", [
@@ -253,21 +223,19 @@ export default function HomeScreen() {
                     )}
 
                     {/* 3-dot options */}
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (post.authorId === userId) {
-                          handlePostOptions(post);
-                        } else {
-                          Alert.alert("Post Options", undefined, [
-                            { text: "Report", style: "destructive", onPress: () => handleReportPost(post.id) },
-                            { text: "Cancel", style: "cancel" },
-                          ]);
-                        }
-                      }}
-                      className="w-8 h-8 items-center justify-center ml-1"
-                    >
-                      <Feather name="more-horizontal" size={20} color={themeColors.subText} />
-                    </TouchableOpacity>
+                    {post.authorId === userId ? (
+                      <PostOptionsButton post={post} />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => Alert.alert("Post Options", undefined, [
+                          { text: "Report", style: "destructive", onPress: () => handleReportPost(post.id) },
+                          { text: "Cancel", style: "cancel" },
+                        ])}
+                        className="w-8 h-8 items-center justify-center ml-1"
+                      >
+                        <Feather name="more-horizontal" size={20} color={themeColors.subText} />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   {/* Full-width image carousel with double-tap to like */}

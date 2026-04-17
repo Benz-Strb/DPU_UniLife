@@ -11,6 +11,8 @@ import { getAvatarUrl } from "@/utils/imageUtils";
 import ImageCarousel from "@/components/ImageCarousel";
 import InlineComments from "@/components/InlineComments";
 import ExpandableText from "@/components/ExpandableText";
+import PostActionBar from "@/components/PostActionBar";
+import EmptyState from "@/components/EmptyState";
 
 export default function TagScreen() {
   const router = useRouter();
@@ -136,9 +138,8 @@ export default function TagScreen() {
             }
           >
             {posts.length === 0 ? (
-              <View className="items-center justify-center py-32 mx-4 mt-6 rounded-[40px] border border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
-                <Ionicons name="planet-outline" size={60} color={themeColors.subText} />
-                <Text className="mt-4 font-black text-[10px] uppercase" style={{ color: themeColors.subText }}>No posts in #{tagName} Space</Text>
+              <View className="mx-4 mt-6 rounded-[40px] border border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <EmptyState icon="planet-outline" title={`No posts in #${tagName} Space`} themeColors={themeColors} />
               </View>
             ) : (
               posts.map((post) => {
@@ -199,29 +200,17 @@ export default function TagScreen() {
                     )}
 
                     {/* Actions row */}
-                    <View className="flex-row items-center px-4 pt-3 pb-2 gap-4">
-                      <TouchableOpacity onPress={() => handleLike(post.id)} className="flex-row items-center">
-                        <Ionicons
-                          name={isLiked ? "heart" : "heart-outline"}
-                          size={26}
-                          color={isLiked ? "#EF4444" : themeColors.text}
-                        />
-                        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.reactions || 0}</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity onPress={() => toggleComments(post.id)} className="flex-row items-center">
-                        <Feather name="message-circle" size={24} color={activeCommentPostId === post.id ? theme.colors.primary : themeColors.text} />
-                        <Text className="ml-1.5 font-black text-sm" style={{ color: themeColors.text }}>{post._count?.comments || 0}</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity onPress={() => handleRepost(post.id)}>
-                        <Ionicons
-                          name="repeat"
-                          size={24}
-                          color={repostedIds.has(post.id) ? "#10B981" : themeColors.text}
-                        />
-                      </TouchableOpacity>
-                    </View>
+                    <PostActionBar
+                      isLiked={isLiked}
+                      likeCount={post._count?.reactions || 0}
+                      commentCount={post._count?.comments || 0}
+                      isReposted={repostedIds.has(post.id)}
+                      isCommentActive={activeCommentPostId === post.id}
+                      onLike={() => handleLike(post.id)}
+                      onToggleComments={() => toggleComments(post.id)}
+                      onRepost={() => handleRepost(post.id)}
+                      themeColors={themeColors}
+                    />
 
                     {/* Inline Comments */}
                     {activeCommentPostId === post.id && (

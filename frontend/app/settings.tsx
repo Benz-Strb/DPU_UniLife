@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
 import { useUser } from "@/store/UserContext";
 import SettingItem from "@/components/SettingItem";
+import ScreenHeader from "@/components/ScreenHeader";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -31,16 +32,7 @@ export default function SettingsScreen() {
       <StatusBar barStyle={themeColors.statusBar as any} />
       
       <SafeAreaView className="flex-1">
-        <View className="flex-row items-center px-6 py-4">
-          <TouchableOpacity 
-            onPress={() => router.back()}
-            className="w-10 h-10 rounded-2xl items-center justify-center shadow-sm"
-            style={{ backgroundColor: themeColors.card }}
-          >
-            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
-          </TouchableOpacity>
-          <Text className="text-xl font-black ml-4" style={{ color: themeColors.text }}>Settings</Text>
-        </View>
+        <ScreenHeader title="Settings" onBack={() => router.back()} themeColors={themeColors} />
 
         <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
           {/* Academic Section */}

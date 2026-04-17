@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Modal, StatusBar, Dimensions } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
@@ -18,6 +20,97 @@ export default function ChatDetailScreen() {
   const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId } = useUser();
   const [inputText, setInputText] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const screenHeight = Dimensions.get("screen").height;
+
+  // Shared values for image viewer
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  const dismissImage = () => setSelectedImage(null);
+
+  const openImage = (url: string) => {
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+    setSelectedImage(url);
+  };
+
+  const closeImageModal = () => {
+    translateY.value = withTiming(screenHeight, { duration: 250 }, () => {
+      runOnJS(dismissImage)();
+    });
+  };
+
+  // Double tap: zoom in / zoom out
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1) {
+        scale.value = withSpring(1);
+        savedScale.value = 1;
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        scale.value = withSpring(2.5);
+        savedScale.value = 2.5;
+      }
+    });
+
+  // Pinch to zoom
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, savedScale.value * e.scale);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+    });
+
+  // Pan: drag image when zoomed, or swipe down to close when not zoomed
+  const pan = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(1)
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      } else if (e.translationY > 0) {
+        translateY.value = e.translationY;
+      }
+    })
+    .onEnd((e) => {
+      if (scale.value <= 1) {
+        if (e.translationY > 80 || e.velocityY > 500) {
+          translateY.value = withTiming(screenHeight, { duration: 250 }, () => {
+            runOnJS(dismissImage)();
+          });
+        } else {
+          translateY.value = withSpring(0);
+        }
+      } else {
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+      }
+    });
+
+  const imageGesture = Gesture.Simultaneous(pinch, Gesture.Race(doubleTap, pan));
+
+  const imageAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
   const scrollViewRef = useRef<ScrollView>(null);
   const [activeConvoId, setActiveConvoId] = useState(convoIdFromParams);
 
@@ -153,11 +246,13 @@ export default function ChatDetailScreen() {
                     <Text className="text-[10px] font-bold text-violet-400 mb-1 ml-1">{msg.sender?.fullName ?? ""}</Text>
                   )}
                   {imgUrl ? (
-                    <Image
-                      source={{ uri: imgUrl }}
-                      className={`w-56 h-56 rounded-2xl ${isMe ? "rounded-br-[4px]" : "rounded-bl-[4px]"}`}
-                      resizeMode="cover"
-                    />
+                    <TouchableOpacity onPress={() => openImage(imgUrl)} activeOpacity={0.9}>
+                      <Image
+                        source={{ uri: imgUrl }}
+                        className={`w-56 h-56 rounded-2xl ${isMe ? "rounded-br-[4px]" : "rounded-bl-[4px]"}`}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
                   ) : (
                     <View
                       className={`px-4 py-3 ${isMe ? "rounded-[24px] rounded-br-[4px]" : "rounded-[24px] rounded-bl-[4px]"}`}
@@ -199,16 +294,36 @@ export default function ChatDetailScreen() {
               returnKeyType="send"
               onSubmitEditing={handleSendMessage}
             />
-            {inputText.trim() ? (
-              <TouchableOpacity onPress={handleSendMessage}>
-                <Text className="font-bold text-violet-500 ml-2">Send</Text>
+            {inputText.trim() && (
+              <TouchableOpacity onPress={handleSendMessage} className="ml-2">
+                <Ionicons name="send" size={22} color="#8b5cf6" />
               </TouchableOpacity>
-            ) : (
-              <Ionicons name="mic-outline" size={22} color={textColor} />
             )}
           </View>
         </View>
       </KeyboardAvoidingView>
+      <Modal visible={!!selectedImage} transparent animationType="fade" onRequestClose={closeImageModal}>
+        <StatusBar backgroundColor="black" barStyle="light-content" />
+        <View className="flex-1 bg-black">
+          <TouchableOpacity
+            className="absolute top-12 right-4 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50"
+            onPress={closeImageModal}
+          >
+            <Ionicons name="close" size={24} color="white" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <GestureDetector gesture={imageGesture}>
+              <Animated.View style={[{ flex: 1 }, imageAnimatedStyle]}>
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={{ flex: 1 }}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+            </GestureDetector>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

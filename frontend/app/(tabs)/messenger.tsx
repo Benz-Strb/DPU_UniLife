@@ -7,6 +7,8 @@ import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
+import ScreenHeader from "@/components/ScreenHeader";
+import SearchBar from "@/components/SearchBar";
 
 export default function MessengerScreen() {
   const router = useRouter();
@@ -53,39 +55,29 @@ export default function MessengerScreen() {
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       <SafeAreaView className="flex-1">
-        <View className="flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="w-10 h-10 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: cardColor }}
-          >
-            <Ionicons name="chevron-back" size={24} color={textColor} />
-          </TouchableOpacity>
-          <Text className="text-xl font-black" style={{ color: textColor }}>Messages</Text>
-          <TouchableOpacity
-            onPress={() => router.push("/new-group" as any)}
-            className="w-10 h-10 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: cardColor }}
-          >
-            <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Messages"
+          centerTitle
+          onBack={() => router.back()}
+          themeColors={themeColors}
+          rightElement={
+            <TouchableOpacity
+              onPress={() => router.push("/new-group" as any)}
+              className="w-10 h-10 rounded-2xl items-center justify-center"
+              style={{ backgroundColor: cardColor }}
+            >
+              <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
+            </TouchableOpacity>
+          }
+        />
 
         <View className="px-6 py-2">
-          <View 
-            className="flex-row items-center px-5 py-3 rounded-2xl border border-white"
-            style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.02, elevation: 1 }}
-          >
-            <Ionicons name="search" size={20} color={subTextColor} />
-            <TextInput
-              placeholder="Search conversations..."
-              className="flex-1 ml-3 font-bold text-sm"
-              placeholderTextColor="#94A3B8"
-              style={{ color: textColor }}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search conversations..."
+            themeColors={themeColors}
+          />
         </View>
 
         <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>

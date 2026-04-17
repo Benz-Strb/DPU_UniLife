@@ -6,8 +6,11 @@ import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService, adminService } from "@/services/api";
-import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
+import { getAvatarUrl } from "@/utils/imageUtils";
 import { Post } from "@/types/backend";
+import PostThumbnailCard from "@/components/PostThumbnailCard";
+import ProfileGridTabBar from "@/components/ProfileGridTabBar";
+import EmptyState from "@/components/EmptyState";
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 16) / 3;
@@ -218,76 +221,47 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* Tab icons */}
-        <View className="flex-row border-t mt-6" style={{ borderTopColor: themeColors.border }}>
-          <TouchableOpacity
-            onPress={() => setActiveTab("posts")}
-            className="flex-1 items-center py-3"
-            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "posts" ? themeColors.text : "transparent" }}
-          >
-            <Ionicons name="grid-outline" size={22} color={activeTab === "posts" ? themeColors.text : themeColors.subText} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setActiveTab("reposts")}
-            className="flex-1 items-center py-3"
-            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === "reposts" ? themeColors.text : "transparent" }}
-          >
-            <Ionicons name="repeat" size={22} color={activeTab === "reposts" ? themeColors.text : themeColors.subText} />
-          </TouchableOpacity>
-        </View>
+        <ProfileGridTabBar activeTab={activeTab} onTabChange={setActiveTab} themeColors={themeColors} />
 
-        {/* Posts tab — always mounted, hidden when inactive */}
+        {/* Posts tab */}
         <View style={{ display: activeTab === "posts" ? "flex" : "none" }}>
           <View className="flex-row flex-wrap px-4 pt-2 pb-20">
             {userPosts.length === 0 ? (
-              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
-                <Ionicons name="images-outline" size={40} color={themeColors.subText} />
-                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No public posts</Text>
+              <View className="w-full rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <EmptyState icon="images-outline" title="No public posts" themeColors={themeColors} />
               </View>
             ) : (
               userPosts.map((post) => (
-                <TouchableOpacity key={post.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                  <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
-                    <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
-                    {(!post.media || post.media.length === 0) && (
-                      <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
-                        <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
+                <PostThumbnailCard
+                  key={post.id}
+                  post={post}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId } } as any)}
+                  themeColors={themeColors}
+                  borderRadius={20}
+                />
               ))
             )}
           </View>
         </View>
 
-        {/* Reposts tab — always mounted, hidden when inactive */}
+        {/* Reposts tab */}
         <View style={{ display: activeTab === "reposts" ? "flex" : "none" }}>
           <View className="flex-row flex-wrap px-4 pt-2 pb-20">
             {reposts.length === 0 ? (
-              <View className="w-full py-20 items-center justify-center rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
-                <Ionicons name="repeat" size={40} color={themeColors.subText} />
-                <Text className="font-black text-[10px] uppercase mt-4" style={{ color: themeColors.subText }}>No reposts yet</Text>
+              <View className="w-full rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.iconBg, borderColor: themeColors.border }}>
+                <EmptyState icon="repeat" title="No reposts yet" themeColors={themeColors} />
               </View>
             ) : (
-              reposts.map((share) => {
-                const post = share.post;
-                return (
-                  <TouchableOpacity key={share.id} onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id, single: "true" } } as any)} style={{ width: '33.33%', aspectRatio: 1, padding: 4 }}>
-                    <View className="w-full h-full rounded-[20px] overflow-hidden" style={{ backgroundColor: themeColors.iconBg }}>
-                      <Image source={{ uri: (post.media && post.media.length > 0) ? getImageUrl(post.media[0].url) : undefined }} className="w-full h-full" />
-                      <View className="absolute top-2 right-2 rounded-full p-1" style={{ backgroundColor: "#10B981" }}>
-                        <Ionicons name="repeat" size={10} color="white" />
-                      </View>
-                      {(!post.media || post.media.length === 0) && (
-                        <View className="absolute inset-0 items-center justify-center p-2" style={{ backgroundColor: themeColors.iconBg }}>
-                          <Text className="text-[9px] font-black text-center uppercase leading-3" numberOfLines={4} style={{ color: themeColors.text }}>{post.content}</Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+              reposts.map((share) => (
+                <PostThumbnailCard
+                  key={share.id}
+                  post={share.post}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: share.post.id, userId: share.post.author?.id, single: "true" } } as any)}
+                  themeColors={themeColors}
+                  borderRadius={20}
+                  badgeIcon="repeat"
+                />
+              ))
             )}
           </View>
         </View>

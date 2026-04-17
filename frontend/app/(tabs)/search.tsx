@@ -7,6 +7,7 @@ import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
 import { searchService, authService } from "@/services/api";
+import SearchBar from "@/components/SearchBar";
 import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
@@ -163,20 +164,12 @@ export default function SearchScreen() {
         <View className="px-6 py-4">
           <Text className="text-3xl font-black mb-6 tracking-tight" style={{ color: themeColors.text }}>Discovery</Text>
           
-          <View 
-            className="flex-row items-center px-5 py-3.5 rounded-2xl border" 
-            style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
-          >
-            <Ionicons name="search" size={20} color={themeColors.subText} />
-            <TextInput 
-              placeholder="Search friends or faculty..."
-              placeholderTextColor={themeColors.subText}
-              className="flex-1 ml-3 font-bold text-sm"
-              style={{ color: themeColors.text }}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search friends or faculty..."
+            themeColors={themeColors}
+          />
         </View>
 
         <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
