@@ -44,6 +44,16 @@ app.get("/", (req, res) => {
   res.json({ message: "DPU UniLife backend is running with Socket.io" });
 });
 
+// Global error handler — must have 4 params for Express to treat as error middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Client aborted the request before server finished reading body — not a real error
+  if (err.type === 'request.aborted' || err.message === 'request aborted') {
+    return res.status(499).end();
+  }
+  console.error('[Server Error]', err.message ?? err);
+  res.status(err.status ?? 500).json({ error: err.message ?? 'Internal server error' });
+});
+
 // สำคัญ: ต้องเปลี่ยนจาก app.listen เป็น httpServer.listen
 httpServer.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
