@@ -13,7 +13,7 @@ export default function ExpandableText({ content, authorName, isExpanded, onTogg
   const isLong = content.length > 120 || content.split("\n").length > 2;
 
   return (
-    <View className="px-4 pb-3">
+    <View className="px-4 pt-1 pb-3">
       <Text
         className="text-[13px] leading-[22px]"
         style={{ color: themeColors.text }}
