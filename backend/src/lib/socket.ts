@@ -3,6 +3,7 @@ import { Server as HttpServer } from "http";
 
 let io: Server;
 
+// สร้างและตั้งค่า Socket.io instance กลางสำหรับระบบ realtime ของทั้งแอป
 export const initSocket = (httpServer: HttpServer) => {
   io = new Server(httpServer, {
     cors: {
@@ -32,6 +33,7 @@ export const initSocket = (httpServer: HttpServer) => {
   return io;
 };
 
+// คืนค่า Socket.io instance ที่ถูก init แล้วเพื่อให้ route หรือ service อื่น emit event ได้
 export const getIO = () => {
   if (!io) {
     throw new Error("Socket.io not initialized!");

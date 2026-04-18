@@ -7,6 +7,7 @@ export const API = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// รวม service สำหรับให้ dashboard เรียกใช้ endpoint ของ backend แบบรวมศูนย์
 export const authService = {
   login: (input: string, password: string) => {
     const studentId = input.includes("@") ? input.split("@")[0] : input;

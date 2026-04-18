@@ -23,6 +23,7 @@ import { getAvatarUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import * as Haptics from "expo-haptics";
 
+// หน้า feed หลักของผู้ใช้สำหรับโหลด AI feed, แสดงโพสต์, และจัดการ action บนโพสต์
 export default function HomeScreen() {
   const router = useRouter();
   const {

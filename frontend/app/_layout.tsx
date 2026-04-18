@@ -6,6 +6,7 @@ import { UserProvider } from "../store/UserContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 
+// Root navigator ของแอปมือถือสำหรับครอบ provider หลักและกำหนด screen stack ทั้งหมด
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { handleApiError } from '@/services/errorHandler';
 import { postService, reportService } from '@/services/api';
 
+// Hook รวม business logic ของโพสต์เพื่อให้หน้าต่างๆ เรียกใช้ action เดียวกันได้
 export function usePosts() {
   const {
     posts,

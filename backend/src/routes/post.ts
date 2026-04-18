@@ -199,6 +199,7 @@ const emitPostUpdate = async (postId: string) => {
   }
 };
 
+// Route หลักของระบบโพสต์สำหรับ feed, AI feed, media upload, reaction, comment และ share
 postRouter.post('/upload', upload.single('image'), (req: Request & { file?: Express.Multer.File }, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });

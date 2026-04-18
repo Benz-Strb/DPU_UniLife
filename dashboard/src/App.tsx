@@ -17,6 +17,7 @@ function getStoredUser() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); } catch { return null; }
 }
 
+// Root component ของ admin dashboard สำหรับจัดการ session, theme และเลือกหน้าที่จะแสดง
 export default function App() {
   const [user, setUser] = useState<any>(getStoredUser);
   const [page, setPage] = useState("home");

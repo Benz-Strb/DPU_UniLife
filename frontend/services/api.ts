@@ -28,6 +28,7 @@ const getExpoHostBaseUrl = () => {
   return `http://${host}:${API_PORT}`;
 };
 
+// เลือก base URL ของ backend ให้เหมาะกับ env ปัจจุบัน เช่น Expo Go, emulator หรือ localhost
 const resolveBaseUrl = () => {
   const envBaseUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL);
   if (envBaseUrl) {

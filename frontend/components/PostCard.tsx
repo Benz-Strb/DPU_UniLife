@@ -38,6 +38,7 @@ interface PostCardProps {
   handleRepost?: (postId: string) => void;
 }
 
+// การ์ดแสดงโพสต์หนึ่งรายการพร้อม media, action bar, comment inline และเมนูจัดการโพสต์
 export default function PostCard({
   post,
   userId,

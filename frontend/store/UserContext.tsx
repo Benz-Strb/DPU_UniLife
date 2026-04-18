@@ -69,6 +69,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// State กลางของแอปสำหรับจัดการข้อมูลผู้ใช้, ฟีดโพสต์, แชต, การแจ้งเตือน และการเชื่อมต่อ realtime
 export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [userId, setUserId] = useState("");

@@ -16,6 +16,7 @@ import { adminRouter } from "./routes/admin";
 import { searchRouter } from "./routes/search";
 import { tagRouter } from "./routes/tag";
 
+// Bootstrap หลักของ backend สำหรับตั้งค่า Express, routes, static files, error handler และ Socket.io
 const app = express();
 const port = process.env.PORT || 8080;
 

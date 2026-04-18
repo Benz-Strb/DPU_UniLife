@@ -5,6 +5,7 @@ import StatCard from "../components/StatCard";
 import BarChart from "../components/BarChart";
 import PageHeader from "../components/PageHeader";
 
+// หน้า overview ของแอดมินสำหรับโหลดและสรุปสถิติหลักของระบบ
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);

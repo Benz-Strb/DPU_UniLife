@@ -216,7 +216,7 @@ export default function GroupScreen() {
         </View>
 
         <View
-          className="items-center px-6"
+          className="items-center justify-between flex-row px-4 "
           style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border, paddingTop: insets.top + 1, paddingBottom: 20 }}
         >
           <Text className="font-black uppercase text-[20px] tracking-widest" style={{ color: theme.colors.primary }}>

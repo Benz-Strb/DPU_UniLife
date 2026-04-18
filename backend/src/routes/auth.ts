@@ -104,6 +104,7 @@ const logLoginAttempt = async ({
   }
 };
 
+// Route จัดการ authentication, profile และสิทธิ์ผู้ใช้สำหรับทั้ง mobile app และ admin dashboard
 authRouter.post('/register', async (req: Request, res: Response) => {
   const { email: emailInput, fullName: fullNameInput, username: usernameInput, password, faculty: facultyInput } = req.body;
 
