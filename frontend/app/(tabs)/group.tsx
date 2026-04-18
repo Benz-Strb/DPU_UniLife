@@ -215,12 +215,11 @@ export default function GroupScreen() {
           </SafeAreaView>
         </View>
 
-        {/* ===== Feed label (sticky) ===== */}
         <View
-          className="border-b px-5 flex-row items-center justify-between"
-          style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border, paddingTop: insets.top + 8, paddingBottom: 10 }}
+          className="items-center px-6"
+          style={{ backgroundColor: themeColors.card, borderBottomColor: themeColors.border, paddingTop: insets.top + 1, paddingBottom: 20 }}
         >
-          <Text className="font-black uppercase text-[10px] tracking-widest" style={{ color: theme.colors.primary }}>
+          <Text className="font-black uppercase text-[20px] tracking-widest" style={{ color: theme.colors.primary }}>
             {selectedGroup === "DPU" ? "University Feed" : "Faculty Feed"}
           </Text>
           {(isAdmin || isUniAdmin) && (

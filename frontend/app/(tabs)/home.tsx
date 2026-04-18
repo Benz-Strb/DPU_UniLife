@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  StatusBar,
   RefreshControl,
   Alert,
   TextInput,
@@ -14,6 +13,7 @@ import PostCard from "@/components/PostCard";
 import EmptyState from "@/components/EmptyState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const {
     themeColors,
+    isDarkMode,
     unreadChatCount,
     unreadNotificationCount,
     followingIds,
@@ -135,7 +136,7 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar barStyle={themeColors.statusBar as any} />
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
 
       <SafeAreaView className="flex-1" edges={["top"]}>
         {/* Header */}
