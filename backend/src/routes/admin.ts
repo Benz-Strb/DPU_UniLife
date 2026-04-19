@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { getIO } from '../lib/socket';
+import { hashPassword } from '../password';
+import { invalidateSettingsCache } from '../lib/settings';
 
 const adminRouter = Router();
 
@@ -215,6 +217,7 @@ adminRouter.put('/settings/:key', async (req: Request, res: Response) => {
       },
     });
 
+    invalidateSettingsCache();
     return res.json(setting);
   } catch (error) {
     console.error('Failed to update system setting:', error);
@@ -288,6 +291,69 @@ adminRouter.post('/users/:userId/ban', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Failed to ban user:', error);
     return res.status(500).json({ message: 'Failed to ban user' });
+  }
+});
+
+// POST /admin/create-account — สร้าง admin account โดย SUPER_ADMIN ไม่ต้องใช้ student ID หรือ OTP
+adminRouter.post('/create-account', async (req: Request, res: Response) => {
+  const { actorId, fullName, username, email, password, faculty, role } = req.body;
+
+  if (!actorId || !fullName || !username || !email || !password || !role) {
+    return res.status(400).json({ message: 'actorId, fullName, username, email, password และ role จำเป็นต้องมี' });
+  }
+
+  if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+    return res.status(400).json({ message: 'role ต้องเป็น ADMIN หรือ SUPER_ADMIN' });
+  }
+
+  try {
+    const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { role: true } });
+    if (!actor || actor.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'เฉพาะ SUPER_ADMIN เท่านั้นที่สร้าง admin account ได้' });
+    }
+
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email }, { username }] },
+      select: { id: true },
+    });
+    if (existing) {
+      return res.status(409).json({ message: 'Email หรือ Username นี้ถูกใช้งานแล้ว' });
+    }
+
+    const hashedPassword = await hashPassword(password);
+    const adminStudentId = `ADM${Date.now().toString().slice(-7)}`;
+
+    const newUser = await prisma.user.create({
+      data: {
+        fullName,
+        username,
+        email,
+        passwordHash: hashedPassword,
+        faculty: faculty || null,
+        role,
+        studentId: adminStudentId,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true, fullName: true, username: true, email: true,
+        faculty: true, role: true, studentId: true, createdAt: true,
+      },
+    });
+
+    await prisma.adminAuditLog.create({
+      data: {
+        actorId,
+        action: 'CREATE_ADMIN_ACCOUNT',
+        entityType: 'User',
+        entityId: newUser.id,
+        detail: { fullName, username, email, faculty, role },
+      },
+    });
+
+    return res.status(201).json({ message: 'สร้าง Admin account สำเร็จ', user: newUser });
+  } catch (error) {
+    console.error('Failed to create admin account:', error);
+    return res.status(500).json({ message: 'Failed to create admin account' });
   }
 });
 

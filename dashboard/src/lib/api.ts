@@ -28,6 +28,16 @@ export const adminService = {
     API.post(`/admin/users/${userId}/ban`, { days, actorId }).then(r => r.data),
   getLoginLogs: (params?: { page?: number; limit?: number }) =>
     API.get("/admin/logs/login", { params }).then(r => r.data),
+  createAdminAccount: (data: { actorId: string; fullName: string; username: string; email: string; password: string; faculty?: string; role: string }) =>
+    API.post('/admin/create-account', data).then(r => r.data),
+};
+
+export const facultyService = {
+  getAll: () =>
+    API.get("/admin/settings").then(r => {
+      const s = (r.data as any[]).find((s: any) => s.key === "faculties");
+      return (s?.value ?? []) as { code: string; name: string }[];
+    }),
 };
 
 export const postService = {
