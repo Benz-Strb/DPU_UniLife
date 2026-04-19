@@ -140,19 +140,19 @@ export default function Admins({ currentUser }: AdminsProps) {
           <form onSubmit={handleCreate} autoComplete="off" className="px-6 pb-6 border-t border-slate-800 pt-5">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">ชื่อ-นามสกุล *</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">คณะ หรือ วิทยาลัย *</label>
                 <input
-                  type="text" placeholder="Full Name" value={createForm.fullName}
-                  onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
+                  type="text" placeholder="Faculty and College" value={createForm.fullName}
+                  onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))} 
                   autoComplete="off"
                   className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Username *</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">ชื่อย่อคณะ *</label>
                 <input
-                  type="text" placeholder="username" value={createForm.username}
-                  onChange={e => setCreateForm(p => ({ ...p, username: e.target.value }))}
+                  type="text" placeholder="ชื่อย่อคณะ" value={createForm.faculty}
+                  onChange={e => setCreateForm(p => ({ ...p, faculty: e.target.value }))}
                   autoComplete="off"
                   className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
                 />
