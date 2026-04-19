@@ -502,21 +502,9 @@ authRouter.patch('/profile/:userId', async (req: Request, res: Response) => {
     });
   }
 
-  if (fullName && !fullNameRegex.test(fullName)) {
-    return res.status(400).json({
-      message: 'Full name must be in English or Thai only',
-    });
-  }
-
   if (usernameInput !== undefined && !username) {
     return res.status(400).json({
       message: 'username cannot be empty',
-    });
-  }
-
-  if (username && !usernameRegex.test(username)) {
-    return res.status(400).json({
-      message: 'Username must be 3-30 characters and use only letters, numbers, or underscores',
     });
   }
 

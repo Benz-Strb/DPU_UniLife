@@ -11,7 +11,8 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { name, bio, isDarkMode, profileImage, setProfileImage, themeColors, user, updateProfile } = useUser();
   const [username, setUsernameInput] = useState(user?.username || "");
-  const [fullName, setFullNameInput] = useState(name);
+  const rawName = name || user?.fullName || "";
+  const [fullName, setFullNameInput] = useState(rawName.includes("@") ? rawName.split("@")[0] : rawName);
   const [bioInput, setBioInput] = useState(bio);
 
   const handleSave = async () => {
