@@ -47,7 +47,7 @@ interface UserContextType {
   addPost: (postData: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   updatePost: (postId: string, data: any) => Promise<void>;
-  toggleLike: (postId: string, reaction?: string) => void;
+  toggleLike: (postId: string, reaction?: string) => Promise<void>;
   refreshPosts: (useAI?: boolean) => Promise<void>;
   isRefreshing: boolean;
   conversations: Conversation[];
@@ -295,6 +295,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLike = async (postId: string, reaction = "LIKE") => {
+    const previousPosts = posts;
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
         const existing = post.reactions?.find(r => r.userId === userId);
@@ -317,7 +318,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       return post;
     }));
-    try { await postService.toggleLike(postId, userId, reaction); } catch (e) { fetchPosts(); }
+    try {
+      await postService.toggleLike(postId, userId, reaction);
+    } catch (e) {
+      setPosts(previousPosts);
+      throw e;
+    }
   };
 
   const sendMessage = async (convoId: string, body: string, attachmentUrl?: string, attachmentType?: string) => {

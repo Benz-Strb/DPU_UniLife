@@ -45,6 +45,11 @@ export default function TagScreen() {
 
   const onRefresh = () => { setIsRefreshing(true); fetchPosts(); };
 
+  useEffect(() => {
+    if (!userId) return;
+    postService.getRepostedIds(userId).then(ids => setRepostedIds(new Set(ids)));
+  }, [userId]);
+
   const handleLike = async (postId: string) => {
     await toggleLike(postId);
     fetchPosts();
@@ -54,8 +59,7 @@ export default function TagScreen() {
     const isReposted = repostedIds.has(postId);
     try {
       if (isReposted) {
-        await postService.unrepostPost(postId, userId);
-        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
+        Alert.alert("Shared already", "You already shared this post.");
       } else {
         await postService.sharePost(postId, userId);
         setRepostedIds(prev => new Set(prev).add(postId));

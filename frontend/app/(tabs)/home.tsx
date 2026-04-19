@@ -100,12 +100,7 @@ export default function HomeScreen() {
     const isReposted = repostedIds.has(postId);
     try {
       if (isReposted) {
-        await postService.unrepostPost(postId, userId);
-        setRepostedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(postId);
-          return next;
-        });
+        Alert.alert("Shared already", "You already shared this post.");
       } else {
         await postService.sharePost(postId, userId);
         setRepostedIds((prev) => new Set(prev).add(postId));
