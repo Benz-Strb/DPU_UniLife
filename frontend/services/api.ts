@@ -110,12 +110,21 @@ export const authService = {
         fullName: userData.name,
         username: generatedUsername,
         password: userData.password,
-        faculty: userData.faculty
+        faculty: userData.faculty,
+        otp: userData.otp,
       });
       return { success: true, user: response.data.user };
     } catch (e: any) {
       console.error("Auth Register Error", e.response?.data || e.message);
       throw e;
+    }
+  },
+  sendOtp: async (email: string) => {
+    try {
+      const response = await API.post("/auth/send-otp", { email });
+      return { success: true, message: response.data.message };
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.message || "ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่" };
     }
   },
   resetPassword: async (email: string, newPassword: string) => {

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { Prisma, Gender, LoginStatus, UserRole, UserStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hashPassword, verifyPassword } from '../password';
+import { sendOtpEmail } from '../lib/mailer';
+import { setOtp, verifyOtp, deleteOtp } from '../lib/otpStore';
 
 const authRouter = Router();
 
@@ -104,9 +106,35 @@ const logLoginAttempt = async ({
   }
 };
 
+// POST /auth/send-otp — ส่ง OTP ไปยังเมล DPU เพื่อยืนยันตัวตนก่อนสมัครสมาชิก
+authRouter.post('/send-otp', async (req: Request, res: Response) => {
+  const { email: emailInput } = req.body;
+  const email = normalizeRequiredString(emailInput)?.toLowerCase();
+
+  if (!email || !dpuEmailRegex.test(email)) {
+    return res.status(400).json({ message: 'กรุณาใช้อีเมล DPU ในรูปแบบ 12345678@dpu.ac.th' });
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      return res.status(409).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    setOtp(email, otp);
+    await sendOtpEmail(email, otp);
+
+    return res.json({ message: 'ส่ง OTP เรียบร้อยแล้ว กรุณาตรวจสอบอีเมลของคุณ' });
+  } catch (error) {
+    console.error('Failed to send OTP:', error);
+    return res.status(500).json({ message: 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่' });
+  }
+});
+
 // Route จัดการ authentication, profile และสิทธิ์ผู้ใช้สำหรับทั้ง mobile app และ admin dashboard
 authRouter.post('/register', async (req: Request, res: Response) => {
-  const { email: emailInput, fullName: fullNameInput, username: usernameInput, password, faculty: facultyInput } = req.body;
+  const { email: emailInput, fullName: fullNameInput, username: usernameInput, password, faculty: facultyInput, otp } = req.body;
 
   const email = normalizeRequiredString(emailInput)?.toLowerCase();
   const fullName = normalizeRequiredString(fullNameInput);
@@ -117,6 +145,10 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     return res.status(400).json({
       message: 'email, fullName, username and password are required',
     });
+  }
+
+  if (typeof otp !== 'string' || !verifyOtp(email, otp)) {
+    return res.status(400).json({ message: 'รหัส OTP ไม่ถูกต้องหรือหมดอายุแล้ว' });
   }
 
   if (!dpuEmailRegex.test(email)) {
@@ -180,6 +212,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       select: safeUserSelect,
     });
 
+    deleteOtp(email);
     return res.status(201).json({
       message: 'User registered successfully',
       user,
