@@ -24,6 +24,16 @@ interface InlineCommentsProps {
 export default function InlineComments({
   post, themeColors, replyTo, setReplyTo, commentText, setCommentText, sendComment, onCommentLongPress,
 }: InlineCommentsProps) {
+  const handleReply = (authorName: string, commentId: string) => {
+    setReplyTo({ postId: post.id, commentId, authorName });
+    setCommentText(prev => ({ ...prev, [post.id]: `@${authorName} ` }));
+  };
+
+  const handleCancelReply = () => {
+    setReplyTo(null);
+    setCommentText(prev => ({ ...prev, [post.id]: "" }));
+  };
+
   return (
     <View className="px-4 pb-4">
       {post.comments && post.comments.length > 0 && (
@@ -48,7 +58,7 @@ export default function InlineComments({
                       <Text className="text-[12px] leading-5" style={{ color: themeColors.text }}>{comment.content}</Text>
                     </View>
                     <TouchableOpacity
-                      onPress={() => setReplyTo({ postId: post.id, commentId: comment.id, authorName: comment.author?.fullName ?? "User" })}
+                      onPress={() => handleReply(comment.author?.fullName ?? "User", comment.id)}
                       className="ml-2 mt-1"
                     >
                       <Text className="text-[10px] font-bold" style={{ color: themeColors.subText }}>Reply</Text>
@@ -59,11 +69,13 @@ export default function InlineComments({
                 {replies.map((reply: any) => (
                   <TouchableOpacity
                     key={reply.id}
-                    className="flex-row items-start ml-9 mt-2"
+                    className="flex-row items-start mt-2"
+                    style={{ marginLeft: 36 }}
                     onLongPress={onCommentLongPress ? () => onCommentLongPress(post.id, reply) : undefined}
                     delayLongPress={400}
                     activeOpacity={0.85}
                   >
+                    <View style={{ width: 2, alignSelf: 'stretch', borderRadius: 1, marginRight: 8, backgroundColor: themeColors.border }} />
                     <Image
                       source={{ uri: getAvatarUrl(reply.author?.avatarUrl, reply.author?.fullName) }}
                       className="w-6 h-6 rounded-full mr-2 mt-0.5"
@@ -87,7 +99,7 @@ export default function InlineComments({
               <Text className="text-[11px] font-bold" style={{ color: theme.colors.primary }}>
                 Replying to @{replyTo?.authorName}
               </Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)} className="ml-2">
+              <TouchableOpacity onPress={handleCancelReply} className="ml-2">
                 <Ionicons name="close-circle" size={14} color={themeColors.subText} />
               </TouchableOpacity>
             </View>
@@ -101,7 +113,7 @@ export default function InlineComments({
               <TextInput
                 value={commentText[post.id] ?? ""}
                 onChangeText={(t) => setCommentText(prev => ({ ...prev, [post.id]: t }))}
-                placeholder={replyTo?.postId === post.id ? `Reply to @${replyTo?.authorName}...` : "Add a comment..."}
+                placeholder="Add a comment..."
                 placeholderTextColor={themeColors.subText}
                 style={{ flex: 1, fontSize: 12, color: themeColors.text }}
                 returnKeyType="send"

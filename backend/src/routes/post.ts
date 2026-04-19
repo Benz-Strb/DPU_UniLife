@@ -83,7 +83,7 @@ const postInclude = {
   },
   _count: {
     select: {
-      comments: true,
+      comments: { where: { deletedAt: null } },
       reactions: true,
     },
   },
