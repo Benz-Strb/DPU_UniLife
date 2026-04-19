@@ -21,10 +21,18 @@ export default function PostOptionsButton({ post, onDeleted, extraOptions = [] }
   const isFacultyAdmin = isAdmin && post.facultyTag === user?.faculty;
   const canManage = isAuthor || isUniAdmin || isFacultyAdmin;
 
-  if (!canManage) return null;
+  if (!canManage && extraOptions.length === 0) return null;
 
   const handlePress = () => {
     const options: any[] = [];
+
+    if (!canManage) {
+      // Non-author, non-admin: only show extra options (e.g. Report)
+      extraOptions.forEach(opt => options.push(opt));
+      options.push({ text: "ยกเลิก", style: "cancel" });
+      Alert.alert("ตัวเลือก", undefined, options);
+      return;
+    }
 
     // Edit option (Author or Admins)
     options.push({
