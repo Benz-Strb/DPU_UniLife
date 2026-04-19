@@ -62,13 +62,19 @@ const API = axios.create({
   },
 });
 
+// Suppress console errors caused by maintenance mode (503) — not a real error
+const logError = (label: string, e: any) => {
+  if (e?.response?.status === 503) return;
+  logError(label, e);
+};
+
 export const adminService = {
   updateUserStatus: async (userId: string, status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED', actorId: string) => {
     try {
       const response = await API.patch(`/auth/users/${userId}/status`, { status, actorId });
       return response.data;
     } catch (e) {
-      console.error("Update User Status Error", e);
+      logError("Update User Status Error", e);
       throw e;
     }
   },
@@ -115,7 +121,7 @@ export const authService = {
       });
       return { success: true, user: response.data.user };
     } catch (e: any) {
-      console.error("Auth Register Error", e.response?.data || e.message);
+      logError("Auth Register Error", e.response?.data || e.message);
       throw e;
     }
   },
@@ -140,7 +146,7 @@ export const authService = {
       const response = await API.get(`/auth/profile/${userId}`);
       return response.data;
     } catch (e) {
-      console.error("Get Profile Error", e);
+      logError("Get Profile Error", e);
       throw e;
     }
   },
@@ -149,7 +155,7 @@ export const authService = {
       const response = await API.patch(`/auth/profile/${userId}`, data);
       return response.data;
     } catch (e) {
-      console.error("Update Profile API Error", e);
+      logError("Update Profile API Error", e);
       throw e;
     }
   },
@@ -168,7 +174,7 @@ export const authService = {
       const response = await API.get("/auth/admins", { params: query });
       return response.data;
     } catch (e) {
-      console.error("Get Admins Error", e);
+      logError("Get Admins Error", e);
       return [];
     }
   },
@@ -184,7 +190,7 @@ export const postService = {
       const response = await API.get("/posts");
       return response.data;
     } catch (e) {
-      console.error("Get Posts Error", e);
+      logError("Get Posts Error", e);
       return [];
     }
   },
@@ -193,7 +199,7 @@ export const postService = {
       const response = await API.get("/posts/ai-feed", { params: { userId } });
       return response.data;
     } catch (e) {
-      console.error("Get AI Feed Error", e);
+      logError("Get AI Feed Error", e);
       return [];
     }
   },
@@ -218,7 +224,7 @@ export const postService = {
       const response = await API.post(`/posts/${postId}/like`, { userId, reaction });
       return response.data;
     } catch (e) {
-      console.error("Like Post Error", e);
+      logError("Like Post Error", e);
       throw e;
     }
   },
@@ -227,7 +233,7 @@ export const postService = {
       const response = await API.post(`/posts/${postId}/comments`, { authorId, content, ...(parentId ? { parentId } : {}) });
       return response.data;
     } catch (e) {
-      console.error("Add Comment Error", e);
+      logError("Add Comment Error", e);
       throw e;
     }
   },
@@ -236,7 +242,7 @@ export const postService = {
       const response = await API.post(`/posts/${postId}/share`, { userId, sharedToText });
       return response.data;
     } catch (e) {
-      console.error("Share Post Error", e);
+      logError("Share Post Error", e);
       throw e;
     }
   },
@@ -244,7 +250,7 @@ export const postService = {
     try {
       await API.delete(`/posts/${postId}/share`, { params: { userId } });
     } catch (e) {
-      console.error("Unrepost Error", e);
+      logError("Unrepost Error", e);
       throw e;
     }
   },
@@ -261,7 +267,7 @@ export const postService = {
       await API.delete(`/posts/${postId}/comments/${commentId}`, { data: { userId } });
       return true;
     } catch (e) {
-      console.error("Delete Comment Error", e);
+      logError("Delete Comment Error", e);
       throw e;
     }
   },
@@ -270,7 +276,7 @@ export const postService = {
       await API.delete(`/posts/${postId}`);
       return true;
     } catch (e) {
-      console.error("Delete Post Error", e);
+      logError("Delete Post Error", e);
       throw e;
     }
   },
@@ -279,7 +285,7 @@ export const postService = {
       const response = await API.patch(`/posts/${postId}`, data);
       return response.data;
     } catch (e) {
-      console.error("Update Post Error", e);
+      logError("Update Post Error", e);
       throw e;
     }
   },
@@ -303,7 +309,7 @@ export const postService = {
       });
       return response.data.imageUrl;
     } catch (e) {
-      console.error("Upload Image Error", e);
+      logError("Upload Image Error", e);
       throw e;
     }
   }
@@ -315,7 +321,7 @@ export const chatService = {
       const response = await API.get(`/chats/${userId}`);
       return response.data;
     } catch (e) {
-      console.error("Get Chats Error", e);
+      logError("Get Chats Error", e);
       return [];
     }
   },
@@ -324,7 +330,7 @@ export const chatService = {
       const response = await API.post("/chats/direct", { userId, targetId });
       return response.data;
     } catch (e) {
-      console.error("Get/Create Direct Chat Error", e);
+      logError("Get/Create Direct Chat Error", e);
       throw e;
     }
   },
@@ -335,7 +341,7 @@ export const chatService = {
       const response = await API.post(`/chats/${convoId}/messages`, payload);
       return response.data;
     } catch (e) {
-      console.error("Send Message Error", e);
+      logError("Send Message Error", e);
       throw e;
     }
   },
@@ -343,7 +349,7 @@ export const chatService = {
     try {
       await API.patch(`/chats/${convoId}/read`, { userId });
     } catch (e) {
-      console.error("Mark As Read Error", e);
+      logError("Mark As Read Error", e);
     }
   },
   updateSettings: async (convoId: string, userId: string, data: { title?: string; avatarUrl?: string }) => {
@@ -366,7 +372,7 @@ export const chatService = {
       await API.delete(`/chats/${convoId}`, { params: { userId } });
       return true;
     } catch (e) {
-      console.error("Delete Conversation Error", e);
+      logError("Delete Conversation Error", e);
       throw e;
     }
   },
@@ -380,7 +386,7 @@ export const chatService = {
       });
       return response.data;
     } catch (e) {
-      console.error("Create Group Chat Error", e);
+      logError("Create Group Chat Error", e);
       throw e;
     }
   },
@@ -392,7 +398,7 @@ export const notificationService = {
       const response = await API.get(`/notifications/${userId}`);
       return response.data;
     } catch (e) {
-      console.error("Get Notifications Error", e);
+      logError("Get Notifications Error", e);
       return { data: [], unreadCount: 0 };
     }
   },
@@ -401,7 +407,7 @@ export const notificationService = {
       const response = await API.patch(`/notifications/${notifId}/read`);
       return response.data;
     } catch (e) {
-      console.error("Mark Notif Read Error", e);
+      logError("Mark Notif Read Error", e);
     }
   },
   markAllAsRead: async (userId: string) => {
@@ -409,7 +415,7 @@ export const notificationService = {
       const response = await API.patch(`/notifications/user/${userId}/read-all`);
       return response.data;
     } catch (e) {
-      console.error("Mark All Notif Read Error", e);
+      logError("Mark All Notif Read Error", e);
     }
   }
 };
@@ -420,7 +426,7 @@ export const followService = {
       const response = await API.post("/follows/toggle", { followerId, followingId });
       return response.data;
     } catch (e) {
-      console.error("Toggle Follow Error", e);
+      logError("Toggle Follow Error", e);
       throw e;
     }
   },
@@ -429,7 +435,7 @@ export const followService = {
       const response = await API.get(`/follows/ids/${userId}`);
       return response.data;
     } catch (e) {
-      console.error("Get Following IDs Error", e);
+      logError("Get Following IDs Error", e);
       return [];
     }
   }
@@ -451,7 +457,7 @@ export const reportService = {
       const response = await API.post("/reports", data);
       return response.data;
     } catch (e) {
-      console.error("Create Report Error", e);
+      logError("Create Report Error", e);
       throw e;
     }
   },
@@ -460,7 +466,7 @@ export const reportService = {
       const response = await API.get("/reports", { params });
       return response.data;
     } catch (e) {
-      console.error("Get Reports Error", e);
+      logError("Get Reports Error", e);
       throw e;
     }
   },
@@ -472,7 +478,7 @@ export const tagService = {
       const response = await API.get("/tags");
       return response.data;
     } catch (e) {
-      console.error("Get Tags Error", e);
+      logError("Get Tags Error", e);
       return [];
     }
   },
@@ -481,7 +487,7 @@ export const tagService = {
       const response = await API.get(`/tags/${encodeURIComponent(name)}/posts`, { params: { page, limit } });
       return response.data;
     } catch (e) {
-      console.error("Get Tag Posts Error", e);
+      logError("Get Tag Posts Error", e);
       throw e;
     }
   },
@@ -493,7 +499,7 @@ export const searchService = {
       const response = await API.get("/search", { params: { q, type, userId, limit } });
       return response.data;
     } catch (e) {
-      console.error("Search Error", e);
+      logError("Search Error", e);
       return { q, users: [], posts: [], groups: [] };
     }
   },
@@ -519,7 +525,7 @@ export const scheduleService = {
       const response = await API.get("/schedule", { params: { userId } });
       return response.data;
     } catch (e) {
-      console.error("Get Schedule Error", e);
+      logError("Get Schedule Error", e);
       return [];
     }
   },
@@ -528,7 +534,7 @@ export const scheduleService = {
       const response = await API.post("/schedule", data);
       return response.data;
     } catch (e) {
-      console.error("Add Course Error", e);
+      logError("Add Course Error", e);
       throw e;
     }
   },
@@ -537,7 +543,7 @@ export const scheduleService = {
       await API.delete(`/schedule/${id}`);
       return true;
     } catch (e) {
-      console.error("Delete Course Error", e);
+      logError("Delete Course Error", e);
       throw e;
     }
   },
@@ -547,6 +553,7 @@ export const settingService = {
   getPublic: async (): Promise<{
     maintenanceMode: boolean;
     appAnnouncement: string;
+    announcementDuration: number;
     allowRegistration: boolean;
     maxPostMedia: number;
   }> => {

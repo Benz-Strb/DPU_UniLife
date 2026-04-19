@@ -97,13 +97,45 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [appAnnouncement, setAppAnnouncement] = useState("");
   const [maxPostMedia, setMaxPostMedia] = useState(10);
+  const [announcementVisible, setAnnouncementVisible] = useState(false);
 
-  // โหลด public settings ตอนเปิดแอป
+  // โหลด public settings ตอนเปิดแอป + จัดการ timer ของ announcement
   useEffect(() => {
-    settingService.getPublic().then(s => {
+    settingService.getPublic().then(async s => {
       setMaintenanceMode(s.maintenanceMode);
-      setAppAnnouncement(s.appAnnouncement);
       setMaxPostMedia(s.maxPostMedia);
+      setAppAnnouncement(s.appAnnouncement);
+
+      if (!s.appAnnouncement) {
+        setAnnouncementVisible(false);
+        return;
+      }
+
+      // ตรวจว่าเป็น announcement ใหม่หรือเปล่า (เก็บข้อความที่แสดงล่าสุดไว้)
+      const storedText = await AsyncStorage.getItem("announcement_text");
+      const storedAt = await AsyncStorage.getItem("announcement_shown_at");
+      const now = Date.now();
+
+      if (storedText !== s.appAnnouncement) {
+        // announcement ใหม่ — reset timer
+        await AsyncStorage.setItem("announcement_text", s.appAnnouncement);
+        await AsyncStorage.setItem("announcement_shown_at", String(now));
+        setAnnouncementVisible(true);
+      } else {
+        const shownAt = storedAt ? parseInt(storedAt) : now;
+        const elapsed = now - shownAt;
+        const durationMs = s.announcementDuration * 60 * 1000;
+        if (s.announcementDuration > 0 && elapsed >= durationMs) {
+          setAnnouncementVisible(false);
+        } else {
+          setAnnouncementVisible(true);
+          // ตั้ง timer ให้ซ่อนเมื่อหมดเวลา
+          if (s.announcementDuration > 0) {
+            const remaining = durationMs - elapsed;
+            setTimeout(() => setAnnouncementVisible(false), remaining);
+          }
+        }
+      }
     }).catch(() => {});
   }, []);
 
@@ -532,14 +564,47 @@ export function UserProvider({ children }: { children: ReactNode }) {
       </Modal>
 
       {/* ANNOUNCEMENT BANNER */}
-      {!!appAnnouncement && (
+      {!!appAnnouncement && announcementVisible && (
         <View
           pointerEvents="box-none"
           style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 9999 }}
         >
-          <View style={{ backgroundColor: theme.colors.primary, paddingTop: 48, paddingBottom: 12, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Ionicons name="megaphone" size={16} color="white" />
-            <Text style={{ flex: 1, color: "white", fontWeight: "700", fontSize: 13 }} numberOfLines={2}>{appAnnouncement}</Text>
+          <View
+            pointerEvents="box-none"
+            style={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 8 }}
+          >
+            <View
+              pointerEvents="auto"
+              style={{
+                backgroundColor: "#1e1b4b",
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "#4f46e5",
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                shadowColor: "#4f46e5",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+                elevation: 10,
+                gap: 12,
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: "#4f46e5", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Ionicons name="megaphone" size={18} color="white" />
+              </View>
+              <Text style={{ flex: 1, color: "#e0e7ff", fontWeight: "600", fontSize: 13, lineHeight: 18 }} numberOfLines={3}>
+                {appAnnouncement}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setAnnouncementVisible(false)}
+                style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: "#312e81", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              >
+                <Ionicons name="close" size={14} color="#a5b4fc" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}

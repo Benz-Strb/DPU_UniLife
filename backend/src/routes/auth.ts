@@ -111,13 +111,14 @@ const logLoginAttempt = async ({
 // GET /auth/public-settings — ข้อมูล settings ที่ app ต้องการโดยไม่ต้อง auth
 authRouter.get('/public-settings', async (_req: Request, res: Response) => {
   try {
-    const [maintenanceMode, appAnnouncement, allowRegistration, maxPostMedia] = await Promise.all([
+    const [maintenanceMode, appAnnouncement, announcementDuration, allowRegistration, maxPostMedia] = await Promise.all([
       getSetting<boolean>('maintenance_mode', false),
       getSetting<string>('app_announcement', ''),
+      getSetting<number>('app_announcement_duration', 0),
       getSetting<boolean>('allow_registration', true),
       getSetting<number>('max_post_media', 10),
     ]);
-    return res.json({ maintenanceMode, appAnnouncement, allowRegistration, maxPostMedia });
+    return res.json({ maintenanceMode, appAnnouncement, announcementDuration, allowRegistration, maxPostMedia });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch settings' });
   }
