@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
@@ -1089,6 +1090,7 @@ postRouter.delete('/:id', async (req: Request, res: Response) => {
       },
       select: {
         id: true,
+        media: { select: { url: true } },
       },
     });
 
@@ -1096,14 +1098,22 @@ postRouter.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    await prisma.post.update({
-      where: {
-        id: postId,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
+    // ลบไฟล์รูปออกจาก disk
+    for (const m of existingPost.media) {
+      const filePath = path.join(process.cwd(), m.url);
+      fs.unlink(filePath, (err) => {
+        if (err) console.warn(`[DELETE POST] Cannot remove file: ${filePath}`, err.message);
+      });
+    }
+
+    // ลบ media records ออกจาก DB และ soft delete โพสต์
+    await prisma.$transaction([
+      prisma.postMedia.deleteMany({ where: { postId } }),
+      prisma.post.update({
+        where: { id: postId },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
 
     return res.json({ message: 'Post deleted successfully' });
   } catch (error) {
