@@ -23,3 +23,7 @@ export function setCachedFeed(userId: string, posts: any[]): void {
 export function invalidateFeedCache(userId: string): void {
   cache.delete(userId);
 }
+
+export function invalidateAllFeedCache(): void {
+  cache.clear();
+}

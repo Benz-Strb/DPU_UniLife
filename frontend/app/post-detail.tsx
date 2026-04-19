@@ -14,6 +14,17 @@ import InlineComments from "@/components/InlineComments";
 
 const { width } = Dimensions.get("window");
 
+const dedupePostsById = (items: any[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!item?.id || seen.has(item.id)) {
+      return false;
+    }
+    seen.add(item.id);
+    return true;
+  });
+};
+
 function PostItem({
   post,
   themeColors,
@@ -96,7 +107,7 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { postId, userId: profileUserId, single, mode } = useLocalSearchParams<{ postId: string; userId: string; single?: string; mode?: string }>();
   const isSingle = single === "true";
-  const { themeColors, userId, toggleLike: globalToggleLike } = useUser();
+  const { themeColors, userId, posts: globalPosts, toggleLike: globalToggleLike } = useUser();
   const {
     replyTo,
     setReplyTo,
@@ -121,8 +132,7 @@ export default function PostDetailScreen() {
     const isReposted = repostedIds.has(postId);
     try {
       if (isReposted) {
-        await postService.unrepostPost(postId, userId);
-        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
+        Alert.alert("Shared already", "You already shared this post.");
       } else {
         await postService.sharePost(postId, userId);
         setRepostedIds(prev => new Set(prev).add(postId));
@@ -133,6 +143,8 @@ export default function PostDetailScreen() {
   };
 
   const handleToggleLike = async (postId: string) => {
+    const previousPosts = posts;
+
     // 1. Immediate UI feedback for local state
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
@@ -157,7 +169,11 @@ export default function PostDetailScreen() {
     }));
 
     // 2. Perform global sync
-    await globalToggleLike(postId);
+    try {
+      await globalToggleLike(postId);
+    } catch {
+      setPosts(previousPosts);
+    }
   };
 
   const handleDeleted = (postId: string) => {
@@ -181,10 +197,12 @@ export default function PostDetailScreen() {
         .then(data => {
           const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
           if (mode === "reposts") {
-            const sorted = [...(data.postShares ?? [])]
+            const sorted = dedupePostsById(
+              [...(data.postShares ?? [])]
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .map((s: any) => s.post)
-              .filter(Boolean);
+              .filter(Boolean)
+            );
             setPosts(sorted);
           } else {
             const userPosts: any[] = data.authoredPosts ?? [];
@@ -207,6 +225,15 @@ export default function PostDetailScreen() {
       }, 100);
     }
   }, [posts, postId]);
+
+  useEffect(() => {
+    if (globalPosts.length === 0) return;
+
+    setPosts(prev => prev.map(post => {
+      const updatedPost = globalPosts.find(globalPost => globalPost.id === post.id);
+      return updatedPost ?? post;
+    }));
+  }, [globalPosts]);
 
   if (loading) {
     return (

@@ -5,7 +5,7 @@ import fs from 'fs';
 import { Prisma, PostVisibility, ReactionType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
-import { getCachedFeed, setCachedFeed } from '../lib/feedCache';
+import { getCachedFeed, setCachedFeed, invalidateAllFeedCache } from '../lib/feedCache';
 import { getIO } from '../lib/socket';
 
 const postRouter = Router();
@@ -188,6 +188,7 @@ const isPrismaKnownError = (error: unknown): error is Prisma.PrismaClientKnownRe
 
 const emitPostUpdate = async (postId: string) => {
   try {
+    invalidateAllFeedCache();
     const post = await prisma.post.findUnique({
       where: { id: postId },
       include: postInclude,
@@ -561,6 +562,8 @@ postRouter.post('/', async (req: Request, res: Response) => {
       include: postInclude,
     });
 
+    invalidateAllFeedCache();
+
     return res.status(201).json(post);
   } catch (error) {
     if (isPrismaKnownError(error) && error.code === 'P2003') {
@@ -715,6 +718,8 @@ postRouter.patch('/:id', async (req: Request, res: Response) => {
       },
       include: postInclude,
     });
+
+    invalidateAllFeedCache();
 
     return res.json(updatedPost);
   } catch (error) {
@@ -1132,6 +1137,8 @@ postRouter.delete('/:id', async (req: Request, res: Response) => {
         data: { deletedAt: new Date() },
       }),
     ]);
+
+    invalidateAllFeedCache();
 
     return res.json({ message: 'Post deleted successfully' });
   } catch (error) {
