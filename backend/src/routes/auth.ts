@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from '../password';
 import { sendOtpEmail } from '../lib/mailer';
 import { setOtp, verifyOtp, deleteOtp } from '../lib/otpStore';
 import { getIO } from '../lib/socket';
+import { getSetting } from '../lib/settings';
 
 const authRouter = Router();
 
@@ -107,8 +108,28 @@ const logLoginAttempt = async ({
   }
 };
 
+// GET /auth/public-settings — ข้อมูล settings ที่ app ต้องการโดยไม่ต้อง auth
+authRouter.get('/public-settings', async (_req: Request, res: Response) => {
+  try {
+    const [maintenanceMode, appAnnouncement, allowRegistration, maxPostMedia] = await Promise.all([
+      getSetting<boolean>('maintenance_mode', false),
+      getSetting<string>('app_announcement', ''),
+      getSetting<boolean>('allow_registration', true),
+      getSetting<number>('max_post_media', 10),
+    ]);
+    return res.json({ maintenanceMode, appAnnouncement, allowRegistration, maxPostMedia });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
 // POST /auth/send-otp — ส่ง OTP ไปยังเมล DPU เพื่อยืนยันตัวตนก่อนสมัครสมาชิก
 authRouter.post('/send-otp', async (req: Request, res: Response) => {
+  const allowReg = await getSetting<boolean>('allow_registration', true);
+  if (!allowReg) {
+    return res.status(403).json({ message: 'ขณะนี้ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว' });
+  }
+
   const { email: emailInput } = req.body;
   const email = normalizeRequiredString(emailInput)?.toLowerCase();
 
@@ -135,6 +156,11 @@ authRouter.post('/send-otp', async (req: Request, res: Response) => {
 
 // Route จัดการ authentication, profile และสิทธิ์ผู้ใช้สำหรับทั้ง mobile app และ admin dashboard
 authRouter.post('/register', async (req: Request, res: Response) => {
+  const allowReg = await getSetting<boolean>('allow_registration', true);
+  if (!allowReg) {
+    return res.status(403).json({ message: 'ขณะนี้ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว' });
+  }
+
   const { email: emailInput, fullName: fullNameInput, username: usernameInput, password, faculty: facultyInput, otp } = req.body;
 
   const email = normalizeRequiredString(emailInput)?.toLowerCase();

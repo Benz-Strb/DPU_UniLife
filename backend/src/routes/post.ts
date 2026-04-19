@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma';
 import { createNotification } from '../lib/notifications';
 import { getCachedFeed, setCachedFeed, invalidateAllFeedCache } from '../lib/feedCache';
 import { getIO } from '../lib/socket';
+import { getSetting } from '../lib/settings';
 
 const postRouter = Router();
 
@@ -481,6 +482,11 @@ postRouter.post('/', async (req: Request, res: Response) => {
 
   if (!title && !content && imageUrls.length === 0) {
     return res.status(400).json({ error: 'Post must include title, content, or image' });
+  }
+
+  const maxMedia = await getSetting<number>('max_post_media', 10);
+  if (imageUrls.length > maxMedia) {
+    return res.status(400).json({ error: `สามารถแนบรูปได้สูงสุด ${maxMedia} รูปต่อโพสต์` });
   }
 
   const visibility = visibilityInput === undefined ? PostVisibility.PUBLIC : parsePostVisibility(visibilityInput);

@@ -16,14 +16,13 @@ const MAX_CROP_HEIGHT = screenHeight * 0.62;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
-const MAX_IMAGES = 10;
-
 export default function NewPostScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tag: string; editPostId?: string; editContent?: string; editVisibility?: string }>();
   const isEditMode = !!params.editPostId;
-  const { isDarkMode, faculty, addPost, updatePost, userId, isAdmin, isUniAdmin, themeColors } = useUser();
+  const { isDarkMode, faculty, addPost, updatePost, userId, isAdmin, isUniAdmin, themeColors, maxPostMedia } = useUser();
+  const MAX_IMAGES = maxPostMedia;
   const [content, setContent] = useState(params.editContent ?? "");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 

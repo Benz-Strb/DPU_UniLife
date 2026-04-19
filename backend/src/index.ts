@@ -18,6 +18,7 @@ import scheduleRouter from "./routes/schedule";
 import { adminRouter } from "./routes/admin";
 import { searchRouter } from "./routes/search";
 import { tagRouter } from "./routes/tag";
+import { getSetting } from "./lib/settings";
 
 // Bootstrap หลักของ backend สำหรับตั้งค่า Express, routes, static files, error handler และ Socket.io
 const app = express();
@@ -30,6 +31,19 @@ initSocket(httpServer);
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Maintenance mode middleware — bypass admin routes and login so dashboard still works
+app.use(async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const isAdminRoute = req.path.startsWith('/admin');
+  const isLoginRoute = req.path === '/auth/login';
+  const isPublicSettings = req.path === '/auth/public-settings';
+  if (isAdminRoute || isLoginRoute || isPublicSettings) return next();
+  const maintenance = await getSetting<boolean>('maintenance_mode', false);
+  if (maintenance) {
+    return res.status(503).json({ error: 'maintenance', message: 'ระบบปิดปรับปรุงชั่วคราว กรุณาลองใหม่ภายหลัง' });
+  }
+  next();
+});
 
 app.use('/auth', authRouter);
 app.use('/announcements', announcementRouter);

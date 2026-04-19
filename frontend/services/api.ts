@@ -543,4 +543,16 @@ export const scheduleService = {
   },
 };
 
+export const settingService = {
+  getPublic: async (): Promise<{
+    maintenanceMode: boolean;
+    appAnnouncement: string;
+    allowRegistration: boolean;
+    maxPostMedia: number;
+  }> => {
+    const response = await API.get("/auth/public-settings");
+    return response.data;
+  },
+};
+
 

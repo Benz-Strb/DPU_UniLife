@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { View, Text, Animated, TouchableOpacity, Image, Platform, Dimensions, ActivityIndicator, Modal } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authService, postService, chatService, notificationService, followService, BASE_URL } from "@/services/api";
+import { authService, postService, chatService, notificationService, followService, settingService, BASE_URL } from "@/services/api";
 import { theme } from "@/constants/theme";
 import { User, Post, Comment, Conversation, Message, UserRole } from "@/types/backend";
 import { Ionicons } from "@expo/vector-icons";
@@ -66,6 +66,9 @@ interface UserContextType {
   deleteConversation: (convoId: string) => Promise<void>;
   refreshChats: () => Promise<void>;
   updateConversation: (convoId: string, data: { title?: string; avatarUrl?: string }) => void;
+  maintenanceMode: boolean;
+  appAnnouncement: string;
+  maxPostMedia: number;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -91,6 +94,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [appAnnouncement, setAppAnnouncement] = useState("");
+  const [maxPostMedia, setMaxPostMedia] = useState(10);
+
+  // โหลด public settings ตอนเปิดแอป
+  useEffect(() => {
+    settingService.getPublic().then(s => {
+      setMaintenanceMode(s.maintenanceMode);
+      setAppAnnouncement(s.appAnnouncement);
+      setMaxPostMedia(s.maxPostMedia);
+    }).catch(() => {});
+  }, []);
 
   // โหลด session ที่บันทึกไว้ตอนเปิดแอป
   useEffect(() => {
@@ -428,7 +443,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
           console.error("Delete Chat Error", e);
           throw e;
         }
-      }
+      },
+      maintenanceMode,
+      appAnnouncement,
+      maxPostMedia,
     }}>
       {children}
       
@@ -498,6 +516,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
           </Animated.View>
         </View>
       )}
+      {/* MAINTENANCE MODE */}
+      <Modal visible={maintenanceMode} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <View style={{ backgroundColor: themeColors.card, borderRadius: 28, padding: 32, alignItems: "center", width: "100%" }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+              <Ionicons name="construct" size={36} color="#F59E0B" />
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: "900", color: themeColors.text, marginBottom: 10 }}>ระบบปิดปรับปรุง</Text>
+            <Text style={{ fontSize: 14, color: themeColors.subText, textAlign: "center", lineHeight: 22 }}>
+              ขณะนี้ระบบอยู่ระหว่างการปรับปรุง{"\n"}กรุณาลองใหม่ภายหลัง
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ANNOUNCEMENT BANNER */}
+      {!!appAnnouncement && (
+        <View
+          pointerEvents="box-none"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 9999 }}
+        >
+          <View style={{ backgroundColor: theme.colors.primary, paddingTop: 48, paddingBottom: 12, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Ionicons name="megaphone" size={16} color="white" />
+            <Text style={{ flex: 1, color: "white", fontWeight: "700", fontSize: 13 }} numberOfLines={2}>{appAnnouncement}</Text>
+          </View>
+        </View>
+      )}
+
       {/* BAN ALERT */}
       <Modal visible={banAlert.visible} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 32 }}>
