@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, StatusBar, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
@@ -159,7 +160,11 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar barStyle={themeColors.statusBar as any} />
+      <StatusBar
+        style={isDarkMode ? "light" : "dark"}
+        backgroundColor={themeColors.background}
+        translucent={false}
+      />
       
       <SafeAreaView className="flex-1" edges={['top']}>
         <View className="px-6 py-4">

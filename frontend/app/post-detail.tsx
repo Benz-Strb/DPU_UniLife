@@ -62,7 +62,10 @@ function PostItem({
         post.media.length === 1 ? (
           <Image source={{ uri: getImageUrl(post.media[0].url) }} style={{ width, height: width }} resizeMode="cover" />
         ) : (
-          <ImageCarousel images={post.media.map((m: any) => ({ url: getImageUrl(m.url) }))} />
+          <ImageCarousel
+            images={post.media.map((m: any) => ({ url: getImageUrl(m.url) }))}
+            onDoubleTap={() => toggleLike(post.id)}
+          />
         )
       )}
 
@@ -132,7 +135,8 @@ export default function PostDetailScreen() {
     const isReposted = repostedIds.has(postId);
     try {
       if (isReposted) {
-        Alert.alert("Shared already", "You already shared this post.");
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
       } else {
         await postService.sharePost(postId, userId);
         setRepostedIds(prev => new Set(prev).add(postId));

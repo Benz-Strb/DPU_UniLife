@@ -100,7 +100,12 @@ export default function HomeScreen() {
     const isReposted = repostedIds.has(postId);
     try {
       if (isReposted) {
-        Alert.alert("Shared already", "You already shared this post.");
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
       } else {
         await postService.sharePost(postId, userId);
         setRepostedIds((prev) => new Set(prev).add(postId));
@@ -137,7 +142,11 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <StatusBar
+        style={isDarkMode ? "light" : "dark"}
+        backgroundColor={themeColors.card}
+        translucent={false}
+      />
 
       <SafeAreaView className="flex-1" edges={["top"]}>
         {/* Header */}

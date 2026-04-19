@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, StatusBar, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl } from "@/utils/imageUtils";
@@ -52,7 +53,11 @@ export default function MessengerScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: bgColor }}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+      <StatusBar
+        style={isDarkMode ? "light" : "dark"}
+        backgroundColor={bgColor}
+        translucent={false}
+      />
       
       <SafeAreaView className="flex-1">
         <ScreenHeader
