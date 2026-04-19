@@ -102,8 +102,15 @@ export default function NewPostScreen() {
       });
       Alert.alert("Success", isOfficial ? "Official Announcement shared!" : "Post shared!");
       router.back();
-    } catch {
-      Alert.alert("Error", "Failed to share post.");
+    } catch (e: any) {
+      const serverMsg = e?.response?.data?.error;
+      const bannedUntil = e?.response?.data?.bannedUntil;
+      if (bannedUntil) {
+        const date = new Date(bannedUntil).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+        Alert.alert("ไม่สามารถโพสต์ได้", `บัญชีของคุณถูกแบนถึงวันที่ ${date}`);
+      } else {
+        Alert.alert("Error", serverMsg || "Failed to share post.");
+      }
     } finally {
       setLoading(false);
     }
