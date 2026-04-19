@@ -21,7 +21,7 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
 };
 
 export default function TabsLayout() {
-  const { userId, isDarkMode, themeColors } = useUser();
+  const { userId, isDarkMode, themeColors, unreadChatCount } = useUser();
   const router = useRouter();
   const segments = useSegments();
 
@@ -74,7 +74,16 @@ export default function TabsLayout() {
                 style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
                 activeOpacity={0.7}
               >
-                <Ionicons name={iconName} size={28} color={color} />
+                <View style={{ position: "relative" }}>
+                  <Ionicons name={iconName} size={28} color={color} />
+                  {tabName === "messenger" && unreadChatCount > 0 && (
+                    <View style={{
+                      position: "absolute", top: -2, right: -4,
+                      backgroundColor: "#EF4444", borderRadius: 99,
+                      width: 8, height: 8,
+                    }} />
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}

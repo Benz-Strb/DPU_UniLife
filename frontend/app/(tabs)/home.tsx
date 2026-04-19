@@ -29,7 +29,6 @@ export default function HomeScreen() {
   const {
     themeColors,
     isDarkMode,
-    unreadChatCount,
     unreadNotificationCount,
     followingIds,
     toggleFollow,
@@ -168,16 +167,6 @@ export default function HomeScreen() {
               <View className="relative">
                 <Feather name="heart" size={20} color={themeColors.text} />
                 {unreadNotificationCount > 0 && <View className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/messenger")} className="w-9 h-9 items-center justify-center rounded-xl" style={{ backgroundColor: themeColors.iconBg }}>
-              <View className="relative">
-                <Feather name="message-circle" size={20} color={themeColors.text} />
-                {unreadChatCount > 0 && (
-                  <View className="absolute -top-1.5 -right-1.5 bg-red-500 rounded-full min-w-[16px] h-4 items-center justify-center px-0.5">
-                    <Text className="text-[9px] text-white font-black">{unreadChatCount}</Text>
-                  </View>
-                )}
               </View>
             </TouchableOpacity>
           </View>

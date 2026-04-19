@@ -94,7 +94,7 @@ function PostItem({
 
 export default function PostDetailScreen() {
   const router = useRouter();
-  const { postId, userId: profileUserId, single } = useLocalSearchParams<{ postId: string; userId: string; single?: string }>();
+  const { postId, userId: profileUserId, single, mode } = useLocalSearchParams<{ postId: string; userId: string; single?: string; mode?: string }>();
   const isSingle = single === "true";
   const { themeColors, userId, toggleLike: globalToggleLike } = useUser();
   const {
@@ -179,12 +179,20 @@ export default function PostDetailScreen() {
       }
       authService.getProfile(profileUserId)
         .then(data => {
-          const userPosts: any[] = data.authoredPosts ?? [];
           const author = { id: data.id, fullName: data.fullName, avatarUrl: data.avatarUrl, username: data.username };
-          const sorted = [...userPosts]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map(p => ({ ...p, author: p.author ?? author }));
-          setPosts(sorted);
+          if (mode === "reposts") {
+            const sorted = [...(data.postShares ?? [])]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .map((s: any) => s.post)
+              .filter(Boolean);
+            setPosts(sorted);
+          } else {
+            const userPosts: any[] = data.authoredPosts ?? [];
+            const sorted = [...userPosts]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .map(p => ({ ...p, author: p.author ?? author }));
+            setPosts(sorted);
+          }
         })
         .finally(() => setLoading(false));
     }

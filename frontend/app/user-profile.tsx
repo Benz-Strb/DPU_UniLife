@@ -233,7 +233,7 @@ export default function UserProfileScreen() {
                 <PostThumbnailCard
                   key={post.id}
                   post={post}
-                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId } } as any)}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: targetUserId, mode: "posts" } } as any)}
                   themeColors={themeColors}
                   borderRadius={20}
                 />
@@ -254,7 +254,7 @@ export default function UserProfileScreen() {
                 <PostThumbnailCard
                   key={share.id}
                   post={share.post}
-                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: share.post.id, userId: share.post.author?.id, single: "true" } } as any)}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: share.post.id, userId: targetUserId, mode: "reposts" } } as any)}
                   themeColors={themeColors}
                   borderRadius={20}
                   badgeIcon="repeat"

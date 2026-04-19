@@ -337,7 +337,7 @@ function StudentProfile() {
                 <PostThumbnailCard
                   key={post.id}
                   post={post}
-                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId, single: "true" } } as any)}
+                  onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId, mode: "posts" } } as any)}
                   onLongPress={() => handlePostOptions(post)}
                   themeColors={themeColors}
                 />
@@ -376,7 +376,7 @@ function StudentProfile() {
                   <PostThumbnailCard
                     key={share.id}
                     post={post}
-                    onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId: post.author?.id, single: "true" } } as any)}
+                    onPress={() => router.push({ pathname: "/post-detail", params: { postId: post.id, userId, mode: "reposts" } } as any)}
                     themeColors={themeColors}
                     badgeIcon="repeat"
                     onBadgePress={handleUnrepost}
