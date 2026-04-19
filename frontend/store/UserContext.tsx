@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
-import { View, Text, Animated, TouchableOpacity, Image, Platform, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, Animated, TouchableOpacity, Image, Platform, Dimensions, ActivityIndicator, Modal } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authService, postService, chatService, notificationService, followService, BASE_URL } from "@/services/api";
 import { theme } from "@/constants/theme";
@@ -132,6 +132,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const toastAnim = useRef(new Animated.Value(-150)).current;
   const socketRef = useRef<any>(null);
 
+  // Ban/Suspend alert states
+  const [banAlert, setBanAlert] = useState<{ visible: boolean; days: number } >({ visible: false, days: 0 });
+  const [suspendAlert, setSuspendAlert] = useState(false);
+
   const triggerToast = (data: any) => {
     setToastData(data);
     setShowToast(true);
@@ -242,9 +246,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
       };
 
+      const onUserBanned = ({ days }: { days: number }) => {
+        setBanAlert({ visible: true, days });
+      };
+
+      const onUserSuspended = () => {
+        setSuspendAlert(true);
+      };
+
       socket.on("connect", onConnect);
       socket.on("new_notification", onNewNotification);
       socket.on("post_update", onPostUpdate);
+      socket.on("user_banned", onUserBanned);
+      socket.on("user_suspended", onUserSuspended);
       socket.on("reconnect", () => socket.emit("register_user", userId));
 
       if (socket.connected) onConnect(); else socket.connect();
@@ -253,7 +267,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       fetchChats(userId);
       fetchNotifications();
       followService.getFollowingIds(userId).then(ids => setFollowingIds(ids || []));
-      
+
       const interval = setInterval(() => fetchChats(userId), 10000); // Polling ห่างขึ้นเพื่อลดภาระ
 
       return () => {
@@ -261,6 +275,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         socket.off("connect", onConnect);
         socket.off("new_notification", onNewNotification);
         socket.off("post_update", onPostUpdate);
+        socket.off("user_banned", onUserBanned);
+        socket.off("user_suspended", onUserSuspended);
       };
     }
   }, [userId]);
@@ -482,6 +498,49 @@ export function UserProvider({ children }: { children: ReactNode }) {
           </Animated.View>
         </View>
       )}
+      {/* BAN ALERT */}
+      <Modal visible={banAlert.visible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <View style={{ backgroundColor: themeColors.card, borderRadius: 28, padding: 28, alignItems: "center", width: "100%" }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#FEF2F2", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontSize: 32 }}>🚫</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: themeColors.text, marginBottom: 8 }}>บัญชีถูกแบน</Text>
+            <Text style={{ fontSize: 14, color: themeColors.subText, textAlign: "center", lineHeight: 22 }}>
+              บัญชีของคุณถูกระงับการใช้งานเป็นเวลา{" "}
+              <Text style={{ fontWeight: "900", color: "#EF4444" }}>{banAlert.days} วัน</Text>
+              {"\n"}คุณยังสามารถใช้งานแอปได้ในโหมดจำกัด
+            </Text>
+            <TouchableOpacity
+              onPress={() => setBanAlert({ visible: false, days: 0 })}
+              style={{ marginTop: 24, backgroundColor: theme.colors.primary, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 32 }}
+            >
+              <Text style={{ color: "white", fontWeight: "900", fontSize: 14 }}>รับทราบ</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* SUSPEND ALERT */}
+      <Modal visible={suspendAlert} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <View style={{ backgroundColor: themeColors.card, borderRadius: 28, padding: 28, alignItems: "center", width: "100%" }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFFBEB", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontSize: 32 }}>⚠️</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: themeColors.text, marginBottom: 8 }}>บัญชีถูกระงับ</Text>
+            <Text style={{ fontSize: 14, color: themeColors.subText, textAlign: "center", lineHeight: 22 }}>
+              บัญชีของคุณถูกระงับการใช้งาน{"\n"}โปรดติดต่อเจ้าหน้าที่ดูแลระบบ
+            </Text>
+            <TouchableOpacity
+              onPress={() => { setSuspendAlert(false); logout(); }}
+              style={{ marginTop: 24, backgroundColor: "#EF4444", borderRadius: 16, paddingVertical: 12, paddingHorizontal: 32 }}
+            >
+              <Text style={{ color: "white", fontWeight: "900", fontSize: 14 }}>ออกจากระบบ</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </UserContext.Provider>
   );
 }

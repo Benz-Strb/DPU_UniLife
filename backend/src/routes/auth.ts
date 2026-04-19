@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { hashPassword, verifyPassword } from '../password';
 import { sendOtpEmail } from '../lib/mailer';
 import { setOtp, verifyOtp, deleteOtp } from '../lib/otpStore';
+import { getIO } from '../lib/socket';
 
 const authRouter = Router();
 
@@ -717,6 +718,12 @@ authRouter.patch('/users/:userId/status', async (req: Request, res: Response) =>
       data: { status: newStatus },
       select: safeUserSelect,
     });
+
+    if (newStatus === UserStatus.SUSPENDED) {
+      try {
+        getIO().to(`user_${userId}`).emit('user_suspended');
+      } catch {}
+    }
 
     return res.json({ message: 'User status updated', user: updatedUser });
   } catch (error) {

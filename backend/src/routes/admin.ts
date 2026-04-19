@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { getIO } from '../lib/socket';
 
 const adminRouter = Router();
 
@@ -276,6 +277,12 @@ adminRouter.post('/users/:userId/ban', async (req: Request, res: Response) => {
         detail: { days: banDays, bannedUntil },
       },
     });
+
+    if (banDays > 0) {
+      try {
+        getIO().to(`user_${userId}`).emit('user_banned', { days: banDays, bannedUntil });
+      } catch {}
+    }
 
     return res.json({ message: banDays === 0 ? 'User unbanned' : `User banned for ${banDays} days`, user: updatedUser });
   } catch (error) {
