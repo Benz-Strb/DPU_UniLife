@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
@@ -160,14 +159,10 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar
-        style={isDarkMode ? "light" : "dark"}
-        backgroundColor={themeColors.background}
-        translucent={false}
-      />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
-      <SafeAreaView className="flex-1" edges={['top']}>
-        <View className="px-6 py-4">
+      <SafeAreaView className="flex-1" edges={['top']} style={{ backgroundColor: themeColors.background }}>
+        <View className="px-6 py-4" style={{ backgroundColor: themeColors.background }}>
           <Text className="text-3xl font-black mb-6 tracking-tight" style={{ color: themeColors.text }}>Discovery</Text>
           
           <SearchBar
@@ -178,7 +173,7 @@ export default function SearchScreen() {
           />
         </View>
 
-        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false} style={{ backgroundColor: themeColors.background }}>
           {/* Recent Searches */}
           {!searchQuery.trim() && history.length > 0 && (
             <View className="px-6 mb-6">

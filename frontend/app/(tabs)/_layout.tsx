@@ -38,9 +38,13 @@ export default function TabsLayout() {
     <SwipeableTabs
       tabBarPosition="bottom"
       initialRouteName="home"
+      style={{ backgroundColor: themeColors.background }}
       screenOptions={{
         swipeEnabled: true,
         animationEnabled: true,
+        sceneStyle: {
+          backgroundColor: themeColors.background,
+        },
       }}
       tabBar={({ state, navigation }) => (
         <View

@@ -4,7 +4,6 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { UserProvider } from "../store/UserContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StatusBar } from "expo-status-bar";
 
 // Root navigator ของแอปมือถือสำหรับครอบ provider หลักและกำหนด screen stack ทั้งหมด
 export default function RootLayout() {
@@ -12,7 +11,6 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <UserProvider>
       <SafeAreaProvider>
-        <StatusBar style="auto" />
         <Stack
           screenOptions={{
             headerShown: false,

@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, Alert, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl } from "@/utils/imageUtils";
@@ -53,30 +52,28 @@ export default function MessengerScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: bgColor }}>
-      <StatusBar
-        style={isDarkMode ? "light" : "dark"}
-        backgroundColor={bgColor}
-        translucent={false}
-      />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
-      <SafeAreaView className="flex-1">
-        <ScreenHeader
-          title="Messages"
-          centerTitle
-          onBack={() => router.back()}
-          themeColors={themeColors}
-          rightElement={
-            <TouchableOpacity
-              onPress={() => router.push("/new-group" as any)}
-              className="w-10 h-10 rounded-2xl items-center justify-center"
-              style={{ backgroundColor: cardColor }}
-            >
-              <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
-            </TouchableOpacity>
-          }
-        />
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: bgColor }}>
+        <View style={{ backgroundColor: bgColor }}>
+          <ScreenHeader
+            title="Messages"
+            centerTitle
+            onBack={() => router.back()}
+            themeColors={themeColors}
+            rightElement={
+              <TouchableOpacity
+                onPress={() => router.push("/new-group" as any)}
+                className="w-10 h-10 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: cardColor }}
+              >
+                <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
+              </TouchableOpacity>
+            }
+          />
+        </View>
 
-        <View className="px-6 py-2">
+        <View className="px-6 py-2" style={{ backgroundColor: bgColor }}>
           <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -85,7 +82,7 @@ export default function MessengerScreen() {
           />
         </View>
 
-        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} className="flex-1" showsVerticalScrollIndicator={false} style={{ backgroundColor: bgColor }}>
           <View className="px-6 pt-4 pb-20">
             {conversations.filter(c => {
                 if (!searchQuery.trim()) return true;
