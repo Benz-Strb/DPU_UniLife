@@ -8,12 +8,12 @@ import {
   RefreshControl,
   Alert,
   TextInput,
+  StatusBar,
 } from "react-native";
 import PostCard from "@/components/PostCard";
 import EmptyState from "@/components/EmptyState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
@@ -142,13 +142,9 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar
-        style={isDarkMode ? "light" : "dark"}
-        backgroundColor={themeColors.card}
-        translucent={false}
-      />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
-      <SafeAreaView className="flex-1" edges={["top"]}>
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.card }}>
         {/* Header */}
         <View
           className="flex-row justify-between items-center px-4 py-3 border-b"
@@ -176,43 +172,45 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAIFeed} tintColor={theme.colors.primary} />}
-        >
-          {posts.length === 0 ? (
-            <View className="mx-4 mt-6 rounded-[40px] border border-dashed border-gray-100" style={{ backgroundColor: themeColors.card }}>
-              <EmptyState icon="planet-outline" title="Empty Galaxy" themeColors={themeColors} />
-            </View>
-          ) : (
-            posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                userId={userId}
-                themeColors={themeColors}
-                toggleLike={toggleLike}
-                deletePost={deletePost}
-                followingIds={followingIds}
-                toggleFollow={toggleFollow}
-                isAdmin={isAdmin}
-                isUniAdmin={isUniAdmin}
-                replyTo={replyTo}
-                setReplyTo={setReplyTo}
-                commentText={commentText}
-                setCommentText={setCommentText}
-                sendComment={sendComment}
-                toggleComments={toggleComments}
-                activeCommentPostId={activeCommentPostId ?? undefined}
-                handleCommentLongPress={handleCommentLongPress}
-                repostedIds={repostedIds}
-                handleRepost={handleRepost}
-              />
-            ))
-          )}
-          <View className="h-24" />
-        </ScrollView>
+        <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAIFeed} tintColor={theme.colors.primary} />}
+          >
+            {posts.length === 0 ? (
+              <View className="mx-4 mt-6 rounded-[40px] border border-dashed border-gray-100" style={{ backgroundColor: themeColors.card }}>
+                <EmptyState icon="planet-outline" title="Empty Galaxy" themeColors={themeColors} />
+              </View>
+            ) : (
+              posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  userId={userId}
+                  themeColors={themeColors}
+                  toggleLike={toggleLike}
+                  deletePost={deletePost}
+                  followingIds={followingIds}
+                  toggleFollow={toggleFollow}
+                  isAdmin={isAdmin}
+                  isUniAdmin={isUniAdmin}
+                  replyTo={replyTo}
+                  setReplyTo={setReplyTo}
+                  commentText={commentText}
+                  setCommentText={setCommentText}
+                  sendComment={sendComment}
+                  toggleComments={toggleComments}
+                  activeCommentPostId={activeCommentPostId ?? undefined}
+                  handleCommentLongPress={handleCommentLongPress}
+                  repostedIds={repostedIds}
+                  handleRepost={handleRepost}
+                />
+              ))
+            )}
+            <View className="h-24" />
+          </ScrollView>
+        </View>
       </SafeAreaView>
     </View>
   );
