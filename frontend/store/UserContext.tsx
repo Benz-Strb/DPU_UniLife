@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
-import { View, Text, Animated, TouchableOpacity, Image, Platform, Dimensions } from "react-native";
+import { View, Text, Animated, TouchableOpacity, Image, Platform, Dimensions, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authService, postService, chatService, notificationService, followService, BASE_URL } from "@/services/api";
 import { theme } from "@/constants/theme";
 import { User, Post, Comment, Conversation, Message, UserRole } from "@/types/backend";
@@ -89,6 +90,32 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  // โหลด session ที่บันทึกไว้ตอนเปิดแอป
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("user_session");
+        if (stored) {
+          const u: User = JSON.parse(stored);
+          setUserId(u.id);
+          setUser(u);
+          setName(u.fullName);
+          setFaculty(u.faculty || "");
+          setBio(u.bio || "");
+          setProfileImage(u.avatarUrl || "");
+          setIsAdmin(u.role === UserRole.ADMIN || u.role === UserRole.SUPER_ADMIN);
+          setIsUniAdmin(u.role === UserRole.SUPER_ADMIN);
+        }
+      } catch (e) {
+        console.error("Restore session error", e);
+      } finally {
+        setIsLoadingSession(false);
+      }
+    };
+    restoreSession();
+  }, []);
 
   // Active Chat State for suppressing toasts
   const [activeChatId, _setActiveChatId] = useState<string | null>(null);
@@ -251,6 +278,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setProfileImage(u.avatarUrl || "");
         setIsAdmin(u.role === UserRole.ADMIN || u.role === UserRole.SUPER_ADMIN);
         setIsUniAdmin(u.role === UserRole.SUPER_ADMIN);
+        await AsyncStorage.setItem("user_session", JSON.stringify(u));
         return { success: true };
       }
       return { success: false, message: response.message || "Invalid credentials" };
@@ -263,6 +291,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsAdmin(false);
     setIsUniAdmin(false);
+    AsyncStorage.removeItem("user_session");
   };
 
   const toggleLike = async (postId: string, reaction = "LIKE") => {
@@ -328,8 +357,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const themeColors = isDarkMode ? theme.dark : theme.light;
 
+  if (isLoadingSession) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.background }}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <UserContext.Provider value={{ 
+    <UserContext.Provider value={{
       userId, user, setUser, faculty, setFaculty, name, setName, bio, setBio,
       profileImage, setProfileImage, isDarkMode, toggleTheme: () => setIsDarkMode(!isDarkMode), themeColors,
       notifications, setNotifications, notificationList,
