@@ -249,6 +249,14 @@ export const postService = {
       throw e;
     }
   },
+  getRepostedIds: async (userId: string): Promise<string[]> => {
+    try {
+      const response = await API.get(`/posts/reposts/by-user/${userId}`);
+      return response.data;
+    } catch (e) {
+      return [];
+    }
+  },
   deleteComment: async (postId: string, commentId: string, userId: string) => {
     try {
       await API.delete(`/posts/${postId}/comments/${commentId}`, { data: { userId } });

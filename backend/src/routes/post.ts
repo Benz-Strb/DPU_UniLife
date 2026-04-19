@@ -945,6 +945,24 @@ postRouter.post('/:id/comments', async (req: Request, res: Response) => {
   }
 });
 
+// GET /posts/reposts/by-user/:userId — ดึง postId ทั้งหมดที่ user นี้เคยรีโพสต์
+postRouter.get('/reposts/by-user/:userId', async (req: Request, res: Response) => {
+  const userId = getSingleParam(req.params.userId);
+  if (!userId || !isUuid(userId)) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  try {
+    const shares = await prisma.postShare.findMany({
+      where: { sharedById: userId },
+      select: { postId: true },
+    });
+    return res.json(shares.map(s => s.postId));
+  } catch (error) {
+    console.error('Failed to fetch reposts:', error);
+    return res.status(500).json({ error: 'Failed to fetch reposts' });
+  }
+});
+
 postRouter.post('/:id/share', async (req: Request, res: Response) => {
   const postId = getSingleParam(req.params.id);
   const { userId, sharedToText } = req.body;

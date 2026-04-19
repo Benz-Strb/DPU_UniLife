@@ -91,6 +91,12 @@ export default function HomeScreen() {
   const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (userId) {
+      postService.getRepostedIds(userId).then(ids => setRepostedIds(new Set(ids)));
+    }
+  }, [userId]);
+
   const handleRepost = async (postId: string) => {
     const isReposted = repostedIds.has(postId);
     try {

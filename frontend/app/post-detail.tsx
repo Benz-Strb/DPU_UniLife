@@ -14,11 +14,13 @@ import InlineComments from "@/components/InlineComments";
 
 const { width } = Dimensions.get("window");
 
-function PostItem({ 
-  post, 
-  themeColors, 
-  userId, 
-  toggleLike, 
+function PostItem({
+  post,
+  themeColors,
+  userId,
+  toggleLike,
+  isReposted,
+  onRepost,
   onDeleted,
   replyTo,
   setReplyTo,
@@ -70,6 +72,9 @@ function PostItem({
           <Ionicons name="chatbubble-outline" size={20} color={themeColors.subText} />
           <Text className="font-bold text-sm" style={{ color: themeColors.subText }}>{commentCount}</Text>
         </View>
+        <TouchableOpacity onPress={() => onRepost(post.id)} className="flex-row items-center gap-1.5">
+          <Ionicons name="repeat" size={22} color={isReposted ? theme.colors.repost ?? "#10B981" : themeColors.subText} />
+        </TouchableOpacity>
       </View>
 
       {/* Inline Comments */}
@@ -103,7 +108,29 @@ export default function PostDetailScreen() {
   
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (userId) {
+      postService.getRepostedIds(userId).then(ids => setRepostedIds(new Set(ids)));
+    }
+  }, [userId]);
+
+  const handleRepost = async (postId: string) => {
+    const isReposted = repostedIds.has(postId);
+    try {
+      if (isReposted) {
+        await postService.unrepostPost(postId, userId);
+        setRepostedIds(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      } else {
+        await postService.sharePost(postId, userId);
+        setRepostedIds(prev => new Set(prev).add(postId));
+      }
+    } catch {
+      // silent fail
+    }
+  };
 
   const handleToggleLike = async (postId: string) => {
     // 1. Immediate UI feedback for local state
@@ -208,6 +235,8 @@ export default function PostDetailScreen() {
               themeColors={themeColors}
               userId={userId}
               toggleLike={handleToggleLike}
+              isReposted={repostedIds.has(item.id)}
+              onRepost={handleRepost}
               onDeleted={handleDeleted}
               replyTo={replyTo}
               setReplyTo={setReplyTo}
