@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
-import { getAvatarUrl } from "@/utils/imageUtils";
+import { getAvatarUrl, getImageUrl } from "@/utils/imageUtils";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 import ScreenHeader from "@/components/ScreenHeader";
 import SearchBar from "@/components/SearchBar";
@@ -135,9 +135,13 @@ export default function MessengerScreen() {
                     style={{ backgroundColor: cardColor, shadowColor: "#000", shadowOpacity: 0.03, elevation: 2 }}
                   >
                     {isGroup ? (
-                      <View className="w-14 h-14 rounded-[20px] bg-violet-500 items-center justify-center">
-                        <Ionicons name="people" size={26} color="white" />
-                      </View>
+                      convo.avatarUrl ? (
+                        <Image source={{ uri: getImageUrl(convo.avatarUrl) }} className="w-14 h-14 rounded-[20px]" />
+                      ) : (
+                        <View className="w-14 h-14 rounded-[20px] bg-violet-500 items-center justify-center">
+                          <Ionicons name="people" size={26} color="white" />
+                        </View>
+                      )
                     ) : (
                       <Image source={{ uri: participantAvatar }} className="w-14 h-14 rounded-[20px]" />
                     )}
