@@ -366,7 +366,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   if (isLoadingSession) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: themeColors.background }}>
-        <ActivityIndicator size="large" color={themeColors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }

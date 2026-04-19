@@ -204,7 +204,7 @@ export default function HomeScreen() {
                 setCommentText={setCommentText}
                 sendComment={sendComment}
                 toggleComments={toggleComments}
-                activeCommentPostId={activeCommentPostId}
+                activeCommentPostId={activeCommentPostId ?? undefined}
                 handleCommentLongPress={handleCommentLongPress}
                 repostedIds={repostedIds}
                 handleRepost={handleRepost}
