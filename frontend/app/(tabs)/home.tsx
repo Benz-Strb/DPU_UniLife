@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import PostCard from "@/components/PostCard";
 import EmptyState from "@/components/EmptyState";
@@ -142,9 +144,9 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={themeColors.card} />
 
-      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.card }}>
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.background }}>
         {/* Header */}
         <View
           className="flex-row justify-between items-center px-4 py-3 border-b"
@@ -172,7 +174,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+          style={{ backgroundColor: themeColors.background }}
+        >
           <ScrollView
             ref={scrollRef}
             showsVerticalScrollIndicator={false}
@@ -210,7 +216,7 @@ export default function HomeScreen() {
             )}
             <View className="h-24" />
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );

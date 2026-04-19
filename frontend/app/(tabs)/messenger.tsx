@@ -52,8 +52,8 @@ export default function MessengerScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: bgColor }}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-      
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={bgColor} />
+
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: bgColor }}>
         <View style={{ backgroundColor: bgColor }}>
           <ScreenHeader
@@ -88,7 +88,7 @@ export default function MessengerScreen() {
                 if (!searchQuery.trim()) return true;
                 const q = searchQuery.toLowerCase();
                 const isGroup = c.type === "GROUP";
-                const name = isGroup ? (c.title || "") : (c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
+                const name = isGroup ? (c.title || "") : (c.title || c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
                 return name.toLowerCase().includes(q);
               }).length === 0 ? (
               <View className="items-center justify-center py-20">
@@ -100,13 +100,13 @@ export default function MessengerScreen() {
                 if (!searchQuery.trim()) return true;
                 const q = searchQuery.toLowerCase();
                 const isGroup = c.type === "GROUP";
-                const name = isGroup ? (c.title || "") : (c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
+                const name = isGroup ? (c.title || "") : (c.title || c.participants?.find((p: any) => p.userId !== userId)?.user?.fullName || "");
                 return name.toLowerCase().includes(q);
               }).map((convo) => {
                 const isGroup = convo.type === "GROUP";
                 const otherParticipant = convo.participants?.find(p => p.userId !== userId)?.user;
                 const lastMsg = convo.messages && convo.messages.length > 0 ? convo.messages[convo.messages.length - 1] : null;
-                const displayName = isGroup ? (convo.title || "Group Chat") : (otherParticipant?.fullName || "User");
+                const displayName = isGroup ? (convo.title || "Group Chat") : (convo.title || otherParticipant?.fullName || "User");
                 const participantAvatar = getAvatarUrl(otherParticipant?.avatarUrl, displayName);
 
                 return (

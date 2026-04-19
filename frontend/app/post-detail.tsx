@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Image, StatusBar, ActivityIndicator, Dimensions, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
@@ -264,6 +264,10 @@ export default function PostDetailScreen() {
           <Text className="ml-4 font-black text-lg" style={{ color: themeColors.text }}>Posts</Text>
         </View>
 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
         <FlatList
           ref={flatListRef}
           data={posts}
@@ -298,6 +302,7 @@ export default function PostDetailScreen() {
             </View>
           }
         />
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );

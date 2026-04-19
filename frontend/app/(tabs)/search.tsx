@@ -159,8 +159,8 @@ export default function SearchScreen() {
 
   return (
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-      
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={themeColors.background} />
+
       <SafeAreaView className="flex-1" edges={['top']} style={{ backgroundColor: themeColors.background }}>
         <View className="px-6 py-4" style={{ backgroundColor: themeColors.background }}>
           <Text className="text-3xl font-black mb-6 tracking-tight" style={{ color: themeColors.text }}>Discovery</Text>

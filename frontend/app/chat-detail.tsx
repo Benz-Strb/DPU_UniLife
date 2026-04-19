@@ -194,7 +194,7 @@ export default function ChatDetailScreen() {
 
 
   const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
-  const userName = isGroupChat ? (currentConversation?.title || nameFromParams || "Group Chat") : (recipient?.fullName || nameFromParams || "Chat");
+  const userName = isGroupChat ? (currentConversation?.title || nameFromParams || "Group Chat") : (currentConversation?.title || recipient?.fullName || nameFromParams || "Chat");
   const userAvatar = isGroupChat ? null : getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
 
   return (

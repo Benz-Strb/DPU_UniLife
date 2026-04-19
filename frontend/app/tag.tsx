@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -135,6 +135,7 @@ export default function TagScreen() {
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
         ) : (
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
           <ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
@@ -246,6 +247,7 @@ export default function TagScreen() {
             )}
             <View className="h-24" />
           </ScrollView>
+          </KeyboardAvoidingView>
         )}
       </SafeAreaView>
     </View>

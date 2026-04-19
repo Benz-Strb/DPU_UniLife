@@ -71,7 +71,6 @@ const postInclude = {
   comments: {
     where: {
       deletedAt: null,
-      parentId: null,
     },
     include: {
       author: {
