@@ -503,7 +503,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 32 }}>
           <View style={{ backgroundColor: themeColors.card, borderRadius: 28, padding: 28, alignItems: "center", width: "100%" }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#FEF2F2", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
-              <Text style={{ fontSize: 32 }}>🚫</Text>
+              <Ionicons name="ban" size={32} color="#EF4444" />
             </View>
             <Text style={{ fontSize: 18, fontWeight: "900", color: themeColors.text, marginBottom: 8 }}>บัญชีถูกแบน</Text>
             <Text style={{ fontSize: 14, color: themeColors.subText, textAlign: "center", lineHeight: 22 }}>
@@ -526,7 +526,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 32 }}>
           <View style={{ backgroundColor: themeColors.card, borderRadius: 28, padding: 28, alignItems: "center", width: "100%" }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFFBEB", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
-              <Text style={{ fontSize: 32 }}>⚠️</Text>
+              <Ionicons name="warning" size={32} color="#F59E0B" />
             </View>
             <Text style={{ fontSize: 18, fontWeight: "900", color: themeColors.text, marginBottom: 8 }}>บัญชีถูกระงับ</Text>
             <Text style={{ fontSize: 14, color: themeColors.subText, textAlign: "center", lineHeight: 22 }}>
