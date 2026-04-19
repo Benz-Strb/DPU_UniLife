@@ -1,14 +1,14 @@
 import React, { useEffect } from "react";
 import { View, TouchableOpacity } from "react-native";
-import { useRouter, useSegments, withLayoutContext } from "expo-router";
-import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
+import { useRouter, withLayoutContext } from "expo-router";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { tabRefreshEmitter } from "@/utils/tabRefresh";
 
-const { Navigator } = createMaterialTopTabNavigator();
-const SwipeableTabs = withLayoutContext(Navigator);
+const { Navigator } = createBottomTabNavigator();
+const BottomTabs = withLayoutContext(Navigator);
 
 const TAB_NAMES = ["home", "group", "search", "messenger", "profile"] as const;
 
@@ -23,7 +23,6 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
 export default function TabsLayout() {
   const { userId, isDarkMode, themeColors, unreadChatCount } = useUser();
   const router = useRouter();
-  const segments = useSegments();
 
   useEffect(() => {
     if (userId === "") {
@@ -31,17 +30,15 @@ export default function TabsLayout() {
     }
   }, [userId]);
 
-  const currentTab = segments[segments.length - 1] as string;
   const inactiveColor = isDarkMode ? "#555555" : "#D1D5DB";
 
   return (
-    <SwipeableTabs
-      tabBarPosition="bottom"
+    <BottomTabs
       initialRouteName="home"
       style={{ backgroundColor: themeColors.background }}
       screenOptions={{
-        swipeEnabled: true,
-        animationEnabled: true,
+        headerShown: false,
+        animation: "fade",
         sceneStyle: {
           backgroundColor: themeColors.background,
         },
@@ -95,12 +92,12 @@ export default function TabsLayout() {
       )}
     >
       {TAB_NAMES.map((name) => (
-        <SwipeableTabs.Screen
+        <BottomTabs.Screen
           key={name}
           name={name}
           options={{ title: name.charAt(0).toUpperCase() + name.slice(1) }}
         />
       ))}
-    </SwipeableTabs>
+    </BottomTabs>
   );
 }

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, Alert, Stat
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { getAvatarUrl } from "@/utils/imageUtils";
@@ -21,6 +22,13 @@ export default function MessengerScreen() {
     tabRefreshEmitter.on("messenger", handler);
     return () => tabRefreshEmitter.off("messenger", handler);
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      StatusBar.setBarStyle(isDarkMode ? "light-content" : "dark-content");
+      return undefined;
+    }, [isDarkMode])
+  );
 
 
   const handleDeleteConversation = (convoId: string, name: string) => {

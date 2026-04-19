@@ -163,7 +163,7 @@ export default function SignUpScreen() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: "white" }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           <View className="px-8 pt-4 pb-10">
             <TouchableOpacity

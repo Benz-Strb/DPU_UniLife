@@ -3,6 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, Dimensions,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { FACULTY_DATA } from "@/constants/data";
@@ -114,6 +115,13 @@ export default function SearchScreen() {
     tabRefreshEmitter.on("search", handler);
     return () => tabRefreshEmitter.off("search", handler);
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      StatusBar.setBarStyle(isDarkMode ? "light-content" : "dark-content");
+      return undefined;
+    }, [isDarkMode])
+  );
 
   useEffect(() => {
     if (userId) searchService.getHistory(userId).then(setHistory);

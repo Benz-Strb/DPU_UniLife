@@ -111,7 +111,7 @@ export default function TagScreen() {
       <Stack.Screen options={{ gestureEnabled: true }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
 
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <SafeAreaView className="flex-1" edges={['top']} style={{ backgroundColor: themeColors.background }}>
         {/* Header */}
         <View
           className="flex-row items-center px-6 py-4 border-b"

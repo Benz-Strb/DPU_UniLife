@@ -87,7 +87,7 @@ export default function NotificationScreen() {
       <Stack.Screen options={{ gestureEnabled: true }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.background }}>
         <View className="flex-row items-center justify-center py-4 min-h-[60px]">
           {/* Back Button - Floating on the left */}
           <TouchableOpacity 

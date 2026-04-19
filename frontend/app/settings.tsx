@@ -31,7 +31,7 @@ export default function SettingsScreen() {
       <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle={themeColors.statusBar as any} />
       
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.background }}>
         <ScreenHeader title="Settings" onBack={() => router.back()} themeColors={themeColors} />
 
         <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>

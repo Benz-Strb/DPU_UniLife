@@ -17,6 +17,7 @@ import EmptyState from "@/components/EmptyState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { usePosts } from "@/hooks/usePosts";
@@ -79,6 +80,13 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchAIFeed();
   }, [userId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      StatusBar.setBarStyle(isDarkMode ? "light-content" : "dark-content");
+      return undefined;
+    }, [isDarkMode])
+  );
 
   useEffect(() => {
     const handler = () => {
@@ -146,7 +154,7 @@ export default function HomeScreen() {
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={themeColors.card} />
 
-      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.background }}>
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.card }}>
         {/* Header */}
         <View
           className="flex-row justify-between items-center px-4 py-3 border-b"

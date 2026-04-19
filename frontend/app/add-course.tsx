@@ -138,7 +138,7 @@ export default function AddCourseScreen() {
     <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: themeColors.background }}>
         <View className="flex-row items-center px-6 py-4">
           <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 rounded-2xl items-center justify-center" style={{ backgroundColor: themeColors.card }}>
             <Ionicons name="close" size={24} color={theme.colors.primary} />

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar, RefreshCont
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/constants/theme";
 import { useUser } from "@/store/UserContext";
 import { authService, postService } from "@/services/api";
@@ -38,6 +39,13 @@ function AdminDashboard() {
     tabRefreshEmitter.on("profile", onRefresh);
     return () => tabRefreshEmitter.off("profile", onRefresh);
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      StatusBar.setBarStyle("light-content");
+      return undefined;
+    }, [])
+  );
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
@@ -214,6 +222,13 @@ function StudentProfile() {
     tabRefreshEmitter.on("profile", onRefresh);
     return () => tabRefreshEmitter.off("profile", onRefresh);
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      StatusBar.setBarStyle("light-content");
+      return undefined;
+    }, [])
+  );
 
   const handlePostOptions = (post: any) => {
     Alert.alert(
