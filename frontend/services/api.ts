@@ -118,6 +118,14 @@ export const authService = {
       throw e;
     }
   },
+  resetPassword: async (email: string, newPassword: string) => {
+    try {
+      const response = await API.patch("/auth/reset-password", { email, newPassword });
+      return { success: true, message: response.data.message };
+    } catch (e: any) {
+      return { success: false, message: e.response?.data?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่" };
+    }
+  },
   getProfile: async (userId: string) => {
     try {
       const response = await API.get(`/auth/profile/${userId}`);

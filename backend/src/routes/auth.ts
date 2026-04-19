@@ -746,4 +746,48 @@ authRouter.patch('/users/:userId/role', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /auth/reset-password — รีเซ็ตรหัสผ่านโดยใช้อีเมล
+authRouter.patch('/reset-password', async (req: Request, res: Response) => {
+  const { email: emailInput, newPassword } = req.body;
+  const email = normalizeRequiredString(emailInput)?.toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: 'email is required' });
+  }
+
+  if (!dpuEmailRegex.test(email)) {
+    return res.status(400).json({ message: 'Email must be in the format 12345678@dpu.ac.th' });
+  }
+
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, status: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not registered' });
+    }
+
+    if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.DEACTIVATED) {
+      return res.status(403).json({ message: 'This account is not allowed to reset password' });
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    return res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Failed to reset password:', error);
+    return res.status(500).json({ message: 'Failed to reset password' });
+  }
+});
+
 export { authRouter };
