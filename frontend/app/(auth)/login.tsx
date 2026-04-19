@@ -198,7 +198,8 @@ export default function LoginScreen() {
       </KeyboardAvoidingView>
       {/* Forgot Password Modal */}
       <Modal visible={forgotVisible} animationType="slide" transparent onRequestClose={() => setForgotVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, justifyContent: "flex-end" }}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }} onTouchEnd={() => setForgotVisible(false)} />
           <View className="rounded-t-[32px] px-8 pt-8 pb-12" style={{ backgroundColor: themeColors.card }}>
             <View className="flex-row items-center justify-between mb-6">
               <Text className="text-2xl font-black" style={{ color: themeColors.text }}>Reset Password</Text>
@@ -262,7 +263,7 @@ export default function LoginScreen() {
               {resetLoading ? <ActivityIndicator color="white" /> : <Text className="text-white font-black text-lg">Reset Password</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
