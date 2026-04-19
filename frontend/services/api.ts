@@ -65,7 +65,7 @@ const API = axios.create({
 // Suppress console errors caused by maintenance mode (503) — not a real error
 const logError = (label: string, e: any) => {
   if (e?.response?.status === 503) return;
-  logError(label, e);
+  console.error(label, e);
 };
 
 export const adminService = {

@@ -24,7 +24,7 @@ export default function Admins({ currentUser }: AdminsProps) {
 
   // Create Admin dropdown
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ email: "", password: "", faculty: "", role: "ADMIN" });
+  const [createForm, setCreateForm] = useState({ fullName: "", username: "", email: "", password: "", faculty: "", role: "ADMIN" });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState("");
@@ -98,16 +98,16 @@ export default function Admins({ currentUser }: AdminsProps) {
     e.preventDefault();
     setCreateError("");
     setCreateSuccess("");
-    const { email, password, faculty, role } = createForm;
-    if (!email || !password) {
-      setCreateError("กรุณากรอก Email และ Password");
+    const { fullName, username, email, password, faculty, role } = createForm;
+    if (!fullName || !username || !email || !password) {
+      setCreateError("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
       return;
     }
     setCreateLoading(true);
     try {
-      await adminService.createAdminAccount({ actorId: currentUser.id, fullName: email.split("@")[0], username: email.split("@")[0], email, password, faculty: faculty || undefined, role });
-      setCreateSuccess(`สร้างบัญชี "${email}" สำเร็จ`);
-      setCreateForm({ email: "", password: "", faculty: "", role: "ADMIN" });
+      await adminService.createAdminAccount({ actorId: currentUser.id, fullName, username, email, password, faculty: faculty || undefined, role });
+      setCreateSuccess(`สร้างบัญชี "${fullName}" สำเร็จ`);
+      setCreateForm({ fullName: "", username: "", email: "", password: "", faculty: "", role: "ADMIN" });
       fetchAdmins();
     } catch (err: any) {
       setCreateError(err?.response?.data?.message || "เกิดข้อผิดพลาด");
@@ -138,7 +138,25 @@ export default function Admins({ currentUser }: AdminsProps) {
 
         {createOpen && (
           <form onSubmit={handleCreate} autoComplete="off" className="px-6 pb-6 border-t border-slate-800 pt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">ชื่อ-นามสกุล *</label>
+                <input
+                  type="text" placeholder="Full Name" value={createForm.fullName}
+                  onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
+                  autoComplete="off"
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Username *</label>
+                <input
+                  type="text" placeholder="username" value={createForm.username}
+                  onChange={e => setCreateForm(p => ({ ...p, username: e.target.value }))}
+                  autoComplete="off"
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
+                />
+              </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email *</label>
                 <input
