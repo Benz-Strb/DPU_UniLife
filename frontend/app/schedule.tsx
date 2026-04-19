@@ -27,9 +27,15 @@ export default function ScheduleScreen() {
   const [scheduleData, setScheduleData] = useState<any[]>([]);
 
   const fetchSchedule = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log("[Schedule] user.id is missing, skip fetch");
+      setLoading(false);
+      return;
+    }
+    console.log("[Schedule] fetching for userId:", user.id);
     try {
       const data = await scheduleService.getSchedule(user.id);
+      console.log("[Schedule] received courses:", JSON.stringify(data));
       setScheduleData(data);
     } catch (error) {
       console.error("Fetch Schedule Error:", error);
