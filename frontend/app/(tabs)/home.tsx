@@ -150,7 +150,7 @@ export default function HomeScreen() {
           className="flex-row justify-between items-center px-4 py-3 border-b"
           style={{ borderBottomColor: themeColors.border, backgroundColor: themeColors.card }}
         >
-          <View>
+          <TouchableOpacity onPress={() => { scrollRef.current?.scrollTo({ y: 0, animated: true }); fetchAIFeed(); }}>
             <Text className="text-3xl font-black italic tracking-tighter" style={{ color: theme.colors.primary }}>DPU</Text>
             <Text className="text-[8px] font-black uppercase tracking-[3.5px] -mt-1 opacity-40" style={{ color: themeColors.text }}>UNILIFE</Text>
             {aiFeedLoading ? (
@@ -158,7 +158,7 @@ export default function HomeScreen() {
             ) : aiFeedReady ? (
               <Text className="text-[8px] font-bold text-indigo-400 mt-0.5">✦ AI จัดเรียงให้แล้ว</Text>
             ) : null}
-          </View>
+          </TouchableOpacity>
           <View className="flex-row items-center gap-2">
             <TouchableOpacity onPress={() => router.push("/new-post")} className="w-9 h-9 items-center justify-center rounded-xl bg-indigo-50">
               <Feather name="plus" size={22} color={theme.colors.primary} />
