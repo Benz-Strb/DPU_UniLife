@@ -24,7 +24,7 @@ export default function Admins({ currentUser }: AdminsProps) {
 
   // Create Admin dropdown
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ fullName: "", username: "", email: "", password: "", faculty: "", role: "ADMIN" });
+  const [createForm, setCreateForm] = useState({ email: "", password: "", faculty: "", role: "ADMIN" });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState("");
@@ -98,16 +98,16 @@ export default function Admins({ currentUser }: AdminsProps) {
     e.preventDefault();
     setCreateError("");
     setCreateSuccess("");
-    const { fullName, username, email, password, faculty, role } = createForm;
-    if (!fullName || !username || !email || !password) {
-      setCreateError("กรุณากรอกข้อมูลที่จำเป็นให้ครบ");
+    const { email, password, faculty, role } = createForm;
+    if (!email || !password) {
+      setCreateError("กรุณากรอก Email และ Password");
       return;
     }
     setCreateLoading(true);
     try {
-      await adminService.createAdminAccount({ actorId: currentUser.id, fullName, username, email, password, faculty: faculty || undefined, role });
-      setCreateSuccess(`สร้างบัญชี "${fullName}" สำเร็จ`);
-      setCreateForm({ fullName: "", username: "", email: "", password: "", faculty: "", role: "ADMIN" });
+      await adminService.createAdminAccount({ actorId: currentUser.id, fullName: email, username: email.split("@")[0], email, password, faculty: faculty || undefined, role });
+      setCreateSuccess(`สร้างบัญชี "${email}" สำเร็จ`);
+      setCreateForm({ email: "", password: "", faculty: "", role: "ADMIN" });
       fetchAdmins();
     } catch (err: any) {
       setCreateError(err?.response?.data?.message || "เกิดข้อผิดพลาด");
@@ -138,54 +138,54 @@ export default function Admins({ currentUser }: AdminsProps) {
 
         {createOpen && (
           <form onSubmit={handleCreate} autoComplete="off" className="px-6 pb-6 border-t border-slate-800 pt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              <input
-                type="text" placeholder="ชื่อ-นามสกุล *" value={createForm.fullName}
-                onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
-                autoComplete="off"
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-              <input
-                type="text" placeholder="Username *" value={createForm.username}
-                onChange={e => setCreateForm(p => ({ ...p, username: e.target.value }))}
-                autoComplete="off"
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-              <input
-                type="email" placeholder="Email *" value={createForm.email}
-                onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
-                autoComplete="off"
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-              <input
-                type="password" placeholder="Password *" value={createForm.password}
-                onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
-                autoComplete="new-password"
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-              <select
-                value={createForm.faculty}
-                onChange={e => setCreateForm(p => ({ ...p, faculty: e.target.value }))}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 text-white"
-              >
-                <option value="">คณะ / วิทยาลัย (optional)</option>
-                {faculties.map(f => (
-                  <option key={f.code} value={f.code}>{f.code} — {f.name}</option>
-                ))}
-              </select>
-              <select
-                value={createForm.role}
-                onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 text-white"
-              >
-                <option value="ADMIN">ADMIN</option>
-                <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email *</label>
+                <input
+                  type="email" placeholder="admin@dpu.ac.th" value={createForm.email}
+                  onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                  autoComplete="off"
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password *</label>
+                <input
+                  type="password" placeholder="••••••••" value={createForm.password}
+                  onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                  autoComplete="new-password"
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">คณะ / วิทยาลัย</label>
+                <select
+                  value={createForm.faculty}
+                  onChange={e => setCreateForm(p => ({ ...p, faculty: e.target.value }))}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 text-white transition"
+                >
+                  <option value="">— ไม่ระบุ —</option>
+                  {faculties.map(f => (
+                    <option key={f.code} value={f.code}>{f.code} — {f.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                <select
+                  value={createForm.role}
+                  onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 text-white transition"
+                >
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-4 mt-5">
               <button
                 type="submit" disabled={createLoading}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition"
+                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition"
               >
                 <UserPlus size={15} />
                 {createLoading ? "กำลังสร้าง..." : "สร้าง Account"}
