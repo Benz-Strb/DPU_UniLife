@@ -210,7 +210,6 @@ export const postService = {
       });
       return response.data;
     } catch (e) {
-      console.error("Create Post Error", e);
       throw e;
     }
   },
