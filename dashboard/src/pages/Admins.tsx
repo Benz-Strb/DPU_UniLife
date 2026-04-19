@@ -105,7 +105,7 @@ export default function Admins({ currentUser }: AdminsProps) {
     }
     setCreateLoading(true);
     try {
-      await adminService.createAdminAccount({ actorId: currentUser.id, fullName: email, username: email.split("@")[0], email, password, faculty: faculty || undefined, role });
+      await adminService.createAdminAccount({ actorId: currentUser.id, fullName: email.split("@")[0], username: email.split("@")[0], email, password, faculty: faculty || undefined, role });
       setCreateSuccess(`สร้างบัญชี "${email}" สำเร็จ`);
       setCreateForm({ email: "", password: "", faculty: "", role: "ADMIN" });
       fetchAdmins();
