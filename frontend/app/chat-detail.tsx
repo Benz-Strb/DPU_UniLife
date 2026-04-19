@@ -17,7 +17,7 @@ export default function ChatDetailScreen() {
   const params = useLocalSearchParams<{ userName: string; userAvatar: string; userId: string; id: string; isGroup?: string }>();
   const { userName: nameFromParams, userAvatar: avatarFromParams, userId: targetUserId, id: convoIdFromParams, isGroup } = params;
   const isGroupChat = isGroup === "true";
-  const { isDarkMode, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId, refreshChats } = useUser();
+  const { isDarkMode, themeColors, userId, conversations, sendMessage, getDirectChat, setUser, setActiveChatId, refreshChats } = useUser();
   const [inputText, setInputText] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -192,21 +192,17 @@ export default function ChatDetailScreen() {
     }
   };
 
-  const bgColor = isDarkMode ? "#121212" : "#FFFFFF";
-  const textColor = isDarkMode ? "#FFFFFF" : "#1F2937";
-  const subTextColor = isDarkMode ? "#A0A0A0" : "#6B7280";
-  const inputBgColor = isDarkMode ? "#2D2D2D" : "#F3F4F6";
 
   const recipient = currentConversation?.participants.find(p => p.userId !== userId)?.user;
   const userName = isGroupChat ? (currentConversation?.title || nameFromParams || "Group Chat") : (recipient?.fullName || nameFromParams || "Chat");
   const userAvatar = isGroupChat ? null : getAvatarUrl(recipient?.avatarUrl || avatarFromParams, userName);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: bgColor }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
-      <View className="flex-row items-center px-4 py-3 border-b" style={{ borderBottomColor: isDarkMode ? "#333" : "#F3F4F6" }}>
+      <View className="flex-row items-center px-4 py-3 border-b" style={{ borderBottomColor: themeColors.border }}>
         <TouchableOpacity onPress={() => router.back()} className="p-1">
-          <Ionicons name="chevron-back" size={28} color={textColor} />
+          <Ionicons name="chevron-back" size={28} color={themeColors.text} />
         </TouchableOpacity>
 
         {/* กดชื่อ/รูปเพื่อเปิด chat-settings */}
@@ -230,12 +226,12 @@ export default function ChatDetailScreen() {
             <Image source={{ uri: userAvatar! }} className="w-9 h-9 rounded-full" />
           )}
           <View className="ml-3 flex-1">
-            <Text className="font-bold text-sm" style={{ color: textColor }}>{userName}</Text>
+            <Text className="font-bold text-sm" style={{ color: themeColors.text }}>{userName}</Text>
             <Text className="text-[10px]" style={{ color: theme.colors.primary }}>
               {isGroupChat ? `${currentConversation?.participants?.length ?? 0} members` : "Active now"}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={isDarkMode ? "#555" : "#CCC"} style={{ marginRight: 4 }} />
+          <Ionicons name="chevron-forward" size={16} color={themeColors.border} style={{ marginRight: 4 }} />
         </TouchableOpacity>
       </View>
 
@@ -279,15 +275,16 @@ export default function ChatDetailScreen() {
                   ) : (
                     <View
                       className={`px-4 py-3 ${isMe ? "rounded-[24px] rounded-br-[4px]" : "rounded-[24px] rounded-bl-[4px]"}`}
-                      style={{ backgroundColor: isMe ? theme.colors.primary : (isDarkMode ? "#333" : "#F3F4F6") }}
+                      style={{ backgroundColor: isMe ? theme.colors.primary : themeColors.card }}
                     >
-                      <Text className="text-sm font-medium" style={{ color: isMe ? "white" : textColor }}>
+                      <Text className="text-sm font-medium" style={{ color: isMe ? "#FFFFFF" : themeColors.text }}>
                         {msg.body}
                       </Text>
                     </View>
                   )}
                   <Text
-                    className={`text-[8px] mt-1 ${isMe ? "text-right text-gray-400" : "text-gray-400"}`}
+                    className={`text-[8px] mt-1 ${isMe ? "text-right" : ""}`}
+                    style={{ color: themeColors.subText }}
                   >
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -297,20 +294,20 @@ export default function ChatDetailScreen() {
           })}
         </ScrollView>
 
-        <View className="p-4 flex-row items-center gap-2 border-t" style={{ borderTopColor: isDarkMode ? "#333" : "#F3F4F6" }}>
-          <TouchableOpacity onPress={handlePickImage} disabled={isUploadingImage} className="w-10 h-10 items-center justify-center rounded-full" style={{ backgroundColor: inputBgColor }}>
+        <View className="p-4 flex-row items-center gap-2 border-t" style={{ borderTopColor: themeColors.border }}>
+          <TouchableOpacity onPress={handlePickImage} disabled={isUploadingImage} className="w-10 h-10 items-center justify-center rounded-full" style={{ backgroundColor: themeColors.card }}>
             {isUploadingImage ? (
               <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : (
-              <Ionicons name="image-outline" size={22} color={textColor} />
+              <Ionicons name="image-outline" size={22} color={themeColors.text} />
             )}
           </TouchableOpacity>
-          <View className="flex-1 flex-row items-center rounded-full px-5 py-2" style={{ backgroundColor: inputBgColor }}>
+          <View className="flex-1 flex-row items-center rounded-full px-5 py-2" style={{ backgroundColor: themeColors.card }}>
             <TextInput
               placeholder="Message..."
-              placeholderTextColor={subTextColor}
+              placeholderTextColor={themeColors.subText}
               className="flex-1 text-sm font-medium h-10"
-              style={{ color: textColor }}
+              style={{ color: themeColors.text }}
               value={inputText}
               onChangeText={setInputText}
               multiline

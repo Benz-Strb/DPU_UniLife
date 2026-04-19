@@ -23,7 +23,7 @@ const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useUser();
+  const { login, themeColors, isDarkMode } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,8 +121,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" />
+    <View className="flex-1" style={{ backgroundColor: themeColors.background }}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
         <ScrollView contentContainerStyle={{ flexGrow: 1, minHeight: height }} showsVerticalScrollIndicator={false}>
@@ -132,39 +132,43 @@ export default function LoginScreen() {
               <View className="w-20 h-20 rounded-[30px] items-center justify-center mb-6 bg-indigo-50 shadow-sm">
                 <Ionicons name="school" size={40} color={theme.colors.primary} />
               </View>
-              <Text className="text-4xl font-black text-gray-900 mb-1">UniLife</Text>
-              <Text className="text-gray-400 font-bold uppercase text-[10px] tracking-[4px]">DPU Community</Text>
+              <Text className="text-4xl font-black mb-1" style={{ color: themeColors.text }}>UniLife</Text>
+              <Text className="font-bold uppercase text-[10px] tracking-[4px]" style={{ color: themeColors.subText }}>DPU Community</Text>
             </View>
 
             <View className="space-y-5">
               <View>
-                <Text className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-2">Email</Text>
-                <View className="flex-row items-center bg-gray-50 rounded-3xl px-5 py-4 border border-gray-100">
+                <Text className="text-[10px] font-black uppercase tracking-widest mb-2 ml-2" style={{ color: themeColors.subText }}>Email</Text>
+                <View className="flex-row items-center rounded-3xl px-5 py-4 border" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
                   <Ionicons name="mail-outline" size={20} color={theme.colors.primary} />
-                  <TextInput 
-                    className="flex-1 ml-4 font-bold text-gray-800"
+                  <TextInput
+                    className="flex-1 ml-4 font-bold"
                     placeholder="Student Email"
+                    placeholderTextColor={themeColors.subText}
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
                     keyboardType="email-address"
+                    style={{ color: themeColors.text }}
                   />
                 </View>
               </View>
 
               <View>
-                <Text className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-2">Password</Text>
-                <View className="flex-row items-center bg-gray-50 rounded-3xl px-5 py-4 border border-gray-100">
+                <Text className="text-[10px] font-black uppercase tracking-widest mb-2 ml-2" style={{ color: themeColors.subText }}>Password</Text>
+                <View className="flex-row items-center rounded-3xl px-5 py-4 border" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} />
-                  <TextInput 
-                    className="flex-1 ml-4 font-bold text-gray-800"
+                  <TextInput
+                    className="flex-1 ml-4 font-bold"
                     placeholder="Password"
+                    placeholderTextColor={themeColors.subText}
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={setPassword}
+                    style={{ color: themeColors.text }}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#9CA3AF" />
+                    <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={themeColors.subText} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -184,8 +188,8 @@ export default function LoginScreen() {
             </View>
 
             <View className="mt-auto items-center">
-              <TouchableOpacity onPress={() => router.push("/signup")} className="bg-gray-50 px-8 py-3 rounded-full border border-gray-100">
-                <Text className="text-gray-400 font-bold text-[12px]">NEW ACCOUNT? <Text className="text-indigo-600">SIGN UP</Text></Text>
+              <TouchableOpacity onPress={() => router.push("/signup")} className="px-8 py-3 rounded-full border" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
+                <Text className="font-bold text-[12px]" style={{ color: themeColors.subText }}>NEW ACCOUNT? <Text className="text-indigo-600">SIGN UP</Text></Text>
               </TouchableOpacity>
             </View>
             
@@ -195,51 +199,57 @@ export default function LoginScreen() {
       {/* Forgot Password Modal */}
       <Modal visible={forgotVisible} animationType="slide" transparent onRequestClose={() => setForgotVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-          <View className="bg-white rounded-t-[32px] px-8 pt-8 pb-12">
+          <View className="rounded-t-[32px] px-8 pt-8 pb-12" style={{ backgroundColor: themeColors.card }}>
             <View className="flex-row items-center justify-between mb-6">
-              <Text className="text-2xl font-black text-gray-900">Reset Password</Text>
+              <Text className="text-2xl font-black" style={{ color: themeColors.text }}>Reset Password</Text>
               <TouchableOpacity onPress={() => setForgotVisible(false)}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+                <Ionicons name="close-circle" size={28} color={themeColors.subText} />
               </TouchableOpacity>
             </View>
 
-            <Text className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-2">Email</Text>
-            <View className="flex-row items-center bg-gray-50 rounded-3xl px-5 py-4 border border-gray-100 mb-4">
+            <Text className="text-[10px] font-black uppercase tracking-widest mb-2 ml-2" style={{ color: themeColors.subText }}>Email</Text>
+            <View className="flex-row items-center rounded-3xl px-5 py-4 border mb-4" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
               <Ionicons name="mail-outline" size={20} color={theme.colors.primary} />
               <TextInput
-                className="flex-1 ml-4 font-bold text-gray-800"
+                className="flex-1 ml-4 font-bold"
                 placeholder="Student Email"
+                placeholderTextColor={themeColors.subText}
                 value={resetEmail}
                 onChangeText={setResetEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                style={{ color: themeColors.text }}
               />
             </View>
 
-            <Text className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-2">New Password</Text>
-            <View className="flex-row items-center bg-gray-50 rounded-3xl px-5 py-4 border border-gray-100 mb-4">
+            <Text className="text-[10px] font-black uppercase tracking-widest mb-2 ml-2" style={{ color: themeColors.subText }}>New Password</Text>
+            <View className="flex-row items-center rounded-3xl px-5 py-4 border mb-4" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} />
               <TextInput
-                className="flex-1 ml-4 font-bold text-gray-800"
+                className="flex-1 ml-4 font-bold"
                 placeholder="New Password"
+                placeholderTextColor={themeColors.subText}
                 secureTextEntry={!showNewPassword}
                 value={newPassword}
                 onChangeText={setNewPassword}
+                style={{ color: themeColors.text }}
               />
               <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
-                <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={20} color="#9CA3AF" />
+                <Ionicons name={showNewPassword ? "eye-off" : "eye"} size={20} color={themeColors.subText} />
               </TouchableOpacity>
             </View>
 
-            <Text className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 ml-2">Confirm Password</Text>
-            <View className="flex-row items-center bg-gray-50 rounded-3xl px-5 py-4 border border-gray-100 mb-6">
+            <Text className="text-[10px] font-black uppercase tracking-widest mb-2 ml-2" style={{ color: themeColors.subText }}>Confirm Password</Text>
+            <View className="flex-row items-center rounded-3xl px-5 py-4 border mb-6" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
               <Ionicons name="lock-closed-outline" size={20} color={theme.colors.primary} />
               <TextInput
-                className="flex-1 ml-4 font-bold text-gray-800"
+                className="flex-1 ml-4 font-bold"
                 placeholder="Confirm Password"
+                placeholderTextColor={themeColors.subText}
                 secureTextEntry={!showNewPassword}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
+                style={{ color: themeColors.text }}
               />
             </View>
 

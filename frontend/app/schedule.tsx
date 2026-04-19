@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from "react-native";
+import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, Stack } from "expo-router";
@@ -20,7 +20,7 @@ const DAYS = [
 
 export default function ScheduleScreen() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, themeColors, isDarkMode } = useUser();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState(DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1].value);
@@ -84,25 +84,28 @@ export default function ScheduleScreen() {
   ).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>
       <Stack.Screen options={{ gestureEnabled: true, fullScreenGestureEnabled: false, gestureResponseDistance: { start: 100 } }} />
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.back()}
-            className="mr-4 w-10 h-10 bg-gray-50 rounded-2xl items-center justify-center border border-gray-100"
+            className="mr-4 w-10 h-10 rounded-2xl items-center justify-center border"
+            style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}
           >
             <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
           <View>
             <Text className="text-2xl font-black" style={{ color: theme.colors.primary }}>My Timetable</Text>
-            <Text className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Semester 1/2026</Text>
+            <Text className="font-bold uppercase text-[10px] tracking-widest" style={{ color: themeColors.subText }}>Semester 1/2026</Text>
           </View>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => router.push('/add-course')}
-          className="w-10 h-10 rounded-2xl bg-indigo-50 items-center justify-center"
+          className="w-10 h-10 rounded-2xl items-center justify-center"
+          style={{ backgroundColor: themeColors.iconBg }}
         >
           <Ionicons name="add" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
@@ -114,62 +117,55 @@ export default function ScheduleScreen() {
       </View>
 
       {/* Schedule List */}
-      <ScrollView 
-        className="flex-1 px-6 pt-2" 
+      <ScrollView
+        className="flex-1 px-6 pt-2"
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
       >
         {loading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} className="mt-10" />
         ) : dailySchedules.length > 0 ? (
-          dailySchedules.map((item, idx) => (
+          dailySchedules.map((item) => (
             <View key={item.id} className="mb-6 flex-row">
               {/* Timeline */}
               <View className="w-16 items-center">
-                <Text className="text-[12px] font-bold text-gray-400">{item.startTime}</Text>
-                <View className="w-[2px] flex-1 bg-gray-100 my-2" />
-                <Text className="text-[10px] text-gray-300">{item.endTime}</Text>
+                <Text className="text-[12px] font-bold" style={{ color: themeColors.subText }}>{item.startTime}</Text>
+                <View className="w-[2px] flex-1 my-2" style={{ backgroundColor: themeColors.border }} />
+                <Text className="text-[10px]" style={{ color: themeColors.subText }}>{item.endTime}</Text>
               </View>
 
               {/* Card */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 onLongPress={() => handleDeleteCourse(item.courseId, item.courseName)}
-                className="flex-1 p-5 rounded-[30px] border border-gray-50 shadow-sm"
-                style={{ backgroundColor: item.color || '#F9FAFB' }}
+                className="flex-1 p-5 rounded-[30px] shadow-sm"
+                style={{ backgroundColor: item.color || theme.colors.primary }}
               >
                 <View className="flex-row justify-between items-start mb-1">
-                  <Text className="text-white font-black text-lg flex-1 mr-2" style={{ textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 2 }}>
+                  <Text className="text-white font-black text-lg flex-1 mr-2" style={{ textShadowColor: 'rgba(0,0,0,0.1)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
                     {item.courseName}
                   </Text>
                   <TouchableOpacity onPress={() => handleDeleteCourse(item.courseId, item.courseName)}>
                     <Ionicons name="trash-outline" size={16} color="white" />
                   </TouchableOpacity>
                 </View>
-                
-                <Text className="text-white/80 font-bold text-[11px] mb-4">
-                  {item.courseCode}
-                </Text>
-                
+                <Text className="text-white/80 font-bold text-[11px] mb-4">{item.courseCode}</Text>
                 <View className="flex-row justify-between items-end">
                   <View className="bg-white/20 px-4 py-1.5 rounded-2xl">
-                    <Text className="text-white text-[10px] font-bold">
-                      Room: {item.room || 'TBA'}
-                    </Text>
+                    <Text className="text-white text-[10px] font-bold">Room: {item.room || 'TBA'}</Text>
                   </View>
-                  <Text className="text-white/60 text-[10px] italic">
-                    {item.instructor}
-                  </Text>
+                  <Text className="text-white/60 text-[10px] italic">{item.instructor}</Text>
                 </View>
               </TouchableOpacity>
             </View>
           ))
         ) : (
-          <View className="flex-1 items-center justify-center mt-20 p-10 bg-gray-50 rounded-[40px] border border-dashed border-gray-200">
-            <Ionicons name="calendar-outline" size={48} color="#E2E8F0" />
-            <Text className="text-gray-400 font-bold text-lg mt-4">No classes for {selectedDay.toLowerCase()}</Text>
-            <TouchableOpacity 
+          <View className="flex-1 items-center justify-center mt-20 p-10 rounded-[40px] border-2 border-dashed" style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
+            <Ionicons name="calendar-outline" size={48} color={themeColors.subText} />
+            <Text className="font-bold text-lg mt-4" style={{ color: themeColors.subText }}>No classes for {selectedDay.toLowerCase()}</Text>
+            <TouchableOpacity
               onPress={() => router.push('/add-course')}
-              className="mt-4 px-6 py-2 bg-indigo-600 rounded-full"
+              className="mt-4 px-6 py-2 rounded-full"
+              style={{ backgroundColor: theme.colors.primary }}
             >
               <Text className="text-white font-bold">Add Course</Text>
             </TouchableOpacity>

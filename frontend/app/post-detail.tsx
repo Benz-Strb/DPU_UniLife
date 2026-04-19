@@ -41,7 +41,7 @@ function PostItem({
         <Image source={{ uri: getAvatarUrl(post.author?.avatarUrl, post.author?.fullName) }} className="w-9 h-9 rounded-full" />
         <View className="ml-3 flex-1">
           <Text className="font-black text-sm" style={{ color: themeColors.text }}>{post.author?.fullName}</Text>
-          <Text className="text-[10px] text-gray-400">{new Date(post.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</Text>
+          <Text className="text-[10px]" style={{ color: themeColors.subText }}>{new Date(post.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}</Text>
         </View>
         <PostOptionsButton post={post} onDeleted={onDeleted} />
       </View>
