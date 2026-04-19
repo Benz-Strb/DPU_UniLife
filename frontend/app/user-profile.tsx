@@ -103,6 +103,7 @@ export default function UserProfileScreen() {
     );
   }
 
+  const isOwnProfile = targetUserId === currentUserId;
   const isFollowing = followingIds.includes(targetUserId);
 
   return (
@@ -145,26 +146,28 @@ export default function UserProfileScreen() {
                 <Image source={{ uri: getAvatarUrl(userData?.avatarUrl, userData?.fullName) }} className="w-full h-full rounded-[28px]" />
               </View>
               
-              <View className="flex-row items-center">
-                <TouchableOpacity
-                  onPress={() => toggleFollow(targetUserId)}
-                  className={`px-6 py-3 rounded-2xl mr-2 ${isFollowing ? 'border' : 'bg-violet-500'}`}
-                  style={isFollowing ? { borderColor: themeColors.border } : {}}
-                >
-                  <Text className={`font-black text-xs uppercase tracking-widest ${isFollowing ? '' : 'text-white'}`} style={isFollowing ? {color: themeColors.text} : {}}>
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Text>
-                </TouchableOpacity>
-                {isFollowing && (
+              {!isOwnProfile && (
+                <View className="flex-row items-center">
                   <TouchableOpacity
-                    onPress={handleChatPress}
-                    className="w-12 h-12 rounded-2xl items-center justify-center border"
-                    style={{ borderColor: themeColors.border }}
+                    onPress={() => toggleFollow(targetUserId)}
+                    className={`px-6 py-3 rounded-2xl mr-2 ${isFollowing ? 'border' : 'bg-violet-500'}`}
+                    style={isFollowing ? { borderColor: themeColors.border } : {}}
                   >
-                    <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
+                    <Text className={`font-black text-xs uppercase tracking-widest ${isFollowing ? '' : 'text-white'}`} style={isFollowing ? {color: themeColors.text} : {}}>
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </Text>
                   </TouchableOpacity>
-                )}
-              </View>
+                  {isFollowing && (
+                    <TouchableOpacity
+                      onPress={handleChatPress}
+                      className="w-12 h-12 rounded-2xl items-center justify-center border"
+                      style={{ borderColor: themeColors.border }}
+                    >
+                      <Ionicons name="chatbubble-ellipses-outline" size={22} color={themeColors.text} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
 
             <View>
