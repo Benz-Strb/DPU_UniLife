@@ -76,18 +76,11 @@ export default function ScheduleScreen() {
     );
   };
 
-  // Filter schedules for the selected day
-  const dailySchedules = scheduleData.flatMap(course => 
-    (course.schedules || [])
-      .filter((s: any) => s.dayOfWeek === selectedDay)
-      .map((s: any) => ({ 
-        ...s, 
-        courseId: course.id, 
-        courseName: course.courseName, 
-        courseCode: course.courseCode, 
-        color: course.color 
-      }))
-  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  // Filter courses for the selected day
+  const dailySchedules = scheduleData
+    .filter((course: any) => course.dayOfWeek === selectedDay)
+    .map((course: any) => ({ ...course, courseId: course.id }))
+    .sort((a: any, b: any) => (a.startTime || "").localeCompare(b.startTime || ""));
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.background }}>

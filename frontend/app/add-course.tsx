@@ -93,17 +93,15 @@ export default function AddCourseScreen() {
       }
 
       for (const course of existingCourses) {
-        for (const slot of course.schedules) {
-          if (slot.dayOfWeek === s.dayOfWeek) {
-            const existingStart = timeToMinutes(slot.startTime);
-            const existingEnd = timeToMinutes(slot.endTime);
-            if (newStart < existingEnd && newEnd > existingStart) {
-              Alert.alert(
-                "Schedule Conflict",
-                `Session ${i + 1} conflicts with "${course.courseName}" on ${s.dayOfWeek.toLowerCase()}.`
-              );
-              return;
-            }
+        if (course.dayOfWeek === s.dayOfWeek && course.startTime && course.endTime) {
+          const existingStart = timeToMinutes(course.startTime);
+          const existingEnd = timeToMinutes(course.endTime);
+          if (newStart < existingEnd && newEnd > existingStart) {
+            Alert.alert(
+              "Schedule Conflict",
+              `Course ${i + 1} conflicts with "${course.courseName}" on ${s.dayOfWeek.toLowerCase()}.`
+            );
+            return;
           }
         }
       }
@@ -117,7 +115,11 @@ export default function AddCourseScreen() {
           courseName: s.courseName,
           courseCode: s.courseCode,
           color: s.color,
-          schedules: [{ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime, room: s.room, instructor: s.instructor }]
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          room: s.room,
+          instructor: s.instructor,
         });
         await scheduleCourseReminders(s.courseName, [{ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime }]);
       }
